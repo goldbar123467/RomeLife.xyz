@@ -1,0 +1,291 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   ROME EMPIRE BUILDER - Global Styles
+   Cleaned up - essential styles only
+   ============================================ */
+
+/* === CSS VARIABLES === */
+:root {
+  --bg: #030303;
+  --paper: #080808;
+  --gold: #F0C14B;
+  --gold-dim: rgba(240, 193, 75, 0.1);
+  --crimson: #C41E3A;
+  --ink: #e5e5e5;
+  --muted: #6b7280;
+  --line: #1a1a1a;
+}
+
+/* === BASE STYLES === */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for iOS devices with notch/home bar */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Custom scrollbar utility */
+.custom-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dim);
+}
+
+/* === COSMIC BACKGROUND === */
+.roman-pattern {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(88, 28, 135, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(30, 58, 138, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(15, 23, 42, 1) 0%, var(--bg) 100%);
+}
+
+.roman-pattern::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    /* Jupiter */
+    radial-gradient(circle at 85% 15%, #c4a574 0%, #8b7355 15%, transparent 16%),
+    radial-gradient(circle at 85% 15%, rgba(196, 165, 116, 0.25) 0%, transparent 25%),
+    /* Mars */
+    radial-gradient(circle at 10% 25%, #c75050 0%, #8b3535 8%, transparent 9%),
+    radial-gradient(circle at 10% 25%, rgba(199, 80, 80, 0.35) 0%, transparent 15%),
+    /* Venus */
+    radial-gradient(circle at 92% 70%, #ffd9b3 0%, #e6c9a3 6%, transparent 7%),
+    /* Mercury */
+    radial-gradient(circle at 5% 85%, #a0a0a0 0%, #707070 4%, transparent 5%),
+    /* Saturn */
+    radial-gradient(circle at 75% 90%, #e6d9a6 0%, #c4b896 10%, transparent 11%),
+    /* Neptune */
+    radial-gradient(circle at 20% 60%, #4169e1 0%, #2a4494 7%, transparent 8%);
+}
+
+.roman-pattern::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.7;
+  background-image:
+    radial-gradient(1px 1px at 10% 10%, white 50%, transparent),
+    radial-gradient(1px 1px at 20% 30%, white 50%, transparent),
+    radial-gradient(1px 1px at 35% 15%, rgba(255, 255, 255, 0.8) 50%, transparent),
+    radial-gradient(1px 1px at 50% 25%, white 50%, transparent),
+    radial-gradient(1px 1px at 65% 10%, rgba(255, 255, 255, 0.7) 50%, transparent),
+    radial-gradient(1px 1px at 80% 35%, white 50%, transparent),
+    radial-gradient(1px 1px at 15% 55%, white 50%, transparent),
+    radial-gradient(1px 1px at 45% 45%, white 50%, transparent),
+    radial-gradient(1px 1px at 75% 50%, white 50%, transparent),
+    radial-gradient(1px 1px at 88% 75%, rgba(255, 255, 255, 0.9) 50%, transparent),
+    radial-gradient(2px 2px at 28% 22%, rgba(255, 255, 255, 0.9) 50%, transparent),
+    radial-gradient(2px 2px at 72% 38%, rgba(255, 255, 200, 0.9) 50%, transparent),
+    radial-gradient(3px 3px at 15% 35%, rgba(240, 193, 75, 0.7) 30%, transparent);
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0.5; }
+}
+
+.roman-pattern > * {
+  position: relative;
+  z-index: 10;
+}
+
+/* === GLASS PANELS === */
+.glass-gold {
+  background: linear-gradient(135deg, rgba(5, 5, 10, 0.92) 0%, rgba(10, 10, 18, 0.88) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(240, 193, 75, 0.25);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(240, 193, 75, 0.08);
+}
+
+.glass-dark {
+  background: linear-gradient(135deg, rgba(5, 5, 10, 0.92) 0%, rgba(10, 10, 18, 0.88) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* === GLOW EFFECTS === */
+.glow-gold {
+  box-shadow: 0 0 20px rgba(240, 193, 75, 0.3);
+}
+
+.glow-gold-hover:hover {
+  box-shadow: 0 0 30px rgba(240, 193, 75, 0.5);
+}
+
+/* === RARITY EFFECTS === */
+.rarity-legendary {
+  animation: legendary-pulse 2s ease-in-out infinite;
+}
+
+.rarity-imperial {
+  animation: imperial-glow 2s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% { box-shadow: 0 0 25px rgba(234, 88, 12, 0.5); }
+  50% { box-shadow: 0 0 35px rgba(234, 88, 12, 0.8); }
+}
+
+@keyframes imperial-glow {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(220, 38, 38, 0.6);
+    border-color: #dc2626;
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(240, 193, 75, 0.7);
+    border-color: var(--gold);
+  }
+}
+
+/* === TERRITORY SHAPE === */
+.clip-territory {
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+/* === SCANLINE EFFECT === */
+.scanline::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(240, 193, 75, 0.3), transparent);
+  animation: scanline-move 4s linear infinite;
+}
+
+@keyframes scanline-move {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+/* === TICKER TAPE === */
+.ticker-container {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-content {
+  display: inline-block;
+  animation: ticker-scroll 30s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* === BUTTON BASE STYLES === */
+.btn-roman {
+  @apply bg-gradient-to-b from-roman-red to-roman-red-dark text-white font-bold;
+  @apply px-6 py-3 rounded-xl border-2 border-roman-red-dark;
+  @apply shadow-btn-primary transition-all duration-200 cursor-pointer;
+}
+
+.btn-roman:hover {
+  @apply -translate-y-0.5;
+  box-shadow: 0 6px 20px rgba(196, 30, 58, 0.6);
+}
+
+.btn-roman:disabled {
+  @apply opacity-50 cursor-not-allowed translate-y-0;
+}
+
+.btn-gold {
+  @apply bg-roman-gold/10 text-roman-gold font-semibold;
+  @apply px-6 py-3 rounded-xl border border-roman-gold/30;
+  @apply shadow-btn-gold transition-all duration-200 cursor-pointer;
+}
+
+.btn-gold:hover {
+  @apply bg-roman-gold/20;
+  box-shadow: 0 6px 20px rgba(240, 193, 75, 0.4);
+}
+
+/* === TOOLTIP === */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(240, 193, 75, 0.2);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 50;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* === UTILITY ANIMATIONS === */
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx playwright install chromium)",
+      "Bash(npx playwright test:*)",
+      "Bash(wc:*)",
+      "Bash(npm run build:*)",
+      "Bash(bun dev)",
+      "Bash(bun run build:*)",
+      "Bash(npm ls)"
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+tests/
+test-results/
+playwright.config.ts
+*.spec.ts
