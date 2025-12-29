@@ -2,13 +2,13 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, Badge, SectionHeader, ProgressBar } from '@/components/ui';
+import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { Castle, Clock, Check, Lock, Hammer } from 'lucide-react';
 import type { Wonder, ResourceType } from '@/core/types';
 
 // Wonder icons mapping
-const WONDER_ICONS: Record<string, string> = {
+const WONDER_ASSETS: Record<string, string> = {
     colosseum: '🏛️',
     pantheon: '⛪',
     circus_maximus: '🏟️',
@@ -61,7 +61,7 @@ function WonderCard({ wonder }: { wonder: Wonder }) {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                        <span className="text-3xl">{WONDER_ICONS[wonder.id] || '🏛️'}</span>
+                        <GameImage src={WONDER_ASSETS[wonder.id] || "temple"} size="xl" alt={wonder.name} />
                         <div>
                             <h3 className="font-bold text-roman-gold text-lg">{wonder.name}</h3>
                             <p className="text-xs text-muted">{wonder.description}</p>

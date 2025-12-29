@@ -26,6 +26,14 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-bg text-ink min-h-screen">
         {children}
+        <a
+          href="https://www.vecteezy.com/free-vector/isometric-rome"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-1 right-2 text-[10px] text-white/30 hover:text-white/50 transition-colors z-50"
+        >
+          Isometric Rome Vectors by Vecteezy
+        </a>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, SectionHeader, StatDisplay } from '@/components/ui';
+import { GlassCard, SectionHeader, StatDisplay, GameImage } from '@/components/ui';
 import { calculateIncome, calculateUpkeep, calculateFoodConsumption } from '@/core/math';
 import { SEASON_MODIFIERS, GAME_CONSTANTS } from '@/core/constants';
 import {
@@ -164,7 +164,7 @@ export function EconomyPanel() {
 
             {/* Tax Rate Control */}
             <GlassCard className="p-6">
-                <h3 className="text-xl font-bold text-roman-gold mb-4">📜 Taxation Policy</h3>
+                <h3 className="text-xl font-bold text-roman-gold mb-4">Taxation Policy</h3>
 
                 <div className="flex items-center gap-4 mb-6">
                     <div className="flex-1">
@@ -232,27 +232,27 @@ export function EconomyPanel() {
 
             {/* Expenditure Breakdown */}
             <GlassCard className="p-6">
-                <h3 className="text-xl font-bold text-roman-gold mb-4">📊 Expenditure Breakdown</h3>
+                <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2"><GameImage src="scroll" size="sm" alt="Breakdown" /> Expenditure Breakdown</h3>
 
                 <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                        <span className="text-muted">⚔️ Military Upkeep</span>
+                        <span className="text-muted">Military Upkeep</span>
                         <span className="text-red-400">-{(state.troops * GAME_CONSTANTS.TROOP_UPKEEP).toFixed(0)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-muted">🏠 Housing Maintenance</span>
+                        <span className="text-muted">Housing Maintenance</span>
                         <span className="text-red-400">-{(state.housing / GAME_CONSTANTS.HOUSING_UPKEEP_DIVISOR).toFixed(0)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-muted">🏰 Fort Upkeep</span>
+                        <span className="text-muted">Fort Upkeep</span>
                         <span className="text-red-400">-{(state.forts * GAME_CONSTANTS.FORT_UPKEEP).toFixed(0)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-muted">🚿 Sanitation</span>
+                        <span className="text-muted flex items-center gap-1"><GameImage src="amphora" size="xs" alt="Sanitation" /> Sanitation</span>
                         <span className="text-red-400">-{(state.sanitation / GAME_CONSTANTS.SANITATION_UPKEEP_DIVISOR).toFixed(0)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-muted">🏛️ Buildings</span>
+                        <span className="text-muted">Buildings</span>
                         <span className="text-red-400">-{state.buildings.filter(b => b.built).reduce((sum, b) => sum + b.upkeep, 0)}</span>
                     </div>
 
@@ -271,7 +271,7 @@ export function EconomyPanel() {
                     <StatDisplay
                         label="Inflation"
                         value={`${inflation.toFixed(1)}%`}
-                        icon="📈"
+                        icon={<GameImage src="coin-gold" size="xs" alt="Inflation" />}
                         trend={inflation > 5 ? 'down' : 'neutral'}
                     />
                 </GlassCard>
@@ -280,7 +280,7 @@ export function EconomyPanel() {
                     <StatDisplay
                         label="Food Consumption"
                         value={`${foodCost}/season`}
-                        icon="🍞"
+                        icon={<GameImage src="grapes" size="xs" alt="Food" />}
                         trend={state.inventory.grain < foodCost ? 'down' : 'up'}
                     />
                 </GlassCard>

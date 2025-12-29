@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, Badge, SectionHeader, ProgressBar } from '@/components/ui';
+import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { MILITARY_UNITS } from '@/core/constants';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { Swords, Shield, Users, Trophy } from 'lucide-react';
@@ -98,13 +98,13 @@ export function MilitaryPanel() {
                                         <div className="flex justify-between">
                                             <span className="text-muted">Cost</span>
                                             <span className={denarii >= unit.cost.denarii ? 'text-green-400' : 'text-red-400'}>
-                                                {unit.cost.denarii} 🪙
+                                                <><GameImage src="coin-gold" size="sm" /> {unit.cost.denarii}</>
                                             </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted">Food</span>
                                             <span className={inventory.grain >= unit.cost.food ? 'text-green-400' : 'text-red-400'}>
-                                                {unit.cost.food} 🌾
+                                                <><GameImage src="amphora" size="sm" /> {unit.cost.food}</>
                                             </span>
                                         </div>
                                     </div>

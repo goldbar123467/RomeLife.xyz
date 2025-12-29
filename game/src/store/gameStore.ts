@@ -7,7 +7,8 @@ import { persist } from 'zustand/middleware';
 import type {
     GameState, GameStage, Tab, Founder, GodName,
     Territory, Building, TradeCity,
-    ResourceType, CaravanConfig, CaravanType, TradeState
+    ResourceType, CaravanConfig, CaravanType, TradeState,
+    AttentionAllocation, SenatorId
 } from '@/core/types';
 import {
     STARTING_STATE, BASE_PRICES,
@@ -19,6 +20,7 @@ import {
     calculateBattleOdds, calculateEnemyStrength, resolveBattle
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
+import { createInitialSenators, DEFAULT_ATTENTION, clampRelation } from '@/core/constants/senate';
 import { TECHNOLOGIES, ACHIEVEMENTS, WONDERS, generateQuest } from '@/core/rules';
 import {
     executeEndSeason, executeRecruitTroops, executeResearchTech,
@@ -331,6 +333,13 @@ interface GameStore extends GameState {
 
     // Reset
     resetGame: () => void;
+
+    // Actions - Senate
+    initializeSenate: () => void;
+    allocateAttention: (allocation: AttentionAllocation) => void;
+    resolveSenatorEvent: (choiceId: string) => void;
+    dismissSenatorEvent: () => void;
+    setSenatorRelation: (senatorId: SenatorId, change: number) => void;
 }
 
 // === INITIAL STATE ===
@@ -341,7 +350,8 @@ const createInitialState = (): Omit<GameStore,
     'assignGarrison' | 'recallGarrison' | 'setPatronGod' | 'worship' | 'buildReligiousBuilding' |
     'sendEnvoy' | 'startWonder' | 'executeEmergency' | 'executeCraft' | 'assignGovernor' | 'setTerritoryFocus' |
     'enterInfiniteMode' | 'debugAddResources' | 'debugSetGold' | 'debugFastForward' | 'resetGame' | 'setBattleSpeed' |
-    'setTradeTab' | 'sendCaravan' | 'establishTradeRoute' | 'cancelTradeRoute' | 'upgradeTradeSkill'
+    'setTradeTab' | 'sendCaravan' | 'establishTradeRoute' | 'cancelTradeRoute' | 'upgradeTradeSkill' |
+    'initializeSenate' | 'allocateAttention' | 'resolveSenatorEvent' | 'dismissSenatorEvent' | 'setSenatorRelation'
 > => ({
     // Meta
     stage: 'intro',
@@ -357,11 +367,11 @@ const createInitialState = (): Omit<GameStore,
     // Resources
     denarii: STARTING_STATE.denarii,
     inventory: {
-        grain: 50, iron: 10, timber: 20, stone: 15, clay: 10,
+        grain: 120, iron: 10, timber: 20, stone: 15, clay: 10,  // grain: 120 survives first winter
         wool: 5, salt: 5, livestock: 10, wine: 0, olive_oil: 0, spices: 0,
     },
     capacity: {
-        grain: 100, iron: 50, timber: 80, stone: 60, clay: 50,
+        grain: 150, iron: 50, timber: 80, stone: 60, clay: 50,  // grain capacity increased to 150
         wool: 40, salt: 40, livestock: 50, wine: 30, olive_oil: 30, spices: 20,
     },
 
@@ -416,11 +426,28 @@ const createInitialState = (): Omit<GameStore,
         activeEnvoys: 0,
     },
 
+    // Senate (V2 Political System)
+    senate: {
+        initialized: true,
+        senators: createInitialSenators(),
+        attentionThisSeason: { ...DEFAULT_ATTENTION },
+        attentionLocked: false,
+        pendingEvents: [],
+        currentEvent: null,
+        eventHistory: [],
+        actionQueue: [],
+        gracePhaseComplete: false,
+        playerActionLog: [],
+        anyAssassinationAttempted: false,
+        senatoriusSavedPlayer: false,
+    },
+
     // Stats
     totalConquests: 0,
     totalTrades: 0,
     winStreak: 0,
     consecutiveStarvation: 0,
+    feastsUsed: 0,  // Tracks feast uses for diminishing returns
     history: [],
     treasuryHistory: [],
 
@@ -1207,10 +1234,18 @@ export const useGameStore = create<GameStore>()(
                 let newHappiness = state.happiness;
                 let newReputation = state.reputation;
                 let newSupplies = state.supplies;
+                let newFeastsUsed = state.feastsUsed;
 
                 switch (recipe.effect.type) {
                     case 'happiness':
-                        newHappiness = Math.min(100, newHappiness + recipe.effect.value);
+                        // Host Feast has diminishing returns: 20 × (0.5 ^ feastsUsed)
+                        if (recipeId === 'host_feast') {
+                            const diminishedValue = Math.floor(recipe.effect.value * Math.pow(0.5, state.feastsUsed));
+                            newHappiness = Math.min(100, newHappiness + diminishedValue);
+                            newFeastsUsed += 1;
+                        } else {
+                            newHappiness = Math.min(100, newHappiness + recipe.effect.value);
+                        }
                         break;
                     case 'reputation':
                         newReputation += recipe.effect.value;
@@ -1224,12 +1259,20 @@ export const useGameStore = create<GameStore>()(
                         break;
                 }
 
+                // Build message with diminished value for feast
+                let message = `${recipe.icon} ${recipe.name} completed!`;
+                if (recipeId === 'host_feast') {
+                    const actualGain = Math.floor(recipe.effect.value * Math.pow(0.5, state.feastsUsed));
+                    message = `${recipe.icon} ${recipe.name} completed! (+${actualGain} happiness)`;
+                }
+
                 set({
                     inventory: newInventory,
                     happiness: newHappiness,
                     reputation: newReputation,
                     supplies: newSupplies,
-                    lastEvents: [`${recipe.icon} ${recipe.name} completed!`],
+                    feastsUsed: newFeastsUsed,
+                    lastEvents: [message],
                 });
             },
 
@@ -1326,6 +1369,123 @@ export const useGameStore = create<GameStore>()(
             // UI state
             lastEvents: [],
 
+            // === SENATE ===
+            initializeSenate: () => {
+                set({
+                    senate: {
+                        initialized: true,
+                        senators: createInitialSenators(),
+                        attentionThisSeason: { ...DEFAULT_ATTENTION },
+                        attentionLocked: false,
+                        pendingEvents: [],
+                        currentEvent: null,
+                        eventHistory: [],
+                        actionQueue: [],
+                        gracePhaseComplete: false,
+                        playerActionLog: [],
+                        anyAssassinationAttempted: false,
+                        senatoriusSavedPlayer: false,
+                    },
+                });
+            },
+
+            allocateAttention: (allocation) => {
+                const state = get();
+                // Validate sum equals 100
+                const total = Object.values(allocation).reduce((a, b) => a + b, 0);
+                if (total !== 100) {
+                    set({ lastEvents: ['Attention must total 100 points!'] });
+                    return;
+                }
+
+                set({
+                    senate: {
+                        ...state.senate,
+                        attentionThisSeason: allocation,
+                    },
+                });
+            },
+
+            resolveSenatorEvent: (choiceId) => {
+                const state = get();
+                if (!state.senate.currentEvent) return;
+
+                const event = state.senate.currentEvent;
+                const choice = event.choices.find(c => c.id === choiceId);
+                if (!choice) return;
+
+                // Apply relation changes
+                const newSenators = { ...state.senate.senators };
+                if (choice.effects.relationChanges) {
+                    for (const [senatorId, change] of Object.entries(choice.effects.relationChanges)) {
+                        const sid = senatorId as SenatorId;
+                        if (newSenators[sid]) {
+                            newSenators[sid] = {
+                                ...newSenators[sid],
+                                relation: clampRelation(newSenators[sid].relation + change),
+                            };
+                        }
+                    }
+                }
+
+                // Apply resource changes
+                const newState: Partial<GameStore> = {};
+                if (choice.effects.resourceChanges) {
+                    const rc = choice.effects.resourceChanges;
+                    if (rc.denarii) newState.denarii = state.denarii + rc.denarii;
+                    if (rc.happiness) newState.happiness = Math.max(0, Math.min(100, state.happiness + rc.happiness));
+                    if (rc.morale) newState.morale = Math.max(0, Math.min(100, state.morale + rc.morale));
+                    if (rc.reputation) newState.reputation = state.reputation + rc.reputation;
+                    if (rc.piety) newState.piety = Math.max(0, state.piety + rc.piety);
+                }
+
+                // Record event in history
+                const newHistory = [
+                    ...state.senate.eventHistory,
+                    { eventId: event.id, choiceId, round: state.round }
+                ];
+
+                set({
+                    ...newState,
+                    senate: {
+                        ...state.senate,
+                        senators: newSenators,
+                        currentEvent: null,
+                        eventHistory: newHistory,
+                    },
+                    lastEvents: [`Senate: Resolved "${event.title}"`],
+                });
+            },
+
+            dismissSenatorEvent: () => {
+                const state = get();
+                set({
+                    senate: {
+                        ...state.senate,
+                        currentEvent: null,
+                    },
+                });
+            },
+
+            setSenatorRelation: (senatorId, change) => {
+                const state = get();
+                const senator = state.senate.senators[senatorId];
+                if (!senator) return;
+
+                set({
+                    senate: {
+                        ...state.senate,
+                        senators: {
+                            ...state.senate.senators,
+                            [senatorId]: {
+                                ...senator,
+                                relation: clampRelation(senator.relation + change),
+                            },
+                        },
+                    },
+                });
+            },
+
             // === RESET ===
             resetGame: () => set(createInitialState() as Partial<GameStore>),
         }),
@@ -1363,10 +1523,12 @@ export const useGameStore = create<GameStore>()(
                 market: state.market,
                 tradeState: state.tradeState,
                 diplomacy: state.diplomacy,
+                senate: state.senate,
                 totalConquests: state.totalConquests,
                 totalTrades: state.totalTrades,
                 winStreak: state.winStreak,
                 consecutiveStarvation: state.consecutiveStarvation,
+                feastsUsed: state.feastsUsed,
                 infiniteMode: state.infiniteMode,
                 history: state.history,
                 treasuryHistory: state.treasuryHistory,

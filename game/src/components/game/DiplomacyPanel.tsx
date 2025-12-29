@@ -2,18 +2,19 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, Badge, SectionHeader, ProgressBar } from '@/components/ui';
+import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
+import { isAssetKey } from '@/lib/assets';
 
 export function DiplomacyPanel() {
     const state = useGameStore();
     const { diplomacy, reputation, denarii, sendEnvoy, lastEvents } = state;
 
     const factions = [
-        { id: 'alba_longa', name: 'Alba Longa', description: 'Our mother city, Latin allies', icon: '🏛️' },
+        { id: 'alba_longa', name: 'Alba Longa', description: 'Our mother city, Latin allies', icon: 'temple' },
         { id: 'sabines', name: 'Sabine Tribes', description: 'Hill people to the northeast', icon: '⛰️' },
-        { id: 'etruscans', name: 'Etruscans', description: 'Powerful northern civilization', icon: '👑' },
+        { id: 'etruscans', name: 'Etruscans', description: 'Powerful northern civilization', icon: 'emperor' },
         { id: 'latins', name: 'Latin League', description: 'Confederation of Latin cities', icon: '🤝' },
-        { id: 'greeks', name: 'Greek Colonies', description: 'Southern coastal settlements', icon: '🏺' },
+        { id: 'greeks', name: 'Greek Colonies', description: 'Southern coastal settlements', icon: 'amphora' },
     ];
 
     const getRelationStatus = (relation: number): { text: string; color: string } => {
@@ -32,7 +33,7 @@ export function DiplomacyPanel() {
             <SectionHeader
                 title="Diplomacy"
                 subtitle="Manage relations with neighboring powers"
-                icon="🤝"
+                icon={<GameImage src="laurels" size="sm" alt="Diplomacy" />}
             />
 
             {/* Reputation */}
@@ -76,7 +77,7 @@ export function DiplomacyPanel() {
                         >
                             <GlassCard className="p-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="text-4xl">{faction.icon}</div>
+                                    <div className="flex-shrink-0">{isAssetKey(faction.icon) ? <GameImage src={faction.icon} size="xl" alt={faction.name} /> : <span className="text-4xl">{faction.icon}</span>}</div>
 
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-1">
@@ -127,7 +128,7 @@ export function DiplomacyPanel() {
 
             {/* Diplomacy Tips */}
             <GlassCard className="p-4">
-                <h3 className="font-bold text-roman-gold mb-3">📜 Diplomatic Effects</h3>
+                <h3 className="font-bold text-roman-gold mb-3">Diplomatic Effects</h3>
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                     <div className="glass-dark rounded-lg p-3">
                         <span className="text-green-400 font-bold">Allied (80+)</span>

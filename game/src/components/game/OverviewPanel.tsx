@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divider, SectionHeader } from '@/components/ui';
+import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divider, SectionHeader, GameImage } from '@/components/ui';
+import { RESOURCE_ASSETS } from '@/lib/assets';
 import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
 import { calculateProductionSummary } from '@/core/math';
 import type { ResourceType } from '@/core/types';
@@ -95,7 +96,7 @@ export function OverviewPanel() {
                         <GlassCard variant="gold">
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="w-16 h-16 rounded-2xl bg-roman-gold/20 flex items-center justify-center text-3xl">
-                                    {founder.id === 'romulus' ? '⚔️' : founder.id === 'remus' ? '🕊️' : '🍳'}
+                                    <GameImage src={founder.id === "romulus" ? "centurion-helmet" : "roman"} size="lg" alt={founder.name} />
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-bold text-roman-gold">{founder.name}</h3>
@@ -192,12 +193,12 @@ export function OverviewPanel() {
                         <SectionHeader title="Legion Status" subtitle="Military Force Breakdown" />
                         <div className="grid grid-cols-2 gap-4 text-center mb-4">
                             <div className="p-3 bg-white/5 rounded-xl border border-white/10">
-                                <div className="text-2xl mb-1">⚔️</div>
+                                <GameImage src="centurion-helmet" size="lg" alt="Field Army" />
                                 <div className="text-xl font-bold text-white">{troops}</div>
                                 <div className="text-xs text-muted uppercase tracking-wider">Field Army</div>
                             </div>
                             <div className="p-3 bg-white/5 rounded-xl border border-white/10">
-                                <div className="text-2xl mb-1">🏰</div>
+                                <GameImage src="shield" size="lg" alt="Garrisons" />
                                 <div className="text-xl font-bold text-white">{totalGarrison}</div>
                                 <div className="text-xs text-muted uppercase tracking-wider">Garrisons</div>
                             </div>
@@ -214,7 +215,7 @@ export function OverviewPanel() {
                         <div className="grid grid-cols-3 gap-2">
                             {Object.entries(inventory).map(([type, amount]) => (
                                 <motion.div key={type} className="p-2 rounded-lg bg-white/5 text-center" whileHover={{ backgroundColor: 'rgba(255, 215, 0, 0.1)' }}>
-                                    <div className="text-lg">{RESOURCE_INFO[type as ResourceType]?.emoji || '📦'}</div>
+                                    <GameImage src={RESOURCE_ASSETS[type] || RESOURCE_INFO[type as ResourceType]?.emoji || '📦'} size="md" alt={RESOURCE_INFO[type as ResourceType]?.name || type} />
                                     <div className="text-sm font-bold">{amount}</div>
                                     <div className="text-xs text-muted truncate">{RESOURCE_INFO[type as ResourceType]?.name || type}</div>
                                 </motion.div>
@@ -277,7 +278,7 @@ export function OverviewPanel() {
                             </div>
                         ) : (
                             <div className="text-center py-4">
-                                <div className="text-4xl mb-2 opacity-50">🏛️</div>
+                                <GameImage src="temple" size="xl" alt="Coming Soon" className="opacity-50" />
                                 <p className="text-sm text-muted">No patron god selected</p>
                                 <Button variant="ghost" size="sm" className="mt-3">Choose Patron</Button>
                             </div>

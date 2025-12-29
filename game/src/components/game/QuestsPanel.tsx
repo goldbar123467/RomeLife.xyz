@@ -2,18 +2,18 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Badge, SectionHeader, ProgressBar } from '@/components/ui';
+import { GlassCard, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { ScrollText, Target, Coins, Trophy, Star, Check } from 'lucide-react';
 import type { Quest } from '@/core/types';
 
 // Quest type icons
 const QUEST_ICONS: Record<string, React.ReactNode> = {
-    build: <span className="text-xl">🏗️</span>,
-    conquer: <span className="text-xl">⚔️</span>,
-    trade: <span className="text-xl">💰</span>,
-    research: <span className="text-xl">📜</span>,
-    threshold: <span className="text-xl">📊</span>,
+    build: <GameImage src="column" size="sm" alt="Build" />,
+    conquer: <GameImage src="centurion-helmet" size="sm" alt="Conquer" />,
+    trade: <GameImage src="coin-gold" size="sm" alt="Trade" />,
+    research: <GameImage src="scroll" size="sm" alt="Research" />,
+    threshold: <GameImage src="laurels" size="sm" alt="Threshold" />,
 };
 
 function QuestCard({ quest }: { quest: Quest }) {

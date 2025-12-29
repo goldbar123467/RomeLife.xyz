@@ -51,14 +51,14 @@ export const FOUNDERS: Record<FounderName, Founder> = {
     },
 };
 
-// === MILITARY UNITS ===
+// === MILITARY UNITS (tightened variance for predictability) ===
 export const MILITARY_UNITS: MilitaryUnit[] = [
-    { id: 'militia', name: 'Militia', cost: { denarii: 80, food: 5 }, troopsMin: 8, troopsMax: 12, role: 'Cheap fodder' },
-    { id: 'auxiliaries', name: 'Auxiliaries', cost: { denarii: 100, food: 7 }, troopsMin: 10, troopsMax: 16, role: 'Mercenaries' },
-    { id: 'archers', name: 'Archers', cost: { denarii: 120, food: 6 }, troopsMin: 10, troopsMax: 15, role: 'Ranged support' },
-    { id: 'legionaries', name: 'Legionaries', cost: { denarii: 140, food: 8 }, troopsMin: 12, troopsMax: 18, role: 'Heavy infantry' },
-    { id: 'cavalry', name: 'Cavalry', cost: { denarii: 250, food: 12 }, troopsMin: 20, troopsMax: 30, role: 'Elite shock troops' },
-    { id: 'praetorians', name: 'Praetorian Guard', cost: { denarii: 400, food: 15 }, troopsMin: 35, troopsMax: 50, role: 'The finest' },
+    { id: 'militia', name: 'Militia', cost: { denarii: 80, food: 5 }, troopsMin: 9, troopsMax: 11, role: 'Cheap fodder' },
+    { id: 'auxiliaries', name: 'Auxiliaries', cost: { denarii: 100, food: 7 }, troopsMin: 12, troopsMax: 14, role: 'Mercenaries' },
+    { id: 'archers', name: 'Archers', cost: { denarii: 120, food: 6 }, troopsMin: 11, troopsMax: 14, role: 'Ranged support' },
+    { id: 'legionaries', name: 'Legionaries', cost: { denarii: 140, food: 8 }, troopsMin: 14, troopsMax: 16, role: 'Heavy infantry' },
+    { id: 'cavalry', name: 'Cavalry', cost: { denarii: 250, food: 12 }, troopsMin: 23, troopsMax: 27, role: 'Elite shock troops' },
+    { id: 'praetorians', name: 'Praetorian Guard', cost: { denarii: 400, food: 15 }, troopsMin: 40, troopsMax: 45, role: 'The finest' },
 ];
 
 // === ROMAN GODS ===
@@ -243,10 +243,10 @@ export const GAME_CONSTANTS = {
     STARVATION_POP_LOSS: 0.15,                // 15% pop loss on starvation
     STARVATION_MORALE_LOSS: 15,               // -15 morale on starvation
 
-    // Grace Period (early game)
+    // Grace Period (early game) - extended for first-year protection
     GRACE_MULTIPLIERS: [
-        { maxRound: 6, multiplier: 0.6 },
-        { maxRound: 12, multiplier: 0.8 },
+        { maxRound: 8, multiplier: 0.6 },   // First 2 years: 60% consumption
+        { maxRound: 14, multiplier: 0.8 },  // Years 3-3.5: 80% consumption
         { maxRound: Infinity, multiplier: 1.0 },
     ],
 
@@ -265,13 +265,13 @@ export const GAME_CONSTANTS = {
     VICTORY_ETERNAL_CITY: { territories: 10, population: 500, happiness: 75 },
     VICTORY_COMMERCE: { denarii: 15000, reputation: 35 },
     VICTORY_CONQUEROR: { territories: 8, troops: 180 },
-    VICTORY_GLORY: { population: 600, happiness: 90 },
+    VICTORY_GLORY: { population: 350, happiness: 90 },  // Lowered from 600 for achievability
     VICTORY_INDUSTRIAL: { buildings: 15, denarii: 10000 },
 
-    // Failure Conditions (Tightened)
-    FAILURE_STARVATION_LIMIT: 2,              // Reduced from 3 → 2 consecutive
-    FAILURE_MIN_POPULATION: 60,               // Raised from 40 → 60
-    FAILURE_MIN_HAPPINESS: 25,                // Raised from 20 → 25
+    // Failure Conditions
+    FAILURE_STARVATION_LIMIT: 2,              // 2 consecutive starvations = game over
+    FAILURE_MIN_POPULATION: 40,               // Lowered to 40 (reachable via conscription/events)
+    FAILURE_MIN_HAPPINESS: 25,                // Below 25% = unrest failure
 
     // Market
     DEMAND_MIN: 50,

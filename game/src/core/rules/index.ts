@@ -89,7 +89,7 @@ export function checkVictoryConditions(state: GameState): VictoryResult | null {
 // === FAILURE CONDITIONS ===
 
 export interface FailureResult {
-    type: 'famine' | 'collapse' | 'unrest';
+    type: 'famine' | 'collapse' | 'unrest' | 'assassination';
     title: string;
     description: string;
 }

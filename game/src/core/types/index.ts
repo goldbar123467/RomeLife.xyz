@@ -2,6 +2,10 @@
 // ROME EMPIRE BUILDER - Core Type Definitions
 // ============================================
 
+// Re-export senate types
+import type { SenateState } from './senate';
+export * from './senate';
+
 // === ENUMS ===
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'imperial';
@@ -27,7 +31,8 @@ export type GameStage = 'intro' | 'founder_select' | 'game' | 'battle' | 'result
 export type Tab =
     | 'overview' | 'resources' | 'economy' | 'trade'
     | 'military' | 'map' | 'settlement' | 'diplomacy'
-    | 'technology' | 'religion' | 'achievements' | 'wonders' | 'quests';
+    | 'technology' | 'religion' | 'achievements' | 'wonders' | 'quests'
+    | 'senate';
 
 // === INTERFACES ===
 
@@ -379,16 +384,23 @@ export interface GameState {
     // Diplomacy
     diplomacy: DiplomacyState;
 
+    // Senate (V2 Political System)
+    senate: SenateState;
+
     // Stats & History
     totalConquests: number;
     totalTrades: number;
     winStreak: number;
     consecutiveStarvation: number;
+    feastsUsed: number;  // Tracks feast uses for diminishing returns
     history: GameHistoryEntry[];
     treasuryHistory: TreasuryHistoryEntry[];
 
     // Emergency Actions
     emergencyCooldowns?: Record<string, number>;
+
+    // Event Cooldowns (prevent same event from repeating)
+    eventCooldowns?: Record<string, number>;
 }
 
 export interface GameHistoryEntry {

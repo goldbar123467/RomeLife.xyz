@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { RESOURCE_INFO } from '@/core/constants';
+import { GameImage } from '@/components/ui';
+import { isAssetKey } from '@/lib/assets';
 import type { ResourceType } from '@/core/types';
 
 interface StatValue {
@@ -65,7 +67,7 @@ const StatCell = memo(function StatCell({
             animate={flash ? flashScaleAnimation : noAnimation}
             transition={{ duration: 0.3 }}
         >
-            <span className="text-sm">{icon}</span>
+            {isAssetKey(icon) ? <GameImage src={icon} size="xs" alt={label} /> : <span className="text-sm">{icon}</span>}
             <span className="text-xs text-muted font-medium uppercase">{label}</span>
             <span className={`text-sm font-bold ${textClass}`}>
                 {displayValue}
@@ -208,11 +210,11 @@ export function TerminalHeader() {
                 {/* Key Stats */}
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-xs">
-                        <span>👥</span>
+                        <GameImage src="roman" size="xs" alt="Population" />
                         <span className="text-muted">{population}</span>
                     </div>
                     <div className="flex items-center gap-1 text-xs">
-                        <span>⚔️</span>
+                        <GameImage src="centurion-helmet" size="xs" alt="Troops" />
                         <span className="text-muted">{troops}</span>
                     </div>
                 </div>
@@ -221,7 +223,7 @@ export function TerminalHeader() {
                 <div className="flex items-center gap-2">
                     <span className={seasonInfo.color}>{seasonInfo.emoji}</span>
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-roman-gold/10 border border-roman-gold/30">
-                        <span className="text-xs">🪙</span>
+                        <GameImage src="coin-gold" size="xs" alt="Denarii" />
                         <span className="text-xs font-bold text-roman-gold">{Math.floor(denarii).toLocaleString()}</span>
                     </div>
                 </div>
@@ -264,7 +266,7 @@ export function TerminalHeader() {
                             className="flex items-center gap-2 px-3 py-1 rounded-full bg-roman-gold/10 border border-roman-gold/30"
                             whileHover={{ scale: 1.02 }}
                         >
-                            <span>🪙</span>
+                            <GameImage src="coin-gold" size="xs" alt="Denarii" />
                             <span className="font-bold text-roman-gold">{Math.floor(denarii).toLocaleString()}</span>
                         </motion.div>
                     </div>
@@ -274,11 +276,11 @@ export function TerminalHeader() {
                 <div className="flex items-center justify-between px-4 py-2 bg-bg/50">
                     {/* Core Stats */}
                     <div className="flex items-center gap-2">
-                        <StatCell label="Pop" stat={stats.population} icon="👥" />
-                        <StatCell label="Troops" stat={stats.troops} icon="⚔️" />
-                        <StatCell label="Happy" stat={stats.happiness} icon="😊" showPercent />
-                        <StatCell label="Morale" stat={stats.morale} icon="💪" showPercent />
-                        <StatCell label="Rep" stat={stats.reputation} icon="⭐" />
+                        <StatCell label="Pop" stat={stats.population} icon="roman" />
+                        <StatCell label="Troops" stat={stats.troops} icon="centurion-helmet" />
+                        <StatCell label="Happy" stat={stats.happiness} icon="laurels" showPercent />
+                        <StatCell label="Morale" stat={stats.morale} icon="shield" showPercent />
+                        <StatCell label="Rep" stat={stats.reputation} icon="laurels-gold" />
                     </div>
 
                     {/* Divider */}

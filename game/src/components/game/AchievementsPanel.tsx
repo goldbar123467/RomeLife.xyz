@@ -64,12 +64,12 @@ export function AchievementsPanel() {
                             <div className="flex flex-wrap gap-2">
                                 {achievement.reward.denarii && (
                                     <span className="text-xs glass-dark px-2 py-1 rounded-full">
-                                        +{achievement.reward.denarii} 🪙
+                                        +{achievement.reward.denarii} denarii
                                     </span>
                                 )}
                                 {achievement.reward.happiness && (
                                     <span className="text-xs glass-dark px-2 py-1 rounded-full">
-                                        +{achievement.reward.happiness} 😊
+                                        +{achievement.reward.happiness} happiness
                                     </span>
                                 )}
                                 {achievement.reward.reputation && (
@@ -79,12 +79,12 @@ export function AchievementsPanel() {
                                 )}
                                 {achievement.reward.favor && (
                                     <span className="text-xs glass-dark px-2 py-1 rounded-full">
-                                        +{achievement.reward.favor} 🙏
+                                        +{achievement.reward.favor} favor
                                     </span>
                                 )}
                                 {achievement.reward.morale && (
                                     <span className="text-xs glass-dark px-2 py-1 rounded-full">
-                                        +{achievement.reward.morale} ⚔️
+                                        +{achievement.reward.morale} morale
                                     </span>
                                 )}
                             </div>

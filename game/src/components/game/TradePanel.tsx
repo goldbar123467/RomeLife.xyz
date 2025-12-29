@@ -405,7 +405,7 @@ function QuickTradeTab({
                                                 <div className="flex justify-between text-lg font-bold">
                                                     <span className="text-muted">You receive</span>
                                                     <span className="text-roman-gold">
-                                                        {getTradePrice(selectedResource, selectedCity)} 🪙
+                                                        {getTradePrice(selectedResource, selectedCity)} denarii
                                                     </span>
                                                 </div>
                                             </div>

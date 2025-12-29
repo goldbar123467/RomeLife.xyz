@@ -131,7 +131,7 @@ export function ResourcesPanel() {
 
             {/* Capacity Overview */}
             <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-3">🏛️ Storage Capacity</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3">Storage Capacity</h3>
                 <p className="text-sm text-muted mb-4">
                     Build granaries, warehouses, and markets to increase storage capacity.
                 </p>

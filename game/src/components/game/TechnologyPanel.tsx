@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, Badge, SectionHeader, ProgressBar } from '@/components/ui';
+import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 
 export function TechnologyPanel() {
     const state = useGameStore();
@@ -10,15 +10,15 @@ export function TechnologyPanel() {
 
     const categories = ['economy', 'military', 'farming', 'mining', 'population', 'trade'] as const;
 
-    const getCategoryIcon = (cat: string): string => {
+    const getCategoryAsset = (cat: string): string => {
         switch (cat) {
-            case 'economy': return '💰';
-            case 'military': return '⚔️';
-            case 'farming': return '🌾';
-            case 'mining': return '⛏️';
-            case 'population': return '👥';
-            case 'trade': return '🏪';
-            default: return '📜';
+            case 'economy': return 'coin-gold';
+            case 'military': return 'centurion-helmet';
+            case 'farming': return 'grapes';
+            case 'mining': return 'gear';
+            case 'population': return 'roman';
+            case 'trade': return 'amphora';
+            default: return 'scroll';
         }
     };
 
@@ -64,7 +64,7 @@ export function TechnologyPanel() {
                     <GlassCard key={category} className="p-4">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-roman-gold flex items-center gap-2">
-                                <span>{getCategoryIcon(category)}</span>
+                                <GameImage src={getCategoryAsset(category)} size="sm" alt={category} />
                                 <span className="capitalize">{category}</span>
                             </h3>
                             <Badge variant={categoryResearched === categoryTechs.length ? 'success' : 'gold'}>
@@ -108,7 +108,7 @@ export function TechnologyPanel() {
                                         {!tech.researched && (
                                             <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
                                                 <span className={`text-sm ${canAfford ? 'text-roman-gold' : 'text-red-400'}`}>
-                                                    {cost} 🪙
+                                                    <><GameImage src="coin-gold" size="xs" /> {cost}</>
                                                     {hasMinervaDiscount && (
                                                         <span className="text-xs text-muted ml-1 line-through">{tech.cost}</span>
                                                     )}

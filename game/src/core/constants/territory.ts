@@ -2,6 +2,8 @@
 // TERRITORY SYSTEM CONSTANTS
 // ============================================
 
+import type { AssetKey } from '@/lib/assets';
+
 // === TERRITORY LEVELS ===
 
 export interface TerritoryLevel {
@@ -76,6 +78,7 @@ export interface TerritoryBuilding {
   name: string;
   latinName: string;
   icon: string;
+  assetKey?: AssetKey;
   cost: number;
   effects: TerritoryBuildingEffect;
   description: string;
@@ -123,6 +126,7 @@ export const TERRITORY_BUILDINGS: Record<string, TerritoryBuilding> = {
     name: 'Local Temple',
     latinName: 'Templum Locale',
     icon: '⛪',
+    assetKey: 'temple' as AssetKey,
     cost: 200,
     effects: { piety: 10, happiness: 15, stability: 10 },
     description: 'A sacred place of worship. +10 piety, +15% happiness, +10 stability.',
@@ -171,6 +175,7 @@ export interface TerritoryEvent {
   id: string;
   name: string;
   icon: string;
+  assetKey?: AssetKey;
   description: string;
   condition: 'stability_low' | 'stability_high' | 'garrison_low' | 'random';
   conditionValue?: number; // For stability/garrison thresholds

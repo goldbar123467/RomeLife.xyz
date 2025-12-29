@@ -7,7 +7,8 @@ import { ROMAN_GODS, RELIGIOUS_BUILDINGS, WORSHIP_ACTIONS, getActiveBlessings } 
 import { GOD_ICONS } from '@/components/ui/icons';
 import { staggerContainer, fadeInUp, cardHover } from '@/lib/animations';
 import { Zap, Heart, Check, Building2, Sparkles } from 'lucide-react';
-import { GlassCard, Button, Badge } from '@/components/ui';
+import { GlassCard, Button, Badge, GameImage } from '@/components/ui';
+import { RELIGIOUS_BUILDING_ASSETS, WORSHIP_ACTION_ASSETS } from '@/lib/assets';
 import type { GodName } from '@/core/types';
 
 type ReligionTab = 'gods' | 'buildings' | 'worship';
@@ -21,8 +22,8 @@ export function ReligionPanel() {
 
     const tabs = [
         { id: 'gods' as const, label: 'Gods', icon: '⚡' },
-        { id: 'buildings' as const, label: 'Buildings', icon: '🏛️' },
-        { id: 'worship' as const, label: 'Worship', icon: '🙏' },
+        { id: 'buildings' as const, label: 'Buildings', icon: 'temple' },
+        { id: 'worship' as const, label: 'Worship', icon: 'bust' },
     ];
 
     // Get active blessings for display
@@ -234,7 +235,7 @@ export function ReligionPanel() {
                                     >
                                         <div className="flex items-start gap-4">
                                             <div className={`text-4xl p-2 rounded-xl ${isBuilt ? 'bg-green-500/20' : 'bg-religion/20'}`}>
-                                                {building.icon}
+                                                <GameImage src={RELIGIOUS_BUILDING_ASSETS[building.id] || building.icon} size="xl" alt={building.name} />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between mb-1">
@@ -333,7 +334,7 @@ export function ReligionPanel() {
                                             onClick={() => canAfford && worship(action.id)}
                                         >
                                             <div className="text-center">
-                                                <div className="text-3xl mb-2">{action.icon}</div>
+                                                <GameImage src={WORSHIP_ACTION_ASSETS[action.id] || action.icon} size="lg" alt={action.name} className="mb-2" />
                                                 <h4 className="font-bold text-roman-gold text-sm mb-1">{action.name}</h4>
                                                 <div className="text-xs text-muted mb-2">{costText.trim()}</div>
                                                 <div className="text-xs text-green-400">{effectText}</div>

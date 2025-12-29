@@ -32,20 +32,23 @@ Your goal is to build Rome from a small settlement into a mighty empire. Each se
 
 **Starting Resources:**
 - 500 Denarii (gold)
+- 120 Grain (survives first winter if you act early)
 - 100 Population
 - 70% Happiness
 - 25 Troops
 - 80% Morale
-- 150 Housing capacity
+- 150 Housing, 150 Grain Storage
 - 50 Sanitation
 - 1 Fort, 50 Supplies
 
-**First 5 Turns Checklist:**
-1. Set tax rate to 12-15%
-2. Build a Farm or Granary for food security
-3. Research Irrigation technology
+**First 5 Turns Checklist (CRITICAL for survival):**
+1. **Turn 1: Build Farm Complex (180d)** - CRITICAL! Doubles grain production to 6/season
+2. Set tax rate to 12-15%
+3. Research Irrigation technology (+20% grain)
 4. Keep happiness above 60%
 5. Don't recruit more troops yet (expensive upkeep)
+
+> **Warning:** Without the Farm Complex, you WILL starve in Winter! Build it Turn 1.
 
 ---
 
@@ -103,7 +106,7 @@ Win by achieving ONE of these:
 *Strategy: Military-focused with Mars/Jupiter worship, recruit Legionaries/Cavalry*
 
 ### City of Glory
-- 600 Population
+- 350 Population
 - 90% Happiness
 
 *Strategy: Venus worship, build Colosseum/entertainment, high housing/sanitation*
@@ -123,7 +126,7 @@ Avoid these at all costs:
 | Failure | Trigger | Prevention |
 |---------|---------|------------|
 | **Famine** | 2+ consecutive starvation rounds | Keep 40+ grain reserve, build farms, research Irrigation |
-| **Collapse** | Population drops below 60 | Maintain housing, food supply, happiness above 40% |
+| **Collapse** | Population drops below 40 | Maintain housing, food supply, avoid conscription spam |
 | **Unrest/Revolt** | Happiness falls to 25% | Keep taxes reasonable, build entertainment, worship Venus |
 
 ---
@@ -213,9 +216,9 @@ Total Upkeep = Buildings + Military + Infrastructure
 | 20%+ | High | -10%+ happiness | Emergency only |
 
 **Early Game Grace Period:**
-- Rounds 1-6: 60% of normal losses
-- Rounds 7-12: 80% of normal losses
-- Rounds 13+: Full economic impact
+- Rounds 1-8: 60% of normal food consumption (first 2 years)
+- Rounds 9-14: 80% of normal food consumption
+- Rounds 15+: Full consumption
 
 ---
 
@@ -225,12 +228,12 @@ Total Upkeep = Buildings + Military + Infrastructure
 
 | Unit | Cost | Food | Troops Gained | Best For |
 |------|------|------|---------------|----------|
-| Militia | 80d | 5 | 8-12 | Early fodder |
-| Auxiliaries | 100d | 7 | 10-16 | Cost efficiency |
-| Archers | 120d | 6 | 10-15 | Ranged support |
-| Legionaries | 140d | 8 | 12-18 | Standard warfare |
-| Cavalry | 250d | 12 | 20-30 | Elite strikes |
-| Praetorian Guard | 400d | 15 | 35-50 | Ultimate power |
+| Militia | 80d | 5 | 9-11 | Early fodder |
+| Auxiliaries | 100d | 7 | 12-14 | Cost efficiency |
+| Archers | 120d | 6 | 11-14 | Ranged support |
+| Legionaries | 140d | 8 | 14-16 | Standard warfare |
+| Cavalry | 250d | 12 | 23-27 | Elite strikes |
+| Praetorian Guard | 400d | 15 | 40-45 | Ultimate power |
 
 ### Battle Mechanics
 
@@ -316,6 +319,73 @@ Odds = Your Strength / (Your Strength + Enemy Strength)
 - Garrison building: +50 capacity each
 - Garrison troops provide stability (+1 per 10 troops)
 - Under-garrisoned territories lose stability each season
+
+### Territory Stability Formula
+
+Stability affects tax income, rebellion risk, and territory productivity.
+
+**Per-Season Stability Change:**
+```
+Base Change = garrison > 20 ? +1 : -2
+Building Bonus = (Arena +8 + Walls +15 + Forum +10 + etc.) ÷ 4
+Governor Bonus = territory.stability × governor.stability_bonus ÷ 4
+God Bonus = Jupiter blessing at tier 75 (+20% stability)
+
+Final Change = Base + Building Bonus + Governor Bonus + God Bonus
+```
+
+**Stability Effects:**
+| Stability | Tax Efficiency | Rebellion Risk | Production |
+|-----------|---------------|----------------|------------|
+| 80-100 | Full | 0% | +10% bonus |
+| 60-79 | 90% | 0% | Normal |
+| 40-59 | 75% | 5% per season | -10% |
+| 20-39 | 50% | 10% per season | -25% |
+| 0-19 | 25% | 20% per season | -50% |
+
+**Tip:** Assign Gaius (Administrator) to unstable territories (+20% stability).
+
+---
+
+## Population Growth
+
+### Population Growth Formula
+
+```
+Base Growth Rate = 2% per season
+
+Modifiers:
+× (1 + Venus blessing)     // +25% at tier 50
+× (0.5 + happiness/100)    // 50-150% based on happiness
+× sanitation_mod           // See below
+× tech_mod                 // Medicine +15%
+
+Sanitation Effects:
+- 50+: Normal growth
+- 30-49: 50% growth rate
+- Below 30: No growth, risk of decline
+- Below 15: -1% population decline
+
+Housing Cap:
+Growth = min(calculated_growth, housing - population)
+```
+
+**Example - City of Glory Planning:**
+- Starting: 100 population
+- With Venus (tier 50), high happiness (80%), good sanitation:
+  - Growth rate: 2% × 1.25 × 1.3 = ~3.25% per season
+  - ~3 population per season
+  - 350 pop requires ~250 growth = ~83 seasons without tech
+- With Medicine tech (+15%):
+  - ~3.7 population per season
+  - 350 pop in ~68 seasons
+
+**Tips for Population Growth:**
+1. Keep happiness above 70% (+20% growth)
+2. Research Medicine early (+15%)
+3. Worship Venus for +25% growth
+4. Build housing before you need it
+5. Keep sanitation above 50
 
 ---
 
@@ -471,11 +541,19 @@ Odds = Your Strength / (Your Strength + Enemy Strength)
 | Recipe | Cost | Effect |
 |--------|------|--------|
 | Forge Weapons | 10 iron + 5 timber | +10% attack for 5 seasons |
-| Host Feast | 20 grain + 5 livestock | +20 happiness (permanent) |
+| Host Feast | 20 grain + 5 livestock | +20 happiness (diminishing returns) |
 | Build Monument | 30 stone + 15 clay | +15 reputation (permanent) |
 | Supply Cache | 15 grain + 10 salt | +30 supplies (permanent) |
 
-**Tip:** Host Feast is excellent for recovering from happiness crises
+**Host Feast Diminishing Returns:**
+```
+Effect = 20 × (0.5 ^ feasts_used)
+1st feast: +20 happiness
+2nd feast: +10 happiness
+3rd feast: +5 happiness
+4th feast: +2 happiness (and so on...)
+```
+**Tip:** Save feasts for happiness crises - don't spam them!
 
 ---
 
@@ -491,6 +569,8 @@ Odds = Your Strength / (Your Strength + Enemy Strength)
 | Winter | -25% | +15% | -10% | +25% |
 
 **Winter Preparation:** Stockpile grain before winter! Aim for 50+ reserve.
+
+**Winter Caravan Risk:** Caravans returning in winter face +50% increased risk (capped at 80%). Plan caravan timing to avoid winter returns!
 
 ### Random Events (25% chance per season)
 

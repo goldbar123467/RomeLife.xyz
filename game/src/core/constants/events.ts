@@ -236,14 +236,110 @@ export const ALL_EVENTS: GameEvent[] = [
     ...NEUTRAL_EVENTS,
 ];
 
-// Event roll function
-export function rollRandomEvent(round: number, happiness: number, morale: number): GameEvent | null {
-    // Base chance: 25% per season
-    const baseChance = 0.25;
+// === EVENT CONDITIONS INTERFACE ===
+export interface EventConditions {
+    sanitation: number;
+    morale: number;
+    taxRate: number;
+    happiness: number;
+    troops: number;
+    population: number;
+}
+
+// === EVENT SCALING ===
+// Returns a multiplier for event effects based on game stage
+export function getEventScaling(round: number): number {
+    // Early game (1-8): 60% effects - less punishing while learning
+    if (round <= 8) return 0.6;
+    // Mid game (9-20): 80% effects - ramping up
+    if (round <= 20) return 0.8;
+    // Late game (21+): 100-130% effects - keeps events impactful
+    return 1.0 + Math.min(0.3, (round - 20) * 0.02);
+}
+
+// === CONDITIONAL PROBABILITY MODIFIERS ===
+// Adjusts individual event probability based on game state
+function getConditionalModifier(eventId: string, conditions?: EventConditions): number {
+    if (!conditions) return 1.0;
+
+    switch (eventId) {
+        // Negative events with conditional triggers
+        case 'plague_outbreak':
+            // +50% chance if sanitation < 30, -30% if sanitation > 60
+            if (conditions.sanitation < 30) return 1.5;
+            if (conditions.sanitation > 60) return 0.7;
+            return 1.0;
+
+        case 'fire_outbreak':
+            // +30% chance if population > 200 (crowding)
+            if (conditions.population > 200) return 1.3;
+            return 1.0;
+
+        case 'desertion':
+            // +100% chance if morale < 30, blocked if morale > 70
+            if (conditions.morale < 30) return 2.0;
+            if (conditions.morale > 70) return 0;
+            return 1.0;
+
+        case 'tax_revolt':
+            // +50% chance if taxRate > 25%, blocked if taxRate < 10%
+            if (conditions.taxRate > 0.25) return 1.5;
+            if (conditions.taxRate < 0.10) return 0;
+            return 1.0;
+
+        case 'crop_failure':
+            // More likely in bad times (low happiness = stressed farmers)
+            if (conditions.happiness < 40) return 1.3;
+            return 1.0;
+
+        // Positive events with conditional triggers
+        case 'population_boom':
+            // +50% chance if happiness > 80
+            if (conditions.happiness > 80) return 1.5;
+            if (conditions.happiness < 50) return 0.5;
+            return 1.0;
+
+        case 'good_omens':
+            // More likely when morale is already decent
+            if (conditions.morale > 60) return 1.3;
+            return 1.0;
+
+        case 'bountiful_harvest':
+            // Less likely if population is struggling
+            if (conditions.happiness < 40) return 0.7;
+            return 1.0;
+
+        default:
+            return 1.0;
+    }
+}
+
+// === GRACE PERIOD CONSTANT ===
+export const EVENT_GRACE_PERIOD_ROUNDS = 4; // First year (4 rounds) protected from negative events
+export const EVENT_COOLDOWN_ROUNDS = 4; // Same event can't repeat for 4 rounds
+
+// === MAIN EVENT ROLL FUNCTION ===
+export interface RollEventResult {
+    event: GameEvent | null;
+    scaledEffects: GameEventEffect[] | null;
+}
+
+export function rollRandomEvent(
+    round: number,
+    happiness: number,
+    morale: number,
+    conditions?: EventConditions,
+    cooldowns?: Record<string, number>
+): RollEventResult {
+    // === GRACE PERIOD ===
+    const inGracePeriod = round <= EVENT_GRACE_PERIOD_ROUNDS;
+
+    // Base chance: 25% per season, reduced to 15% during grace period
+    const baseChance = inGracePeriod ? 0.15 : 0.25;
 
     // Roll for event occurrence
     if (Math.random() > baseChance) {
-        return null; // No event this season
+        return { event: null, scaledEffects: null };
     }
 
     // Determine event category based on game state
@@ -259,27 +355,83 @@ export function rollRandomEvent(round: number, happiness: number, morale: number
         categoryRoll += 0.10; // Shift toward positive
     }
 
-    // Select event pool
+    // === SELECT EVENT POOL ===
     let eventPool: GameEvent[];
-    if (categoryRoll > 0.6) {
-        eventPool = POSITIVE_EVENTS;
-    } else if (categoryRoll < 0.35) {
-        eventPool = NEGATIVE_EVENTS;
+
+    if (inGracePeriod) {
+        // During grace period, only positive and neutral events
+        if (categoryRoll > 0.5) {
+            eventPool = POSITIVE_EVENTS;
+        } else {
+            eventPool = NEUTRAL_EVENTS;
+        }
     } else {
-        eventPool = NEUTRAL_EVENTS;
+        // Normal event selection
+        if (categoryRoll > 0.6) {
+            eventPool = POSITIVE_EVENTS;
+        } else if (categoryRoll < 0.35) {
+            eventPool = NEGATIVE_EVENTS;
+        } else {
+            eventPool = NEUTRAL_EVENTS;
+        }
     }
 
-    // Select random event from pool based on individual probabilities
-    const totalProbability = eventPool.reduce((sum, e) => sum + e.probability, 0);
+    // === FILTER BY COOLDOWNS ===
+    let availableEvents = eventPool;
+    if (cooldowns) {
+        availableEvents = eventPool.filter(e => !cooldowns[e.id] || cooldowns[e.id] <= 0);
+    }
+
+    // If all events on cooldown, return null
+    if (availableEvents.length === 0) {
+        return { event: null, scaledEffects: null };
+    }
+
+    // === APPLY CONDITIONAL MODIFIERS TO PROBABILITIES ===
+    const modifiedEvents = availableEvents.map(e => ({
+        ...e,
+        adjustedProbability: e.probability * getConditionalModifier(e.id, conditions)
+    }));
+
+    // Filter out events with 0 probability (blocked by conditions)
+    const finalEvents = modifiedEvents.filter(e => e.adjustedProbability > 0);
+
+    if (finalEvents.length === 0) {
+        return { event: null, scaledEffects: null };
+    }
+
+    // === SELECT EVENT BASED ON ADJUSTED PROBABILITIES ===
+    const totalProbability = finalEvents.reduce((sum, e) => sum + e.adjustedProbability, 0);
     let roll = Math.random() * totalProbability;
 
-    for (const event of eventPool) {
-        roll -= event.probability;
+    let selectedEvent: GameEvent | null = null;
+    for (const event of finalEvents) {
+        roll -= event.adjustedProbability;
         if (roll <= 0) {
-            return event;
+            selectedEvent = event;
+            break;
         }
     }
 
     // Fallback to first event in pool
-    return eventPool[0];
+    if (!selectedEvent) {
+        selectedEvent = finalEvents[0];
+    }
+
+    // === SCALE EFFECTS ===
+    const scaling = getEventScaling(round);
+    const scaledEffects: GameEventEffect[] = selectedEvent.effects.map(effect => {
+        // Scale numeric effects (denarii, population, troops)
+        // Don't scale percentage-based effects (happiness, morale) as heavily
+        const scaleThis = ['denarii', 'population', 'troops', 'resource'].includes(effect.type);
+        return {
+            ...effect,
+            value: scaleThis ? Math.floor(effect.value * scaling) : effect.value
+        };
+    });
+
+    return {
+        event: selectedEvent,
+        scaledEffects
+    };
 }

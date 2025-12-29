@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { FOUNDERS } from '@/core/constants';
-import { Button, GlassCard, Badge } from '@/components/ui';
+import { Button, GlassCard, Badge, GameImage } from '@/components/ui';
 import type { FounderName } from '@/core/types';
 
 export function IntroScreen() {
@@ -89,7 +89,7 @@ export function IntroScreen() {
                         variant="roman"
                         size="lg"
                         onClick={() => setStage('founder_select')}
-                        icon="⚔️"
+                        icon={<GameImage src="centurion-helmet" size="xs" alt="Battle" />}
                     >
                         Begin Your Legacy
                     </Button>
@@ -140,11 +140,11 @@ export function FounderSelectScreen() {
         }
     };
 
-    const getFounderIcon = (id: FounderName) => {
+    const getFounderIcon = (id: FounderName): React.ReactNode => {
         switch (id) {
-            case 'romulus': return '⚔️';
-            case 'remus': return '🕊️';
-            default: return '👤';
+            case 'romulus': return <GameImage src="centurion-helmet" size="2xl" alt="Romulus" />;
+            case 'remus': return <GameImage src="laurels" size="2xl" alt="Remus" />;
+            default: return <GameImage src="roman" size="2xl" alt="Founder" />;
         }
     };
 
@@ -278,7 +278,7 @@ export function FounderSelectScreen() {
                                 variant="roman"
                                 size="lg"
                                 onClick={handleStart}
-                                icon="🏛️"
+                                icon={<GameImage src="temple" size="xs" alt="Temple" />}
                             >
                                 Found Rome as {FOUNDERS[selectedFounder].name}
                             </Button>

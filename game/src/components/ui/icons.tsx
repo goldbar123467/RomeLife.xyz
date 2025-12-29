@@ -131,6 +131,7 @@ export const TAB_ICONS: Record<Tab, LucideIcon> = {
     achievements: Trophy,
     wonders: Castle,
     quests: Flag,
+    senate: Landmark,
 };
 
 // === SEASON ICONS ===

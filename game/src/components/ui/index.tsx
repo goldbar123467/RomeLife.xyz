@@ -94,7 +94,7 @@ export function Button({
 interface StatDisplayProps {
     label: string;
     value: string | number;
-    icon?: string;
+    icon?: ReactNode;
     trend?: 'up' | 'down' | 'neutral';
     size?: 'sm' | 'md' | 'lg';
     className?: string;
@@ -413,3 +413,6 @@ export function IconButton({
         </motion.button>
     );
 }
+
+// === GAME IMAGE ===
+export { GameImage, GameIcon, type GameImageProps, type GameIconProps, type ImageSize } from './GameImage';

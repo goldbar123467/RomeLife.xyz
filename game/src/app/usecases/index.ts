@@ -9,10 +9,13 @@ import type {
     Quest, Achievement, TreasuryHistoryEntry, TradeState, GameEvent
 } from '@/core/types';
 import {
-    SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS
+    SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS, GAME_CONSTANTS
 } from '@/core/constants';
 import { calculateBuildingEffects } from '@/core/constants/territory';
-import { rollRandomEvent as rollEmpireEvent } from '@/core/constants/events';
+import { rollRandomEvent as rollEmpireEvent, EVENT_COOLDOWN_ROUNDS } from '@/core/constants/events';
+import type { EventConditions } from '@/core/constants/events';
+import { rollReligiousEvent } from '@/core/constants/religion';
+import type { ReligiousEvent } from '@/core/constants/religion';
 import {
     calculateProductionSummary, calculateMarketPrices, calculatePopulationGrowth,
     calculateEnvoySuccess, calculateEnvoyEffect, calculateRelationDecay,
@@ -25,6 +28,7 @@ import {
     checkVictoryConditions, checkFailureConditions, checkAchievements,
     checkQuestProgress, getTechBonus
 } from '@/core/rules';
+import { processSenateSeasonEnd } from '@/app/usecases/senate';
 
 // === END SEASON USE CASE ===
 
@@ -65,16 +69,25 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const grainAvailable = newInventory.grain;
     newInventory.grain = Math.max(0, grainAvailable - foodConsumed);
 
-    // Check starvation
-    const isStarving = grainAvailable < foodConsumed && foodConsumed > 0;
-    if (isStarving) events.push('🍞 Starvation! Your people are hungry.');
+    // Check starvation (Ceres tier 100: famine immunity)
+    const ceresFamineImmune = calculateBlessingBonus(state.patronGod, state.godFavor, 'famineImmune') > 0;
+    const isStarving = grainAvailable < foodConsumed && foodConsumed > 0 && !ceresFamineImmune;
+    if (grainAvailable < foodConsumed && foodConsumed > 0) {
+        if (ceresFamineImmune) {
+            events.push('🌾 Ceres protects your people from famine!');
+        } else {
+            events.push('🍞 Starvation! Your people are hungry.');
+        }
+    }
 
     const newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
 
-    // Calculate population growth
+    // Calculate population growth (starvation uses STARVATION_POP_LOSS constant)
     const popGrowth = calculatePopulationGrowth(state);
-    const newPopulation = Math.max(0, state.population + popGrowth - (isStarving ? Math.floor(state.population * 0.05) : 0));
+    const starvationLoss = isStarving ? Math.floor(state.population * GAME_CONSTANTS.STARVATION_POP_LOSS) : 0;
+    const newPopulation = Math.max(0, state.population + popGrowth - starvationLoss);
     if (popGrowth > 0) events.push(`👥 Population grew by ${popGrowth}`);
+    if (starvationLoss > 0) events.push(`💀 Lost ${starvationLoss} to starvation`);
 
     // Update denarii with early-game protection
     let effectiveNetIncome = summary.netIncome;
@@ -114,7 +127,12 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         // Caravan returns this season
         if (newTradeState.activeCaravan.duration <= 0) {
             const caravan = newTradeState.activeCaravan;
-            const success = random() > caravan.risk;
+            // Winter risk multiplier: +50% risk in winter
+            const winterRiskMultiplier = nextSeason === 'winter' ? 1.5 : 1.0;
+            // Mercury tier 100: -50% trade risk
+            const mercuryCaravanRiskBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tradeRisk');
+            const effectiveRisk = Math.min(0.8, caravan.risk * winterRiskMultiplier * (1 + mercuryCaravanRiskBonus)); // Cap at 80%
+            const success = random() > effectiveRisk;
 
             if (success) {
                 // Calculate revenue from goods with Mercury blessing (+25% caravan profit at tier 75)
@@ -208,20 +226,24 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
         // Calculate territory building effects (Arena +15% happiness, Temple +10 piety, etc.)
         const buildingEffects = calculateBuildingEffects(t.buildings);
+
+        // Minerva tier 75: +25% building efficiency
+        const minervaBuildingEfficiency = 1 + calculateBlessingBonus(state.patronGod, state.godFavor, 'buildingEfficiency');
+
         let buildingStabilityBonus = 0;
 
         // Apply building stability bonuses/maluses (Garrison +10, Walls +15, Census Office -5, etc.)
         if (buildingEffects.stability) {
-            buildingStabilityBonus = buildingEffects.stability / 4; // Per season (effects are annual)
+            buildingStabilityBonus = (buildingEffects.stability * minervaBuildingEfficiency) / 4; // Per season (effects are annual)
         }
         // Note: Census Office has negative stability (-5), which is included in buildingEffects.stability
 
         // Collect happiness and piety bonuses (applied once globally)
         if (buildingEffects.happiness) {
-            totalBuildingHappiness += buildingEffects.happiness / 4; // Per season
+            totalBuildingHappiness += (buildingEffects.happiness * minervaBuildingEfficiency) / 4; // Per season
         }
         if (buildingEffects.piety) {
-            totalBuildingPiety += buildingEffects.piety / 4; // Per season
+            totalBuildingPiety += (buildingEffects.piety * minervaBuildingEfficiency) / 4; // Per season
         }
 
         // Calculate governor effects (Gaius +20% stability, Servius +30% piety +10% happiness, Titus +15% morale)
@@ -267,6 +289,20 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Note: newDenarii was calculated earlier, we need to add it here
     // For now, we'll apply it via the state update
 
+    // === WONDER RECURRING INCOME ===
+    // Collect income from BUILT wonders (applies every season, not just on completion)
+    let wonderRecurringIncome = 0;
+    for (const wonder of state.wonders.filter(w => w.built)) {
+        for (const effect of wonder.effects) {
+            if (effect.type === 'income') {
+                wonderRecurringIncome += effect.value;
+            }
+        }
+    }
+    if (wonderRecurringIncome > 0) {
+        events.push(`🏛️ Wonder income: +${wonderRecurringIncome} denarii`);
+    }
+
     // === WONDER PROGRESSION ===
     const wonderEffects = { happiness: 0, piety: 0, sanitation: 0, income: 0 };
     const newWonders = state.wonders.map(w => {
@@ -295,7 +331,26 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     });
 
     // === RANDOM EMPIRE EVENT ===
-    const randomEvent = rollEmpireEvent(newRound, state.happiness, state.morale);
+    // Build conditions for conditional event triggers
+    const eventConditions: EventConditions = {
+        sanitation: state.sanitation,
+        morale: state.morale,
+        taxRate: state.taxRate,
+        happiness: state.happiness,
+        troops: state.troops,
+        population: state.population
+    };
+
+    // Roll for random event with conditions, cooldowns, and scaling
+    const eventResult = rollEmpireEvent(
+        newRound,
+        state.happiness,
+        state.morale,
+        eventConditions,
+        state.eventCooldowns
+    );
+
+    const randomEvent = eventResult.event;
     let eventDenarii = 0;
     let eventPopulation = 0;
     let eventHappiness = 0;
@@ -305,11 +360,25 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     let eventReputation = 0;
     const eventInventoryChanges: Partial<Record<ResourceType, number>> = {};
 
-    if (randomEvent) {
+    // Track new cooldowns
+    const newEventCooldowns: Record<string, number> = {};
+    if (state.eventCooldowns) {
+        // Decay existing cooldowns by 1
+        for (const [eventId, cooldown] of Object.entries(state.eventCooldowns)) {
+            if (cooldown > 1) {
+                newEventCooldowns[eventId] = cooldown - 1;
+            }
+        }
+    }
+
+    if (randomEvent && eventResult.scaledEffects) {
         events.push(`${randomEvent.icon} ${randomEvent.name}: ${randomEvent.description}`);
 
-        // Apply event effects
-        for (const effect of randomEvent.effects) {
+        // Set cooldown for this event
+        newEventCooldowns[randomEvent.id] = EVENT_COOLDOWN_ROUNDS;
+
+        // Apply SCALED event effects
+        for (const effect of eventResult.scaledEffects) {
             switch (effect.type) {
                 case 'denarii':
                     eventDenarii += effect.value;
@@ -350,6 +419,29 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // === RANDOM RELIGIOUS EVENT ===
+    // Only trigger if player has engaged with religion (piety > 20)
+    let religiousEvent: ReligiousEvent | null = null;
+    if (state.piety > 20) {
+        religiousEvent = rollReligiousEvent();
+        if (religiousEvent) {
+            events.push(`${religiousEvent.icon} ${religiousEvent.name}: ${religiousEvent.description}`);
+
+            // Apply religious event effects
+            if (religiousEvent.effects.piety) eventPiety += religiousEvent.effects.piety;
+            if (religiousEvent.effects.happiness) eventHappiness += religiousEvent.effects.happiness;
+            if (religiousEvent.effects.morale) eventMorale += religiousEvent.effects.morale;
+            if (religiousEvent.effects.reputation) eventReputation += religiousEvent.effects.reputation;
+            if (religiousEvent.effects.grain) {
+                newInventory.grain = Math.max(0, Math.min(
+                    newInventory.grain + religiousEvent.effects.grain,
+                    state.capacity.grain || 100
+                ));
+            }
+            // godFavor bonus applied later with patron god
+        }
+    }
+
     // Happiness adjustments with Venus blessing, building effects, and governor effects
     let newHappiness = state.happiness;
     const venusHappinessBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'happiness');
@@ -372,7 +464,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Morale adjustments - additive like happiness, including governor bonus (Titus +15%)
     const moraleAdjust = Math.round((seasonMod.morale - 1) * 100);
     const godMoraleBonus = Math.round(getGodBlessingBonus(state.patronGod, state.godFavor, 'morale') * 100);
-    let newMorale = Math.floor(state.morale + moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale);
+    const starvationMoraleLoss = isStarving ? GAME_CONSTANTS.STARVATION_MORALE_LOSS : 0;
+    let newMorale = Math.floor(state.morale + moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss);
     newMorale = Math.max(0, Math.min(100, newMorale));
 
     // Diplomacy decay
@@ -400,6 +493,13 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Apply achievement rewards
     let newReputation = state.reputation;
     let newSupplies = state.supplies;
+
+    // Mars tier 75: +50 supplies per season
+    const marsSuppliesBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'supplies');
+    if (marsSuppliesBonus > 0) {
+        newSupplies += marsSuppliesBonus;
+    }
+
     let newPiety = state.piety + totalBuildingPiety + totalGovernorPiety; // Building + governor piety
     let newHousing = state.housing;
     for (const achievement of achievementsUnlocked) {
@@ -427,6 +527,44 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         return { ...q, progress, completed };
     });
 
+    // Minerva tier 50: +1 free tech every 5 rounds
+    let newTechnologies = state.technologies;
+    const minervaFreeTech = calculateBlessingBonus(state.patronGod, state.godFavor, 'freeTech');
+    if (minervaFreeTech > 0 && newRound % 5 === 0 && newRound > 0) {
+        const unresearchedTechs = state.technologies.filter(t => !t.researched);
+        if (unresearchedTechs.length > 0) {
+            const randomTech = unresearchedTechs[Math.floor(random() * unresearchedTechs.length)];
+            newTechnologies = state.technologies.map(t =>
+                t.id === randomTech.id ? { ...t, researched: true } : t
+            );
+            events.push(`🦉 Minerva grants wisdom! Free technology: ${randomTech.name}`);
+        }
+    }
+
+    // Venus tier 100: +50 favor with all gods per season
+    // Minerva tier 100: +20 favor with patron god per season
+    const newGodFavor = { ...state.godFavor };
+    const venusAllFavorBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'allFavor');
+    if (venusAllFavorBonus > 0) {
+        const godNames: Array<'jupiter' | 'mars' | 'venus' | 'ceres' | 'mercury' | 'minerva'> =
+            ['jupiter', 'mars', 'venus', 'ceres', 'mercury', 'minerva'];
+        for (const god of godNames) {
+            newGodFavor[god] = Math.min(100, (newGodFavor[god] || 0) + venusAllFavorBonus);
+        }
+        events.push(`💕 Venus blesses all gods! +${venusAllFavorBonus} favor with each god`);
+    }
+
+    const minervaFavorBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'favor');
+    if (minervaFavorBonus > 0 && state.patronGod) {
+        newGodFavor[state.patronGod] = Math.min(100, (newGodFavor[state.patronGod] || 0) + minervaFavorBonus);
+        events.push(`🦉 Minerva's wisdom strengthens your devotion! +${minervaFavorBonus} favor`);
+    }
+
+    // Apply religious event godFavor bonus to patron god
+    if (religiousEvent?.effects.godFavor && state.patronGod) {
+        newGodFavor[state.patronGod] = Math.min(100, (newGodFavor[state.patronGod] || 0) + religiousEvent.effects.godFavor);
+    }
+
     // Infinite mode content generation
     const proceduralAdditions: Partial<GameState> = {};
     if (state.infiniteMode) {
@@ -453,6 +591,31 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // === SENATE SYSTEM PROCESSING ===
+    let senateResult = null;
+    let isAssassinated = false;
+    if (state.senate?.initialized) {
+        senateResult = processSenateSeasonEnd(state, newRound);
+
+        // Apply senate resource changes
+        newDenarii += senateResult.denariiChange;
+        newHappiness = Math.max(0, Math.min(100, newHappiness + senateResult.happinessChange));
+        newMorale = Math.max(0, Math.min(100, newMorale + senateResult.moraleChange));
+        newReputation += senateResult.reputationChange;
+        newPiety += senateResult.pietyChange;
+
+        // Add senate messages to events
+        for (const msg of senateResult.messages) {
+            events.push(`🏛️ ${msg}`);
+        }
+
+        // Check for assassination
+        if (senateResult.assassination?.triggered && !senateResult.assassination.savedBySertorius) {
+            isAssassinated = true;
+            events.push(`⚔️ ASSASSINATION: ${senateResult.assassination.method}`);
+        }
+    }
+
     // Record history
     const historyEntry = {
         round: newRound,
@@ -475,7 +638,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     };
 
     // Build new state
-    const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + eventDenarii;
+    const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + wonderRecurringIncome + eventDenarii;
     const newState: Partial<GameState> = {
         season: nextSeason,
         round: newRound,
@@ -492,6 +655,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             achievementsUnlocked.find(u => u.id === a.id) || a
         ),
         wonders: newWonders,
+        technologies: newTechnologies,
+        godFavor: newGodFavor,
         // Apply achievement rewards + wonder effects + event effects
         reputation: Math.max(0, newReputation + eventReputation),
         supplies: newSupplies,
@@ -509,13 +674,27 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             relations: newRelations,
         },
         emergencyCooldowns: newEmergencyCooldowns,
+        eventCooldowns: newEventCooldowns,
         history: [...state.history, historyEntry],
         treasuryHistory: [...(state.treasuryHistory || []), treasuryEntry].slice(-50), // Keep last 50 entries
+        // Add senate state if processing occurred
+        ...(senateResult ? { senate: senateResult.newSenateState } : {}),
     };
 
     // Check end conditions
     const victoryResult = checkVictoryConditions({ ...state, ...newState } as GameState);
-    const failureResult = checkFailureConditions({ ...state, ...newState } as GameState);
+    let failureResult = checkFailureConditions({ ...state, ...newState } as GameState);
+
+    // Assassination is a special failure condition
+    if (isAssassinated && !failureResult) {
+        failureResult = {
+            type: 'assassination',
+            title: 'Assassination',
+            description: senateResult?.assassination?.method
+                ? `You were killed by ${senateResult.assassination.method.toLowerCase()}.`
+                : 'You were assassinated by political rivals.',
+        };
+    }
 
     if (victoryResult) {
         newState.stage = 'results';
@@ -666,10 +845,12 @@ export function executeTrade(
         return { success: false, denariiGained: 0, resourcesLost: 0, riskTriggered: false, newState: {}, message: 'Not enough resources' };
     }
 
-    // Calculate trade risk
+    // Calculate trade risk with Mercury tier 100 bonus (-50% risk)
     const hasRoads = state.technologies.some(t => t.id === 'roads' && t.researched);
     const riskCalc = calculateTradeRisk(city.distance, city.risk, state.forts, hasRoads, state.reputation);
-    const riskResult = resolveTradeRisk(riskCalc.risk);
+    const mercuryRiskBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tradeRisk');
+    const adjustedRisk = riskCalc.risk * (1 + mercuryRiskBonus); // mercuryRiskBonus is negative (-0.50)
+    const riskResult = resolveTradeRisk(adjustedRisk);
 
     // Calculate price with Mercury blessings and territory focus
     const basePrice = state.market.prices[resource];

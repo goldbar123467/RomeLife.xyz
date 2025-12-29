@@ -67,13 +67,10 @@ body {
   background: var(--gold-dim);
 }
 
-/* === COSMIC BACKGROUND === */
+/* === ROMAN CITYSCAPE BACKGROUND === */
 .roman-pattern {
   position: relative;
-  background:
-    radial-gradient(ellipse at 20% 80%, rgba(88, 28, 135, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(30, 58, 138, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(15, 23, 42, 1) 0%, var(--bg) 100%);
+  background: var(--bg);
 }
 
 .roman-pattern::before {
@@ -82,21 +79,11 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image:
-    /* Jupiter */
-    radial-gradient(circle at 85% 15%, #c4a574 0%, #8b7355 15%, transparent 16%),
-    radial-gradient(circle at 85% 15%, rgba(196, 165, 116, 0.25) 0%, transparent 25%),
-    /* Mars */
-    radial-gradient(circle at 10% 25%, #c75050 0%, #8b3535 8%, transparent 9%),
-    radial-gradient(circle at 10% 25%, rgba(199, 80, 80, 0.35) 0%, transparent 15%),
-    /* Venus */
-    radial-gradient(circle at 92% 70%, #ffd9b3 0%, #e6c9a3 6%, transparent 7%),
-    /* Mercury */
-    radial-gradient(circle at 5% 85%, #a0a0a0 0%, #707070 4%, transparent 5%),
-    /* Saturn */
-    radial-gradient(circle at 75% 90%, #e6d9a6 0%, #c4b896 10%, transparent 11%),
-    /* Neptune */
-    radial-gradient(circle at 20% 60%, #4169e1 0%, #2a4494 7%, transparent 8%);
+  background-image: url('/rome-cityscape.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.4;
 }
 
 .roman-pattern::after {
@@ -105,27 +92,10 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.7;
-  background-image:
-    radial-gradient(1px 1px at 10% 10%, white 50%, transparent),
-    radial-gradient(1px 1px at 20% 30%, white 50%, transparent),
-    radial-gradient(1px 1px at 35% 15%, rgba(255, 255, 255, 0.8) 50%, transparent),
-    radial-gradient(1px 1px at 50% 25%, white 50%, transparent),
-    radial-gradient(1px 1px at 65% 10%, rgba(255, 255, 255, 0.7) 50%, transparent),
-    radial-gradient(1px 1px at 80% 35%, white 50%, transparent),
-    radial-gradient(1px 1px at 15% 55%, white 50%, transparent),
-    radial-gradient(1px 1px at 45% 45%, white 50%, transparent),
-    radial-gradient(1px 1px at 75% 50%, white 50%, transparent),
-    radial-gradient(1px 1px at 88% 75%, rgba(255, 255, 255, 0.9) 50%, transparent),
-    radial-gradient(2px 2px at 28% 22%, rgba(255, 255, 255, 0.9) 50%, transparent),
-    radial-gradient(2px 2px at 72% 38%, rgba(255, 255, 200, 0.9) 50%, transparent),
-    radial-gradient(3px 3px at 15% 35%, rgba(240, 193, 75, 0.7) 30%, transparent);
-  animation: twinkle 4s ease-in-out infinite;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 0.5; }
+  /* Dark overlay gradient for UI readability */
+  background:
+    linear-gradient(180deg, rgba(3, 3, 3, 0.7) 0%, rgba(3, 3, 3, 0.4) 50%, rgba(3, 3, 3, 0.8) 100%),
+    radial-gradient(ellipse at center, transparent 0%, rgba(3, 3, 3, 0.5) 100%);
 }
 
 .roman-pattern > * {

@@ -14,6 +14,7 @@ const TABS: { id: Tab; label: string }[] = [
     { id: 'map', label: 'Map' },
     { id: 'settlement', label: 'Settlement' },
     { id: 'diplomacy', label: 'Diplomacy' },
+    { id: 'senate', label: 'Senate' },
     { id: 'technology', label: 'Tech' },
     { id: 'religion', label: 'Religion' },
     { id: 'wonders', label: 'Wonders' },
@@ -34,7 +35,7 @@ export function TabNavigation() {
             >
                 {/* Header */}
                 <div className="text-sm font-bold text-roman-gold uppercase tracking-wider px-4 mb-3 flex items-center gap-2">
-                    <span className="text-lg">🏛️</span>
+                    <span className="text-lg">Rome</span>
                     <span>Navigation</span>
                 </div>
 

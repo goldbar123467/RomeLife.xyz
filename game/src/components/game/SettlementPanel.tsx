@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, SectionHeader, ProgressBar } from '@/components/ui';
+import { GlassCard, Button, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { Home, Droplets, Shield, Building2 } from 'lucide-react';
 
@@ -169,7 +169,7 @@ export function SettlementPanel() {
                 <div className="grid md:grid-cols-2 gap-4">
                     <div className="glass-dark rounded-xl p-4">
                         <div className="flex items-center gap-3 mb-3">
-                            <span className="text-4xl">🏰</span>
+                            <GameImage src="shield" size="xl" alt="Fort" />
                             <div>
                                 <div className="text-2xl font-bold text-roman-gold">{forts}</div>
                                 <div className="text-sm text-muted">Forts Built</div>
@@ -225,7 +225,7 @@ export function SettlementPanel() {
                                 >
                                     <h4 className="font-bold text-roman-gold mb-2">{building.name}</h4>
                                     <div className="text-sm text-muted mb-3">
-                                        Cost: {building.cost.denarii} 🪙
+                                        Cost: {building.cost.denarii} denarii
                                     </div>
                                     <Button
                                         variant="gold"

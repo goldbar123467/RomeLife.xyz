@@ -20,6 +20,7 @@ import { MapPanel } from './MapPanel';
 import { ReligionPanel } from './ReligionPanel';
 import { WondersPanel } from './WondersPanel';
 import { QuestsPanel } from './QuestsPanel';
+import { SenatePanel } from '@/components/senate';
 import { BattleScreen } from './BattleScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { MobileNav } from './MobileNav';
@@ -70,6 +71,7 @@ export function GameLayout() {
             case 'wonders': return <WondersPanel />;
             case 'quests': return <QuestsPanel />;
             case 'achievements': return <AchievementsPanel />;
+            case 'senate': return <SenatePanel />;
             default: return <OverviewPanel />;
         }
     };
