@@ -243,10 +243,11 @@ export const GAME_CONSTANTS = {
     STARVATION_POP_LOSS: 0.15,                // 15% pop loss on starvation
     STARVATION_MORALE_LOSS: 15,               // -15 morale on starvation
 
-    // Grace Period (early game) - extended for first-year protection
+    // Grace Period (early game) - extended for easier early game
     GRACE_MULTIPLIERS: [
-        { maxRound: 8, multiplier: 0.6 },   // First 2 years: 60% consumption
-        { maxRound: 14, multiplier: 0.8 },  // Years 3-3.5: 80% consumption
+        { maxRound: 8, multiplier: 0.5 },   // Rounds 1-8: 50% consumption
+        { maxRound: 14, multiplier: 0.65 }, // Rounds 9-14: 65% consumption
+        { maxRound: 20, multiplier: 0.8 },  // Rounds 15-20: 80% consumption
         { maxRound: Infinity, multiplier: 1.0 },
     ],
 
@@ -269,8 +270,8 @@ export const GAME_CONSTANTS = {
     VICTORY_INDUSTRIAL: { buildings: 15, denarii: 10000 },
 
     // Failure Conditions
-    FAILURE_STARVATION_LIMIT: 2,              // 2 consecutive starvations = game over
-    FAILURE_MIN_POPULATION: 40,               // Lowered to 40 (reachable via conscription/events)
+    FAILURE_STARVATION_LIMIT: 3,              // 3 consecutive starvations = game over
+    FAILURE_MIN_POPULATION: 30,               // Lowered to 30 for easier early game
     FAILURE_MIN_HAPPINESS: 25,                // Below 25% = unrest failure
 
     // Market
@@ -288,7 +289,7 @@ export const GAME_CONSTANTS = {
 
 // === STARTING VALUES ===
 export const STARTING_STATE = {
-    denarii: 500,
+    denarii: 5000,
     population: 100,
     happiness: 70,
     troops: 25,
@@ -296,7 +297,7 @@ export const STARTING_STATE = {
     housing: 150,
     sanitation: 50,
     forts: 1,
-    supplies: 50,
+    supplies: 150,
     piety: 0,
     taxRate: 0.10,
     inflation: 0,

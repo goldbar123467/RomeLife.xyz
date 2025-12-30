@@ -91,9 +91,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
     // Update denarii with early-game protection
     let effectiveNetIncome = summary.netIncome;
-    if (state.round <= 12 && summary.netIncome < 0) {
-        // Limit losses to 10% of current denarii during grace period
-        effectiveNetIncome = Math.max(summary.netIncome, -Math.floor(state.denarii * 0.1));
+    if (state.round <= 16 && summary.netIncome < 0) {
+        // Limit losses to 5% of current denarii during grace period
+        effectiveNetIncome = Math.max(summary.netIncome, -Math.floor(state.denarii * 0.05));
     }
     let newDenarii = Math.max(0, state.denarii + effectiveNetIncome);
     if (effectiveNetIncome > 0) {

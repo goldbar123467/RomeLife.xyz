@@ -367,11 +367,11 @@ const createInitialState = (): Omit<GameStore,
     // Resources
     denarii: STARTING_STATE.denarii,
     inventory: {
-        grain: 120, iron: 10, timber: 20, stone: 15, clay: 10,  // grain: 120 survives first winter
+        grain: 500, iron: 10, timber: 20, stone: 15, clay: 10,  // grain: 500 for easy early game
         wool: 5, salt: 5, livestock: 10, wine: 0, olive_oil: 0, spices: 0,
     },
     capacity: {
-        grain: 150, iron: 50, timber: 80, stone: 60, clay: 50,  // grain capacity increased to 150
+        grain: 600, iron: 50, timber: 80, stone: 60, clay: 50,  // grain capacity 600 for easy early game
         wool: 40, salt: 40, livestock: 50, wine: 30, olive_oil: 30, spices: 20,
     },
 
