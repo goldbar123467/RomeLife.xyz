@@ -15,7 +15,7 @@ export function OverviewPanel() {
         founder, round, season, denarii, population, happiness,
         troops, morale, territories, buildings, piety, patronGod,
         inventory, endSeason, technologies, lastEvents,
-        emergencyCooldowns, executeEmergency
+        emergencyCooldowns, executeEmergency, setTab
     } = state;
 
     const ownedTerritories = territories.filter(t => t.owned);
@@ -289,10 +289,10 @@ export function OverviewPanel() {
                     <GlassCard>
                         <SectionHeader title="Quick Actions" />
                         <div className="grid grid-cols-2 gap-2">
-                            <Button variant="ghost" size="sm" icon="🏗️">Build</Button>
-                            <Button variant="ghost" size="sm" icon="⚔️">Recruit</Button>
-                            <Button variant="ghost" size="sm" icon="⚖️">Trade</Button>
-                            <Button variant="ghost" size="sm" icon="📜">Research</Button>
+                            <Button variant="ghost" size="sm" icon="🏗️" onClick={() => setTab('settlement')}>Build</Button>
+                            <Button variant="ghost" size="sm" icon="⚔️" onClick={() => setTab('military')}>Recruit</Button>
+                            <Button variant="ghost" size="sm" icon="⚖️" onClick={() => setTab('trade')}>Trade</Button>
+                            <Button variant="ghost" size="sm" icon="📜" onClick={() => setTab('technology')}>Research</Button>
                         </div>
                     </GlassCard>
 

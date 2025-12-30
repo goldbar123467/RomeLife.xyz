@@ -10,10 +10,8 @@ export function SettlementPanel() {
     const state = useGameStore();
     const { population, housing, sanitation, forts, denarii, buildings, buildStructure } = state;
 
-    // Find buildable structures related to settlement
-    const settlementBuildings = buildings.filter(b =>
-        !b.built && (b.category === 'civic' || b.name.includes('Wall') || b.name.includes('Temple'))
-    );
+    // Find all buildable structures
+    const settlementBuildings = buildings.filter(b => !b.built);
 
     const housingCapacity = housing;
     const housingUsed = population;
