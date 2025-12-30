@@ -355,9 +355,9 @@ export function OverviewPanel() {
                             </div>
                         ) : (
                             <div className="text-center py-4">
-                                <GameImage src="temple" size="xl" alt="Coming Soon" className="opacity-50" />
+                                <GameImage src="temple" size="xl" alt="Temple" className="opacity-50" />
                                 <p className="text-sm text-muted">No patron god selected</p>
-                                <Button variant="ghost" size="sm" className="mt-3">Choose Patron</Button>
+                                <Button variant="gold" size="sm" className="mt-3" onClick={() => setTab('religion')}>Choose Patron</Button>
                             </div>
                         )}
                     </GlassCard>
