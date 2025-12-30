@@ -262,17 +262,17 @@ function QuickTradeTab({
             </GlassCard>
 
             {/* Market Prices */}
-            <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-3">📊 Market Prices</h3>
+            <GlassCard className="p-3 md:p-4">
+                <h3 className="text-base md:text-lg font-bold text-roman-gold mb-3">📊 Market Prices</h3>
                 <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
                     {tradableResources.map(resource => (
                         <div
                             key={resource}
-                            className="glass-dark rounded-lg p-2 text-center cursor-pointer hover:border-roman-gold/50 transition-all"
+                            className="glass-dark rounded-lg p-2 md:p-3 text-center cursor-pointer hover:border-roman-gold/50 transition-all min-h-[52px] flex flex-col items-center justify-center"
                             onClick={() => setSelectedResource(resource)}
                         >
-                            <div className="text-lg">{RESOURCE_INFO[resource].emoji}</div>
-                            <div className="text-xs font-mono text-roman-gold">{market.prices[resource]}g</div>
+                            <div className="text-lg md:text-xl">{RESOURCE_INFO[resource].emoji}</div>
+                            <div className="text-[10px] md:text-xs font-mono text-roman-gold">{market.prices[resource]}g</div>
                         </div>
                     ))}
                 </div>
@@ -353,7 +353,7 @@ function QuickTradeTab({
                                 {/* Resource Selection */}
                                 <div>
                                     <label className="block text-sm text-muted mb-2">Select Resource to Sell</label>
-                                    <div className="grid grid-cols-5 gap-2">
+                                    <div className="grid grid-cols-5 md:grid-cols-5 gap-2">
                                         {tradableResources.map(resource => {
                                             const owned = inventory[resource] || 0;
                                             const isResourceSelected = selectedResource === resource;
@@ -361,7 +361,7 @@ function QuickTradeTab({
                                             return (
                                                 <motion.button
                                                     key={resource}
-                                                    className={`p-2 rounded-xl text-center transition-all ${isResourceSelected
+                                                    className={`p-2 md:p-3 rounded-xl text-center transition-all min-h-[48px] ${isResourceSelected
                                                         ? 'glass-gold border-roman-gold'
                                                         : 'glass-dark hover:border-white/30'
                                                         } ${owned === 0 ? 'opacity-50' : ''}`}
@@ -369,8 +369,8 @@ function QuickTradeTab({
                                                     disabled={owned === 0}
                                                     whileTap={{ scale: 0.95 }}
                                                 >
-                                                    <div>{RESOURCE_INFO[resource].emoji}</div>
-                                                    <div className="text-xs text-muted">{owned}</div>
+                                                    <div className="text-lg">{RESOURCE_INFO[resource].emoji}</div>
+                                                    <div className="text-[10px] md:text-xs text-muted">{owned}</div>
                                                 </motion.button>
                                             );
                                         })}
@@ -526,15 +526,15 @@ function TradeRoutesTab({
                                     {resourcesWithStock.map((resource: ResourceType) => (
                                         <motion.button
                                             key={resource}
-                                            className={`p-2 rounded-xl text-center transition-all ${routeResource === resource
+                                            className={`p-2 md:p-3 rounded-xl text-center transition-all min-h-[48px] ${routeResource === resource
                                                 ? 'glass-gold border-roman-gold'
                                                 : 'glass-dark hover:border-white/30'
                                                 }`}
                                             onClick={() => setRouteResource(resource)}
                                             whileTap={{ scale: 0.95 }}
                                         >
-                                            <div>{RESOURCE_INFO[resource].emoji}</div>
-                                            <div className="text-xs text-muted">{inventory[resource]}</div>
+                                            <div className="text-lg">{RESOURCE_INFO[resource].emoji}</div>
+                                            <div className="text-[10px] md:text-xs text-muted">{inventory[resource]}</div>
                                         </motion.button>
                                     ))}
                                 </div>

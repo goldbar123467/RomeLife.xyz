@@ -4,9 +4,9 @@ This file provides guidance to Claude Code when working with this repository.
 
 ---
 
-## Current Status: 75% Complete → V1.0
+## Current Status: ✅ V1.0 COMPLETE
 
-The game is a turn-based Roman empire simulation. **UI and state management are complete. The critical gap is that many bonuses are displayed but not applied to calculations.**
+The game is a turn-based Roman empire simulation. **All core systems are now fully integrated and working.**
 
 ### Run the Game
 ```bash
@@ -16,191 +16,52 @@ cd game && bun dev
 
 ---
 
-## Critical Path to V1.0 (5 Issues)
+## ✅ ALL SYSTEMS COMPLETE (Dec 2024)
 
-### Issue 1: Results Screen Missing
-**Severity**: BLOCKER - Game ends but shows nothing
+All game systems are now fully integrated and working:
 
-**Problem**: Victory/failure sets `stage: 'results'` but `GameLayout.tsx` doesn't handle it.
-
-**Fix Location**: `src/components/game/GameLayout.tsx`
-
-**Solution**:
-1. Create `src/components/game/ResultsScreen.tsx`
-2. Add to GameLayout before main game view:
-```typescript
-if (stage === 'results') {
-    return <ResultsScreen />;
-}
-```
-
-**ResultsScreen needs**:
-- Check `lastEvents` for victory/failure message
-- Display final stats (denarii, population, territories, round)
-- "Play Again" button → call `resetGame()` (need to add action)
-- "Continue (Infinite Mode)" button → call `enterInfiniteMode()`
-
-**Effort**: 2-3 hours
+| System | Status | Notes |
+|--------|--------|-------|
+| Results Screen | ✅ COMPLETE | `ResultsScreen.tsx` with `resetGame()` |
+| God Blessings (24 effects) | ✅ COMPLETE | All tier 25/50/75/100 effects working |
+| Territory Buildings (9 types) | ✅ COMPLETE | Stability, happiness, piety, income, defense |
+| Governor Bonuses (5 governors) | ✅ COMPLETE | All bonuses and maluses applied |
+| Territory Focus (4 types) | ✅ COMPLETE | Production, defense, trade bonuses |
+| Wonder Recurring Income | ✅ COMPLETE | Applies every season |
+| Battle System | ✅ COMPLETE | Blessings affect strength, casualties, rewards |
+| Random Events | ✅ COMPLETE | Empire + religious + territory events |
+| Event Balance | ✅ COMPLETE | Grace period, conditions, cooldowns, scaling |
 
 ---
 
-### Issue 2: God Blessing Effects Not Applied
-**Severity**: HIGH - Religion system is decorative
+## God Blessing Effects - All Integrated
 
-**Problem**: Blessings show at 25/50/75/100 favor but don't affect gameplay.
-
-**Fix Locations**:
-- `src/core/math/index.ts` - Battle and production calculations
-- `src/app/usecases/index.ts` - Season processing, recruitment
-
-**Blessing Effects Table** (from `src/core/constants/religion.ts`):
-
-| God | Tier | Effect | Apply In |
+| God | Tier | Effect | Location |
 |-----|------|--------|----------|
-| Jupiter | 25 | +10% battle strength | `calculateBattleOdds()` |
-| Jupiter | 50 | +100 denarii on victory | `resolveBattle()` in store |
-| Jupiter | 75 | +15% morale | Season processing |
-| Mars | 25 | -15% recruit costs | `executeRecruitTroops()` |
-| Mars | 50 | +10% attack | `calculateBattleOdds()` |
-| Mars | 100 | -30% casualties | `resolveBattle()` |
-| Venus | 25 | +10% happiness | Season processing |
-| Venus | 50 | +15% pop growth | Population calculation |
-| Ceres | 25 | +20% grain production | `calculateTerritoryProduction()` |
-| Ceres | 50 | +30% all food | `calculateTerritoryProduction()` |
-| Ceres | 75 | -25% food consumption | `calculateFoodConsumption()` |
-| Mercury | 25 | +10% trade prices | `executeTrade()` |
-| Mercury | 50 | -20% tariffs | `executeTrade()` |
-| Mercury | 75 | +25% caravan profit | Caravan processing |
-| Minerva | 25 | -15% tech costs | `executeResearchTech()` (partial) |
-
-**Helper exists**: `calculateBlessingBonus(patronGod, godFavor, effectType)` in `religion.ts`
-
-**Pattern**:
-```typescript
-import { calculateBlessingBonus } from '@/core/constants/religion';
-
-// In calculation:
-const blessingBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'battleStrength');
-finalValue *= (1 + blessingBonus);
-```
-
-**Effort**: 4-5 hours
-
----
-
-### Issue 3: Territory Building Effects Not Applied
-**Severity**: HIGH - Territory buildings are decorative
-
-**Problem**: 9 buildings can be built but their effects don't do anything.
-
-**Fix Locations**:
-- `src/core/math/index.ts` - Defense, production calculations
-- `src/app/usecases/index.ts` - Season stability/happiness/income
-
-**Building Effects Table** (from `src/core/constants/territory.ts`):
-
-| Building | Effects | Apply In |
-|----------|---------|----------|
-| Garrison | +15 defense, +10 stability, +50 troop cap | Defense calc, season |
-| Walls | +30 defense, +15 stability | Defense calc, season |
-| Arena | +15 happiness, +8 stability | Season processing |
-| Roads | -15% trade risk, +10% income | Trade, income calcs |
-| Local Temple | +10 piety, +15 happiness, +10 stability | Season processing |
-| Forum | +15% income, +10 stability | Income calc, season |
-| Watchtower | +20 defense, +5 stability | Defense calc, season |
-| Granary | +100 food storage | Capacity check |
-| Census Office | +10% tax, -5 stability | Tax calc, season |
-
-**Helper exists**: `calculateBuildingEffects(buildings: string[])` in `territory.ts`
-
-**Pattern**:
-```typescript
-import { calculateBuildingEffects } from '@/core/constants/territory';
-
-// In season processing per territory:
-const effects = calculateBuildingEffects(territory.buildings);
-if (effects.happiness) newHappiness += effects.happiness;
-if (effects.stability) territory.stability += effects.stability / 4; // per season
-if (effects.income) territoryIncome *= (1 + effects.income);
-```
-
-**Effort**: 3-4 hours
-
----
-
-### Issue 4: Governor Bonuses Not Applied
-**Severity**: MEDIUM - Governors are decorative
-
-**Problem**: Governors can be assigned but bonuses don't affect calculations.
-
-**Fix Locations**:
-- `src/core/math/index.ts` - Territory production
-- `src/app/usecases/index.ts` - Income, defense calculations
-
-**Governor Effects** (from `src/core/constants/index.ts`):
-
-| Governor | Bonus | Malus |
-|----------|-------|-------|
-| Marcus (Merchant) | +20% income | -10% defense |
-| Titus (General) | +25% defense, +15% morale | -10% income |
-| Lucius (Scholar) | +20% tech discount | -15% defense |
-| Gaius (Admin) | +20% stability, +10% income | -5% happiness |
-| Servius (Priest) | +30% piety, +10% happiness | -15% income |
-
-**Pattern**:
-```typescript
-if (territory.governor) {
-    const gov = GOVERNORS.find(g => g.id === territory.governor.id);
-    if (gov?.bonus.income) income *= (1 + gov.bonus.income);
-    if (gov?.malus.income) income *= (1 + gov.malus.income); // negative value
-}
-```
-
-**Effort**: 2-3 hours
-
----
-
-### Issue 5: Territory Focus Bonuses Not Applied
-**Severity**: MEDIUM - Focus is decorative
-
-**Problem**: Territory focus can be set but bonuses don't affect production.
-
-**Focus Effects** (from `src/core/constants/index.ts`):
-
-| Focus | Bonuses |
-|-------|---------|
-| military | +30% defense, +20% troop recruit |
-| trade | +15% trade prices, +20% tariff reduction |
-| breadbasket | +50% grain production |
-| mining | +50% iron, +30% stone production |
-
-**Pattern**:
-```typescript
-// In calculateTerritoryProduction():
-if (territory.focus === 'breadbasket' && resource.type === 'grain') {
-    amount *= 1.5;
-}
-if (territory.focus === 'mining') {
-    if (resource.type === 'iron') amount *= 1.5;
-    if (resource.type === 'stone') amount *= 1.3;
-}
-```
-
-**Effort**: 2-3 hours
-
----
-
-## Implementation Priority
-
-```
-1. Results Screen .............. 2-3 hours  [BLOCKER]
-2. Blessing Effects ............ 4-5 hours  [HIGH]
-3. Territory Building Effects .. 3-4 hours  [HIGH]
-4. Governor Bonuses ............ 2-3 hours  [MEDIUM]
-5. Territory Focus Bonuses ..... 2-3 hours  [MEDIUM]
-                                ──────────
-                         Total: ~15 hours to V1.0
-```
+| Jupiter | 25 | +10% battle strength | `gameStore.ts` |
+| Jupiter | 50 | +100 denarii on victory | `gameStore.ts` |
+| Jupiter | 75 | +15% morale | `usecases/index.ts` |
+| Jupiter | 100 | All god blessings active | `religion.ts` |
+| Mars | 25 | -15% recruit costs | `usecases/index.ts` |
+| Mars | 50 | +10% attack | `gameStore.ts` |
+| Mars | 75 | +50 supplies/season | `usecases/index.ts` |
+| Mars | 100 | -30% casualties | `gameStore.ts` |
+| Venus | 25 | +10% happiness | `usecases/index.ts` |
+| Venus | 50 | +15% pop growth | `math/index.ts` |
+| Venus | 75 | +10% trade prices | `usecases/index.ts` |
+| Venus | 100 | +50 favor all gods/season | `usecases/index.ts` |
+| Ceres | 25 | +20% grain production | `math/index.ts` |
+| Ceres | 50 | +30% all food | `math/index.ts` |
+| Ceres | 75 | -25% food consumption | `math/index.ts` |
+| Ceres | 100 | Famine immunity | `usecases/index.ts` |
+| Mercury | 25 | +10% trade prices | `usecases/index.ts` |
+| Mercury | 50 | -20% tariffs | `usecases/index.ts` |
+| Mercury | 75 | +25% caravan profit | `usecases/index.ts` |
+| Mercury | 100 | -50% trade risk | `usecases/index.ts` |
+| Minerva | 25 | -15% tech costs | `usecases/index.ts` |
+| Minerva | 50 | +1 free tech/5 rounds | `usecases/index.ts` |
+| Minerva | 75 | +25% building efficiency | `usecases/index.ts` |
+| Minerva | 100 | +20 favor/season | `usecases/index.ts` |
 
 ---
 
@@ -237,6 +98,73 @@ game/src/
     ├── animations.ts            # Framer Motion variants
     └── battleAnimations.ts      # Battle animation system
 ```
+
+---
+
+## Mobile View (Dec 2024)
+
+The game is optimized for mobile devices (390-430px target width).
+
+### Mobile Architecture
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `useMobile` hook | `hooks/useMobile.ts` | Detect mobile viewport |
+| `MobileNav` | `components/game/MobileNav.tsx` | Bottom nav bar + drawer |
+| Safe area utilities | `globals.css` | iOS notch/home bar support |
+
+### Key Mobile Patterns
+
+**Responsive Padding**:
+```tsx
+// GlassCard uses responsive padding
+className="p-3 md:p-5"
+```
+
+**Touch Targets (44px minimum)**:
+```tsx
+// Buttons have minimum height
+className="min-h-[44px]"
+```
+
+**Responsive Grids**:
+```tsx
+// Overview stats: 3 cols mobile, 6 cols desktop
+<div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
+```
+
+**BellCurve Charts**:
+```tsx
+// Use compact mode on mobile for smaller charts
+<BellCurve compact={true} height={70} showPercentiles={false} />
+```
+
+### Mobile-Specific Components
+
+| Component | Mobile Behavior |
+|-----------|-----------------|
+| `TerminalHeader` | Compact single row with key stats |
+| `MobileNav` | Fixed bottom bar (56px) + slide-out drawer (w-64) |
+| `GlassCard` | `p-3` padding instead of `p-5` |
+| `Button` | `min-h-[44px]` touch targets |
+| `BellCurve` | `compact` prop hides percentile labels, smaller fonts |
+
+### Breakpoints (Tailwind)
+
+```
+xs: 375px  (small phones)
+sm: 640px  (larger phones)
+md: 768px  (tablets - sidebar appears)
+lg: 1024px (desktops)
+```
+
+### Testing Mobile
+
+1. Chrome DevTools → Toggle Device Toolbar (Ctrl+Shift+M)
+2. Select iPhone 14 (390px) or similar
+3. Test navigation drawer opens/closes
+4. Verify touch targets are easy to tap
+5. Check BellCurve charts are readable
 
 ---
 
@@ -323,16 +251,17 @@ bun dev         # Test in browser
 - Eternal City: 10 territories, 500 pop, 75% happiness
 - Commerce: 15,000 denarii, 35 reputation
 - Conqueror: 8 territories, 180 troops
-- Glory: 600 pop, 90% happiness
+- Glory: 350 pop, 90% happiness (lowered from 600)
 - Industrial: 15 buildings, 10,000 denarii
 
 ### Failure Conditions
 - Famine: 2+ consecutive starvation (FAILURE_STARVATION_LIMIT = 2)
-- Collapse: Population < 60 (FAILURE_MIN_POPULATION = 60)
+- Collapse: Population < 40 (FAILURE_MIN_POPULATION = 40)
 - Unrest: Happiness <= 25% (FAILURE_MIN_HAPPINESS = 25)
 
 ### Starting State
 - 500 denarii, 100 population, 70% happiness
+- 120 grain, 150 grain capacity (survives first winter with Farm Complex)
 - 25 troops, 80% morale
 - 150 housing, 50 sanitation, 1 fort, 50 supplies
 - 10% tax rate
@@ -347,26 +276,127 @@ bun dev         # Test in browser
 
 ---
 
-## Quick Wins (Isolated Fixes)
+## ✅ Quick Wins - All Complete
 
-1. **Results Screen** - New component, no calculation changes
-2. **Mars -15% recruit** - Single line in `executeRecruitTroops()`
-3. **Arena +15 happiness** - Add in season processing loop
-4. **Breadbasket +50% grain** - Add in production calculation
+1. ~~**Results Screen**~~ - ✅ Already implemented
+2. ~~**Mars -15% recruit**~~ - ✅ Implemented in `executeRecruitTroops()`
+3. ~~**Arena +15 happiness**~~ - ✅ Applied via `calculateBuildingEffects()`
+4. ~~**Breadbasket +50% grain**~~ - ✅ Applied via territory focus in production calc
 
 ---
 
-## Secondary Issues (Post-V1)
+## Future Enhancements (Post-V1)
 
-After critical path is complete:
+Nice-to-have features for future versions:
 
-1. **Religious Events** - Constants exist, need to trigger in season
-2. **Territory Events** - Constants exist, need to check conditions
-3. **Infinite Mode** - `enterInfiniteMode()` exists, needs polish
-4. **Save/Load UI** - Persistence works, needs buttons
-5. **Unit Tests** - None exist currently
+1. ~~**Religious Events**~~ - ✅ COMPLETE (Dec 2024) - Triggers in season, requires piety > 20
+2. ~~**Territory Events**~~ - ✅ COMPLETE - Already triggering with conditions
+3. ~~**Event Balance**~~ - ✅ COMPLETE (Dec 2024) - Grace period, scaling, cooldowns, conditions
+4. **Political/Senate System** - Factions, influence, political intrigue (V2 feature)
+5. **Infinite Mode Polish** - `enterInfiniteMode()` exists, needs polish
+6. **Save/Load UI** - Persistence works, needs buttons
+7. **Unit Tests** - None exist currently
+
+---
+
+## Event System (Dec 2024)
+
+### Empire Events (`events.ts`)
+16 random events (6 positive, 6 negative, 4 neutral) triggered each season:
+- **Grace Period**: Rounds 1-4 protected from negative events (15% chance, positive/neutral only)
+- **Conditional Triggers**: plague +50% if sanitation < 30, desertion blocked if morale > 70, etc.
+- **Cooldowns**: Same event can't repeat for 4 rounds
+- **Effect Scaling**: 60% early (rounds 1-8), 80% mid (9-20), 100-130% late (21+)
+
+### Religious Events (`religion.ts`)
+6 religious events (divine_omen, solar_eclipse, comet_sighting, miracle, divine_wrath, prophetic_dream):
+- Only trigger if player has engaged with religion (piety > 20)
+- Affect piety, happiness, morale, godFavor, reputation, grain
+
+### Territory Events (`math/index.ts`)
+3 territory events triggered per owned territory:
+- **Rebellion**: 5% if stability < 30 (-10 stability, -30% garrison)
+- **Prosperity**: 8% if stability > 70 (+100 income, +10 happiness)
+- **Bandit Raid**: 7% if garrison < 20 (-50 gold, -8 stability)
+
+---
+
+## Balance Issues (Fixed in Dec 2024)
+
+These gameplay balance issues were identified and fixed:
+
+### Fixed Issues
+
+| Issue | Severity | Problem | Solution |
+|-------|----------|---------|----------|
+| Starting Grain | CRITICAL | 50 grain vs ~56/season consumption = Turn 1 starvation | Increased to 75 grain |
+| Starvation Pop Loss | HIGH | Code used 5% but constant said 15% | Fixed to use STARVATION_POP_LOSS constant (15%) |
+| Winter Death Spiral | HIGH | First winter could cascade into failure | Extended grace period protection through round 8 |
+| Host Feast OP | MEDIUM | +20 happiness infinitely stackable | Added diminishing returns (halved after each use per game) |
+| Pop < 60 Redundant | MEDIUM | Can't reach 60 via starvation alone | Lowered threshold to 40 |
+| Troop Variance | MEDIUM | 50% variance (12-18) unpredictable | Tightened to ~25% variance |
+| Stability Undefined | LOW | No documentation for stability formula | Added STABILITY_FORMULA constant |
+| Caravan Winter Gaming | LOW | Send in Autumn, return in Spring, skip winter | Added winter risk multiplier to caravans |
+| Pop Growth Undocumented | MINOR | No visible formula | Documented in constants |
+
+### Key Balance Formulas
+
+**Food Consumption** (per season):
+```
+base = (population × 0.42) + (troops × 0.55)
+final = base × seasonMod × gracePeriod × ceresBlessing
+```
+
+**Grace Period Multipliers**:
+- Rounds 1-8: 60% consumption (extended from 6)
+- Rounds 9-14: 80% consumption (extended from 12)
+- Round 15+: 100% consumption
+
+**Population Growth** (per season):
+```
+base = population × 0.02 (2%)
+modifiers:
+  × (1 + venusBlessing)     // +25% at tier 50
+  × (0.5 + happiness/100)   // 50-150% based on happiness
+  × sanitationMod           // <30 = 50%, <15 = -1% decline
+cap = min(growth, housing - population)
+```
+
+**Stability Change** (per season):
+```
+base = garrison > 20 ? +1 : -2
+modifiers:
+  + buildingEffects.stability / 4
+  + governorStabilityBonus / 4
+  + godStabilityBonus
+```
+
+**Starvation Consequences**:
+- 1st starvation: -15% population, -10 happiness, -15 morale
+- 2nd consecutive: Game Over (Famine)
+
+**Troop Recruitment Ranges** (tightened):
+| Unit | Old Range | New Range | Variance |
+|------|-----------|-----------|----------|
+| Militia | 8-12 | 9-11 | ~20% |
+| Auxiliaries | 10-16 | 12-14 | ~15% |
+| Archers | 10-15 | 11-14 | ~25% |
+| Legionaries | 12-18 | 14-16 | ~13% |
+| Cavalry | 20-30 | 23-27 | ~16% |
+| Praetorians | 35-50 | 40-45 | ~12% |
+
+**Host Feast Diminishing Returns**:
+```
+effectiveBonus = 20 × (0.5 ^ feastsThisGame)
+// 1st: +20, 2nd: +10, 3rd: +5, etc.
+```
+
+**Caravan Winter Risk**:
+```
+if (season === 'winter') risk *= 1.5  // +50% risk in winter
+```
 
 ---
 
 *Last Updated: December 2024*
-*Status: Critical Path Phase*
+*Status: V1.0 COMPLETE - All systems integrated, mobile view optimized*

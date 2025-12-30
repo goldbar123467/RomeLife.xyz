@@ -342,8 +342,8 @@ export function BattleScreen() {
                                 className="overflow-hidden"
                             >
                                 <div className="pt-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-black/20 rounded-lg p-3 border border-red-500/20">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                        <div className="bg-black/20 rounded-lg p-2 md:p-3 border border-red-500/20">
                                             <div className="text-xs text-red-400/70 mb-2 flex items-center gap-1">
                                                 <Skull className="w-3 h-3" />
                                                 Your Casualties
@@ -351,13 +351,14 @@ export function BattleScreen() {
                                             <BellCurve
                                                 distribution={forecast.casualties}
                                                 colorScheme="crimson"
-                                                height={80}
-                                                showPercentiles={true}
+                                                height={70}
+                                                showPercentiles={false}
                                                 showMean={true}
+                                                compact={true}
                                             />
                                         </div>
 
-                                        <div className="bg-black/20 rounded-lg p-3 border border-green-500/20">
+                                        <div className="bg-black/20 rounded-lg p-2 md:p-3 border border-green-500/20">
                                             <div className="text-xs text-green-400/70 mb-2 flex items-center gap-1">
                                                 <Shield className="w-3 h-3" />
                                                 Enemy Casualties
@@ -365,9 +366,10 @@ export function BattleScreen() {
                                             <BellCurve
                                                 distribution={forecast.enemyCasualties}
                                                 colorScheme="green"
-                                                height={80}
-                                                showPercentiles={true}
+                                                height={70}
+                                                showPercentiles={false}
                                                 showMean={true}
+                                                compact={true}
                                             />
                                         </div>
                                     </div>

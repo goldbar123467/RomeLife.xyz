@@ -29,7 +29,7 @@ export function GlassCard({
 
     return (
         <motion.div
-            className={`rounded-2xl p-5 ${variants[variant]} ${hover ? 'glow-gold-hover' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+            className={`rounded-2xl p-3 md:p-5 ${variants[variant]} ${hover ? 'glow-gold-hover' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
             whileHover={hover ? { scale: 1.01 } : undefined}
             whileTap={onClick ? { scale: 0.99 } : undefined}
             onClick={onClick}
@@ -71,9 +71,9 @@ export function Button({
     };
 
     const sizes = {
-        sm: 'px-3 py-1.5 text-sm',
-        md: 'px-5 py-2.5 text-base',
-        lg: 'px-8 py-4 text-lg',
+        sm: 'px-4 py-2.5 text-sm min-h-[44px]',
+        md: 'px-5 py-3 text-base min-h-[48px]',
+        lg: 'px-8 py-4 text-lg min-h-[52px]',
     };
 
     return (
@@ -115,9 +115,9 @@ export function StatDisplay({
     };
 
     const sizes = {
-        sm: { label: 'text-xs', value: 'text-lg' },
-        md: { label: 'text-sm', value: 'text-2xl' },
-        lg: { label: 'text-base', value: 'text-4xl' },
+        sm: { label: 'text-[11px] md:text-xs', value: 'text-base md:text-lg' },
+        md: { label: 'text-xs md:text-sm', value: 'text-xl md:text-2xl' },
+        lg: { label: 'text-sm md:text-base', value: 'text-3xl md:text-4xl' },
     };
 
     return (
@@ -175,7 +175,7 @@ export function ProgressBar({
     return (
         <div className={className}>
             {(label || showValue) && (
-                <div className="flex justify-between mb-1.5 text-sm">
+                <div className="flex justify-between mb-1.5 text-xs md:text-sm">
                     {label && <span className="text-muted">{label}</span>}
                     {showValue && <span className="text-ink font-medium">{value} / {max}</span>}
                 </div>
@@ -395,9 +395,9 @@ export function IconButton({
     };
 
     const sizes = {
-        sm: 'w-8 h-8 text-sm',
-        md: 'w-10 h-10 text-base',
-        lg: 'w-12 h-12 text-lg',
+        sm: 'w-10 h-10 text-sm',
+        md: 'w-12 h-12 text-base',
+        lg: 'w-14 h-14 text-lg',
     };
 
     return (

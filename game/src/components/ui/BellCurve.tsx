@@ -67,14 +67,14 @@ const colorSchemes: Record<ColorSchemeName, ColorScheme> = {
 
 export function BellCurve({
   distribution,
-  width = 300,
   height = 120,
   showPercentiles = true,
   showMean = true,
   colorScheme = 'gold',
   label,
   unit = '',
-}: BellCurveProps & { colorScheme?: ColorSchemeName }) {
+  compact = false,
+}: BellCurveProps & { colorScheme?: ColorSchemeName; compact?: boolean }) {
   const colors = colorSchemes[colorScheme];
 
   // Generate bell curve data points
@@ -111,7 +111,7 @@ export function BellCurve({
         <div className="text-xs text-amber-400/70 mb-1 font-medium">{label}</div>
       )}
 
-      <ResponsiveContainer width={width} height={height}>
+      <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
           <defs>
             <linearGradient id={`bellGradient-${colorScheme}`} x1="0" y1="0" x2="0" y2="1">
@@ -122,7 +122,7 @@ export function BellCurve({
 
           <XAxis
             dataKey="x"
-            tick={{ fill: CHART_COLORS.muted, fontSize: 10 }}
+            tick={{ fill: CHART_COLORS.muted, fontSize: compact ? 8 : 10 }}
             axisLine={{ stroke: CHART_COLORS.line }}
             tickLine={false}
             tickFormatter={(v) => `${v}${unit}`}
@@ -143,7 +143,7 @@ export function BellCurve({
           />
 
           {/* Percentile markers */}
-          {showPercentiles && (
+          {showPercentiles && !compact && (
             <>
               <ReferenceLine
                 x={distribution.p10}
@@ -166,22 +166,22 @@ export function BellCurve({
               x={distribution.mean}
               stroke={colors.mean}
               strokeWidth={2}
-              label={{ value: 'Expected', fill: colors.primary, fontSize: 10, position: 'top' }}
+              label={{ value: compact ? '' : 'Expected', fill: colors.primary, fontSize: compact ? 8 : 10, position: 'top' }}
             />
           )}
         </AreaChart>
       </ResponsiveContainer>
 
       {/* Stats summary below chart */}
-      <div className="flex justify-between text-xs mt-1 px-1">
+      <div className={`flex justify-between mt-1 px-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
         <span className="text-red-400/70">
-          Worst: {distribution.p10.toFixed(0)}{unit}
+          {compact ? '' : 'Worst: '}{distribution.p10.toFixed(0)}{unit}
         </span>
         <span className="text-amber-400 font-medium">
-          Expected: {distribution.p50.toFixed(0)}{unit}
+          {compact ? '' : 'Expected: '}{distribution.p50.toFixed(0)}{unit}
         </span>
         <span className="text-green-400/70">
-          Best: {distribution.p90.toFixed(0)}{unit}
+          {compact ? '' : 'Best: '}{distribution.p90.toFixed(0)}{unit}
         </span>
       </div>
     </motion.div>

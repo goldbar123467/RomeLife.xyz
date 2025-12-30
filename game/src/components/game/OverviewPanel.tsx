@@ -65,29 +65,29 @@ export function OverviewPanel() {
     return (
         <div className="space-y-6 fade-in">
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <motion.div className="glass-gold rounded-2xl p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon="🪙" size="md" />
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
+                <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
+                    <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon="🪙" size="sm" />
                 </motion.div>
-                <motion.div className="glass-dark rounded-2xl p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Population" value={population} icon="👥" size="md" />
+                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
+                    <StatDisplay label="Population" value={population} icon="👥" size="sm" />
                 </motion.div>
-                <motion.div className="glass-dark rounded-2xl p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Happiness" value={`${happiness}%`} icon="😊" trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="md" />
+                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
+                    <StatDisplay label="Happiness" value={`${happiness}%`} icon="😊" trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="sm" />
                 </motion.div>
-                <motion.div className="glass-dark rounded-2xl p-4 border-military/30" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Troops" value={troops} icon="⚔️" size="md" />
+                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-military/30" whileHover={{ scale: 1.02 }}>
+                    <StatDisplay label="Troops" value={troops} icon="⚔️" size="sm" />
                 </motion.div>
-                <motion.div className="glass-dark rounded-2xl p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Morale" value={`${morale}%`} icon="🛡️" size="md" />
+                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
+                    <StatDisplay label="Morale" value={`${morale}%`} icon="🛡️" size="sm" />
                 </motion.div>
-                <motion.div className="glass-dark rounded-2xl p-4 border-religion/30" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Piety" value={piety} icon="🙏" size="md" />
+                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-religion/30" whileHover={{ scale: 1.02 }}>
+                    <StatDisplay label="Piety" value={piety} icon="🙏" size="sm" />
                 </motion.div>
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
 
                 {/* === LEFT COLUMN === */}
                 <div className="space-y-6">
