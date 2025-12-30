@@ -1,4 +1,5 @@
 {
+  "model": "claude-opus-4-5-20251101",
   "permissions": {
     "allow": [
       "Bash(cat:*)",
@@ -9,7 +10,12 @@
       "Bash(npm run build:*)",
       "Bash(bun dev)",
       "Bash(bun run build:*)",
-      "Bash(npm ls)"
+      "Bash(npm ls)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
