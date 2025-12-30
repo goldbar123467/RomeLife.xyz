@@ -90,7 +90,11 @@ export function ReligionPanel() {
                                 : 'text-muted hover:text-foreground hover:bg-white/5'
                         }`}
                     >
-                        <span>{tab.icon}</span>
+                        {tab.icon === 'temple' || tab.icon === 'bust' ? (
+                            <GameImage src={tab.icon} size="sm" alt={tab.label} />
+                        ) : (
+                            <span>{tab.icon}</span>
+                        )}
                         {tab.label}
                     </button>
                 ))}
