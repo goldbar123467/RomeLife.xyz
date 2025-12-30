@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="antialiased bg-bg text-ink min-h-screen">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <a
           href="https://www.vecteezy.com/free-vector/isometric-rome"
           target="_blank"

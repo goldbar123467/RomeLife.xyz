@@ -416,3 +416,17 @@ export function IconButton({
 
 // === GAME IMAGE ===
 export { GameImage, GameIcon, type GameImageProps, type GameIconProps, type ImageSize } from './GameImage';
+
+// === SHADCN COMPONENTS ===
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
+export { Toaster } from './sonner';
+export {
+    Sheet,
+    SheetTrigger,
+    SheetClose,
+    SheetContent,
+    SheetHeader,
+    SheetFooter,
+    SheetTitle,
+    SheetDescription,
+} from './sheet';

@@ -1,14 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
+import { GlassCard, Button, SectionHeader, ProgressBar, GameImage, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { Home, Droplets, Shield, Building2 } from 'lucide-react';
+import { gameToast } from '@/lib/toast';
+import { Home, Droplets, Shield, Building2, Info } from 'lucide-react';
+import type { Building } from '@/core/types';
 
 export function SettlementPanel() {
     const state = useGameStore();
     const { population, housing, sanitation, forts, denarii, buildings, buildStructure } = state;
+    const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
     // Find all buildable structures
     const settlementBuildings = buildings.filter(b => !b.built);
@@ -19,6 +23,12 @@ export function SettlementPanel() {
 
     const sanitationEfficiency = sanitation > 50 ? 'Good' : sanitation > 25 ? 'Adequate' : 'Poor';
     const diseaseRisk = sanitation < 30 ? 'High' : sanitation < 50 ? 'Medium' : 'Low';
+
+    const handleBuild = (building: Building) => {
+        buildStructure(building.id);
+        gameToast.building(`${building.name} Built!`, `Your empire grows stronger`);
+        setSelectedBuilding(null);
+    };
 
     return (
         <div className="p-6 space-y-6 fade-in">
@@ -89,8 +99,8 @@ export function SettlementPanel() {
                         <div className={`text-lg font-bold ${housingPercent >= 100 ? 'text-red-400' :
                             housingPercent >= 80 ? 'text-yellow-400' : 'text-green-400'
                             }`}>
-                            {housingPercent >= 100 ? '🚨 Overcrowded!' :
-                                housingPercent >= 80 ? '⚠️ Nearly Full' : '✅ Adequate'}
+                            {housingPercent >= 100 ? 'Overcrowded!' :
+                                housingPercent >= 80 ? 'Nearly Full' : 'Adequate'}
                         </div>
                     </div>
 
@@ -206,30 +216,40 @@ export function SettlementPanel() {
                     </h3>
 
                     <motion.div
-                        className="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4"
                         variants={staggerContainer}
                         initial="initial"
                         animate="animate"
                     >
-                        {settlementBuildings.slice(0, 6).map(building => {
+                        {settlementBuildings.slice(0, 9).map(building => {
                             const canAfford = denarii >= building.cost.denarii;
 
                             return (
                                 <motion.div
                                     key={building.id}
                                     variants={fadeInUp}
-                                    className={`glass-dark rounded-xl p-4 ${!canAfford ? 'opacity-60' : ''}`}
+                                    className={`glass-dark rounded-xl p-3 md:p-4 ${!canAfford ? 'opacity-60' : 'cursor-pointer'}`}
                                     whileHover={canAfford ? { scale: 1.02 } : {}}
+                                    onClick={() => canAfford && setSelectedBuilding(building)}
                                 >
-                                    <h4 className="font-bold text-roman-gold mb-2">{building.name}</h4>
-                                    <div className="text-sm text-muted mb-3">
-                                        Cost: {building.cost.denarii} denarii
+                                    <div className="flex items-start justify-between mb-2">
+                                        <h4 className="font-bold text-roman-gold text-sm md:text-base">{building.name}</h4>
+                                        <Info className="w-4 h-4 text-muted md:hidden" />
+                                    </div>
+                                    <div className="text-xs md:text-sm text-muted mb-2 md:mb-3">
+                                        {building.cost.denarii} denarii
+                                    </div>
+                                    {/* Show effects preview on desktop */}
+                                    <div className="hidden md:block text-xs text-muted mb-3">
+                                        {building.effects.slice(0, 2).map((e, i) => (
+                                            <div key={i}>+{e.value} {e.type}</div>
+                                        ))}
                                     </div>
                                     <Button
                                         variant="gold"
                                         size="sm"
                                         className="w-full"
-                                        onClick={() => buildStructure(building.id)}
+                                        onClick={() => handleBuild(building)}
                                         disabled={!canAfford}
                                     >
                                         Build
@@ -240,6 +260,82 @@ export function SettlementPanel() {
                     </motion.div>
                 </GlassCard>
             )}
+
+            {/* Building Detail Sheet */}
+            <Sheet open={!!selectedBuilding} onOpenChange={(open) => !open && setSelectedBuilding(null)}>
+                <SheetContent side="bottom">
+                    {selectedBuilding && (
+                        <>
+                            <SheetHeader>
+                                <SheetTitle>{selectedBuilding.name}</SheetTitle>
+                                <SheetDescription>
+                                    Category: {selectedBuilding.category}
+                                </SheetDescription>
+                            </SheetHeader>
+
+                            <div className="py-6 space-y-4">
+                                {/* Cost */}
+                                <div className="glass-dark rounded-xl p-4">
+                                    <div className="text-sm text-muted mb-2">Construction Cost</div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl">🪙</span>
+                                        <span className="text-xl font-bold text-[#f0c14b]">
+                                            {selectedBuilding.cost.denarii} denarii
+                                        </span>
+                                    </div>
+                                    {denarii < selectedBuilding.cost.denarii && (
+                                        <div className="text-sm text-red-400 mt-2">
+                                            You need {selectedBuilding.cost.denarii - denarii} more denarii
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Effects */}
+                                <div className="glass-dark rounded-xl p-4">
+                                    <div className="text-sm text-muted mb-3">Building Effects</div>
+                                    <div className="space-y-2">
+                                        {selectedBuilding.effects.map((effect, i) => (
+                                            <div key={i} className="flex justify-between items-center">
+                                                <span className="text-[#e8e4dc] capitalize">{effect.type}</span>
+                                                <span className="text-green-400 font-bold">
+                                                    {effect.multiplier ? `x${effect.value}` : `+${effect.value}`}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Resource costs if any */}
+                                {selectedBuilding.cost.resources && Object.keys(selectedBuilding.cost.resources).length > 0 && (
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-sm text-muted mb-3">Resource Requirements</div>
+                                        <div className="space-y-2">
+                                            {Object.entries(selectedBuilding.cost.resources).map(([resource, amount]) => (
+                                                <div key={resource} className="flex justify-between items-center">
+                                                    <span className="text-[#e8e4dc] capitalize">{resource}</span>
+                                                    <span className="text-[#f0c14b] font-bold">{amount}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <SheetFooter>
+                                <Button
+                                    variant="gold"
+                                    size="lg"
+                                    className="w-full"
+                                    onClick={() => handleBuild(selectedBuilding)}
+                                    disabled={denarii < selectedBuilding.cost.denarii}
+                                >
+                                    {denarii >= selectedBuilding.cost.denarii ? 'Construct Building' : 'Insufficient Funds'}
+                                </Button>
+                            </SheetFooter>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

@@ -11,6 +11,7 @@ import { DistributionBar } from '@/components/ui/BellCurve';
 import type { ResourceType, TradeCity, CaravanType, TradeState, MarketState, TradeRoute } from '@/core/types';
 import type { CaravanSimulationResult } from '@/core/types/probability';
 import { Package, ArrowRightLeft, BarChart3, Truck, Shield, TrendingUp } from 'lucide-react';
+import { gameToast } from '@/lib/toast';
 
 // === PROP TYPES FOR TAB COMPONENTS ===
 
@@ -100,7 +101,10 @@ export function TradePanel() {
 
     const handleTrade = () => {
         if (!selectedCity || !selectedResource) return;
+        const price = getTradePrice(selectedResource, selectedCity);
+        const profit = Math.floor(tradeAmount * price);
         executeTrade(selectedCity.id, selectedResource, tradeAmount);
+        gameToast.trade('Trade Complete', `Sold ${tradeAmount} ${selectedResource} for ${profit} denarii`);
         setTradeAmount(10);
     };
 

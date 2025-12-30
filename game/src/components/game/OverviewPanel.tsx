@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divider, SectionHeader, GameImage } from '@/components/ui';
+import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divider, SectionHeader, GameImage, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui';
 import { RESOURCE_ASSETS } from '@/lib/assets';
 import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
 import { calculateProductionSummary } from '@/core/math';
@@ -66,24 +66,101 @@ export function OverviewPanel() {
         <div className="space-y-6 fade-in">
             {/* Quick Stats */}
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
-                <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon="🪙" size="sm" />
-                </motion.div>
-                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Population" value={population} icon="👥" size="sm" />
-                </motion.div>
-                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Happiness" value={`${happiness}%`} icon="😊" trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="sm" />
-                </motion.div>
-                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-military/30" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Troops" value={troops} icon="⚔️" size="sm" />
-                </motion.div>
-                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Morale" value={`${morale}%`} icon="🛡️" size="sm" />
-                </motion.div>
-                <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-religion/30" whileHover={{ scale: 1.02 }}>
-                    <StatDisplay label="Piety" value={piety} icon="🙏" size="sm" />
-                </motion.div>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                            <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon="🪙" size="sm" />
+                        </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="space-y-1">
+                            <div className="font-bold text-[#f0c14b]">Treasury</div>
+                            <div className="text-xs">Income: <span className="text-green-400">+{production.income}/season</span></div>
+                            <div className="text-xs">Upkeep: <span className="text-red-400">-{production.upkeep}/season</span></div>
+                            <div className="text-xs">Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/season</span></div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                            <StatDisplay label="Population" value={population} icon="👥" size="sm" />
+                        </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="space-y-1">
+                            <div className="font-bold text-[#f0c14b]">Population</div>
+                            <div className="text-xs">Housing: {state.housing} capacity</div>
+                            <div className="text-xs">Available: <span className="text-green-400">{Math.max(0, state.housing - population)} spaces</span></div>
+                            <div className="text-xs text-muted">Growth requires housing + happiness</div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                            <StatDisplay label="Happiness" value={`${happiness}%`} icon="😊" trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="sm" />
+                        </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="space-y-1">
+                            <div className="font-bold text-[#f0c14b]">Happiness</div>
+                            <div className="text-xs">{happiness >= 70 ? '✓ Citizens are content' : happiness >= 40 ? '⚠ Citizens are restless' : '⚠ Citizens are unhappy'}</div>
+                            <div className="text-xs text-muted">Below 25% = Game Over</div>
+                            <div className="text-xs text-muted">Affects growth & production</div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-military/30 cursor-help" whileHover={{ scale: 1.02 }}>
+                            <StatDisplay label="Troops" value={troops} icon="⚔️" size="sm" />
+                        </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="space-y-1">
+                            <div className="font-bold text-[#f0c14b]">Military</div>
+                            <div className="text-xs">Active Troops: {troops}</div>
+                            <div className="text-xs">In Garrisons: {totalGarrison}</div>
+                            <div className="text-xs">Total Power: <span className="text-green-400">{totalPower}</span></div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                            <StatDisplay label="Morale" value={`${morale}%`} icon="🛡️" size="sm" />
+                        </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="space-y-1">
+                            <div className="font-bold text-[#f0c14b]">Army Morale</div>
+                            <div className="text-xs">{morale >= 70 ? '✓ Troops are eager' : morale >= 40 ? '⚠ Troops are steady' : '⚠ Troops are wavering'}</div>
+                            <div className="text-xs text-muted">Affects battle performance</div>
+                            <div className="text-xs text-muted">Improved by victories & supplies</div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-religion/30 cursor-help" whileHover={{ scale: 1.02 }}>
+                            <StatDisplay label="Piety" value={piety} icon="🙏" size="sm" />
+                        </motion.div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <div className="space-y-1">
+                            <div className="font-bold text-[#f0c14b]">Divine Favor</div>
+                            <div className="text-xs">Patron: {patronGod || 'None selected'}</div>
+                            <div className="text-xs text-muted">Worship gods to gain blessings</div>
+                            <div className="text-xs text-muted">Unlocks bonuses at 25/50/75/100</div>
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
             </div>
 
             {/* Main Content Grid */}

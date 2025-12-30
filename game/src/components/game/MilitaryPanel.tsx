@@ -6,13 +6,18 @@ import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from 
 import { MILITARY_UNITS } from '@/core/constants';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { Swords, Shield, Users, Trophy } from 'lucide-react';
+import { gameToast } from '@/lib/toast';
 
 export function MilitaryPanel() {
     const state = useGameStore();
     const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, lastEvents } = state;
 
     const handleRecruit = (unitId: string) => {
+        const unit = MILITARY_UNITS.find(u => u.id === unitId);
         recruitTroops(unitId);
+        if (unit) {
+            gameToast.recruit('Troops Recruited', `${unit.name} join your legions`);
+        }
     };
 
     return (

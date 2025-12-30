@@ -1,17 +1,20 @@
 'use client';
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GoldModal } from '@/components/ui/Modal';
 import { buttonHover, glowPulse, glowPulseRed } from '@/lib/animations';
 import { Swords, Shield, Landmark, Trophy, Skull, ArrowLeft, BarChart3, ChevronDown, ChevronUp, Zap, Settings } from 'lucide-react';
+import { Button as ShadcnButton } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { BellCurve } from '@/components/ui/BellCurve';
 import { BattleParticles, ClashWave, Explosion } from '@/components/battle';
 import { StaggeredDamage } from '@/components/battle';
 import { simulateBattle } from '@/core/math/monteCarlo';
 import { createBattleAnimator, getAdjustedDuration, type BattlePhase } from '@/lib/battleAnimations';
 import type { BattleSimulationResult } from '@/core/types/probability';
+import { gameToast } from '@/lib/toast';
 
 export function BattleScreen() {
     const {
@@ -107,6 +110,24 @@ export function BattleScreen() {
         }
     }, [battle?.active, battle?.result]);
 
+    // Track if we've shown toast for this battle result
+    const toastShownRef = useRef<string | null>(null);
+
+    // Show toast on battle result
+    useEffect(() => {
+        if (battle?.result && battle.targetTerritory && toastShownRef.current !== battle.targetTerritory) {
+            const territory = territories.find(t => t.id === battle.targetTerritory);
+            const territoryName = territory?.name || 'territory';
+
+            if (battle.result === 'victory') {
+                gameToast.victory('Victory!', `${territoryName} has been conquered!`);
+            } else {
+                gameToast.defeat('Defeat', `The assault on ${territoryName} has failed`);
+            }
+            toastShownRef.current = battle.targetTerritory;
+        }
+    }, [battle?.result, battle?.targetTerritory, territories]);
+
     if (!battle) return null;
 
     const targetTerritory = battle.targetTerritory
@@ -163,13 +184,15 @@ export function BattleScreen() {
                     <h2 className="text-3xl font-bold text-roman-gold">BATTLE</h2>
                     <Swords className="w-8 h-8 text-roman-red transform scale-x-[-1]" />
                 </div>
-                <button
+                <ShadcnButton
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setShowSettings(!showSettings)}
-                    className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    className={cn("rounded-lg hover:bg-white/5", showSettings && "bg-white/10")}
                     title="Battle Settings"
                 >
                     <Settings className="w-5 h-5 text-amber-400/60" />
-                </button>
+                </ShadcnButton>
             </div>
 
             {/* Speed Settings Panel */}
