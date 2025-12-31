@@ -684,9 +684,10 @@ export function generateProceduralTerritory(
         });
     }
 
+    const name = generateLatinName(index);
     return {
-        name: generateLatinName(index),
-        latinName: generateLatinName(index),
+        name,
+        latinName: name,
         owned: false,
         rarity: rarity.name,
         level: 1,
@@ -699,6 +700,10 @@ export function generateProceduralTerritory(
         garrison: 0,
         requirements: [{ type: 'troops', value: Math.floor(difficulty * 1.5) }],
         difficulty,
+        description: `A newly discovered territory rich with opportunity. Its ${resources.map(r => r.type).join(' and ')} resources make it a valuable addition to Rome.`,
+        pros: ['Untapped resources', 'Room for expansion', 'Strategic location'],
+        cons: ['Unknown hazards', 'Requires development', 'Far from Rome'],
+        history: `This distant land has only recently come to Roman attention. Little is known of its history, but legends speak of ancient settlements and forgotten treasures. Conquest will reveal its true potential.`
     };
 }
 

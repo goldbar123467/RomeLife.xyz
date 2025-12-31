@@ -48,6 +48,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 15,
         requirements: [],
         difficulty: 0,
+        description: 'The legendary hill where Romulus founded Rome. Sacred ground with commanding views of the Tiber valley and surrounding hills.',
+        pros: ['Central defensible position', 'Sacred founding site (+piety)', 'Access to building stone'],
+        cons: ['Limited agricultural land', 'Crowded urban center', 'High maintenance costs'],
+        history: 'According to legend, Romulus traced the sacred boundary (pomerium) of Rome on the Palatine in 753 BC. Archaeological evidence shows continuous habitation from 1000 BC. The hill became home to Rome\'s elite, including Augustus who built his modest house here—giving us the word "palace."'
     },
     {
         id: 'tiber_ford',
@@ -68,6 +72,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 0,
         requirements: [{ type: 'troops', value: 40 }],
         difficulty: 35,
+        description: 'A strategic river crossing on the Tiber. Controls trade between Latium and Etruria, with access to vital salt marshes.',
+        pros: ['Controls river trade', 'Salt production', 'Timber from riverbanks'],
+        cons: ['Prone to flooding', 'Contested crossing point', 'Marshy terrain'],
+        history: 'The Tiber Island ford was the first bridge point above the river mouth, making it invaluable for trade. Salt (sal) from the nearby marshes gave the Via Salaria its name—the "Salt Road" that connected Rome to the Adriatic. Control of this crossing was essential for early Roman commerce.'
     },
     {
         id: 'sabine_hills',
@@ -88,6 +96,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 0,
         requirements: [{ type: 'troops', value: 55 }, { type: 'territory', value: 'tiber_ford' }],
         difficulty: 45,
+        description: 'Rolling highlands northeast of Rome, home to hardy Sabine shepherds. Excellent grazing land produces fine wool and livestock.',
+        pros: ['Premium wool production', 'Hardy livestock', 'Defensible highlands'],
+        cons: ['Fierce Sabine warriors', 'Remote from markets', 'Cold winters'],
+        history: 'The Sabines were among Rome\'s earliest rivals and allies. The legendary "Rape of the Sabine Women" led to war, ended when Sabine women threw themselves between their fathers and Roman husbands. The resulting merger gave Rome its second king, Numa Pompilius, and the Sabines\' reputation for piety and simplicity.'
     },
     {
         id: 'veii',
@@ -109,6 +121,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 0,
         requirements: [{ type: 'troops', value: 80 }, { type: 'territory', value: 'sabine_hills' }],
         difficulty: 65,
+        description: 'A wealthy Etruscan city rivaling Rome in power. Rich in iron deposits and renowned for skilled craftsmen and elaborate tombs.',
+        pros: ['Iron ore deposits', 'Skilled artisans', 'Established infrastructure'],
+        cons: ['Strong Etruscan resistance', 'Cultural differences', 'Expensive to maintain'],
+        history: 'Veii was Rome\'s great rival for over a century, fighting numerous wars over control of the Tiber. The siege of Veii (406-396 BC) lasted ten years—Rome\'s own Trojan War. When it finally fell to Camillus, Rome\'s territory doubled. The famous Veii Apollo statue showcases Etruscan artistic mastery.'
     },
     {
         id: 'ostia',
@@ -129,6 +145,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 0,
         requirements: [{ type: 'troops', value: 70 }, { type: 'territory', value: 'tiber_ford' }],
         difficulty: 55,
+        description: 'Rome\'s gateway to the sea at the Tiber\'s mouth. Controls maritime trade and the salt pans essential to Roman commerce.',
+        pros: ['Sea trade access', 'Abundant salt production', 'Naval potential'],
+        cons: ['Malaria risk', 'Pirate threats', 'Silting harbor'],
+        history: 'Traditionally founded by Rome\'s fourth king Ancus Marcius, Ostia became Rome\'s vital port. The salt pans (salinae) here supplied Rome and provided export income. By the Republic\'s end, Ostia handled grain shipments feeding a million Romans. The name means "mouth" in Latin.'
     },
     {
         id: 'antium',
@@ -150,6 +170,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 0,
         requirements: [{ type: 'troops', value: 100 }, { type: 'territory', value: 'ostia' }],
         difficulty: 80,
+        description: 'A prosperous coastal city with fine vineyards and olive groves. Once a notorious pirate haven, now a jewel of the Latin coast.',
+        pros: ['Wine and olive production', 'Coastal trade hub', 'Pleasant climate'],
+        cons: ['Former pirate stronghold', 'Volscian resistance', 'Far from Rome'],
+        history: 'Antium was the chief city of the Volsci, Rome\'s persistent enemies. After conquest in 338 BC, Rome stripped its warships\' bronze rams (rostra) to decorate the speakers\' platform in the Forum. The town became a fashionable resort—Nero was born here, and Caligula built a villa. The famous Apollo Belvedere was found in its ruins.'
     },
     {
         id: 'fidenae',
@@ -170,6 +194,10 @@ const INITIAL_TERRITORIES: Territory[] = [
         garrison: 0,
         requirements: [{ type: 'troops', value: 50 }],
         difficulty: 40,
+        description: 'A fertile agricultural settlement north of Rome. Controls rich farmland and livestock grazing along the Tiber valley.',
+        pros: ['Excellent grain production', 'Livestock pastures', 'Close to Rome'],
+        cons: ['Historically rebellious', 'Exposed position', 'Etruscan influence'],
+        history: 'Fidenae\'s strategic position made it a flashpoint between Rome and Veii. The town rebelled repeatedly, once massacring Roman ambassadors. Rome finally razed it around 426 BC after the dictator Mamercus Aemilius defeated Veii\'s Lars Tolumnius in single combat. A tragic amphitheater collapse here in 27 AD killed 20,000.'
     },
 ];
 

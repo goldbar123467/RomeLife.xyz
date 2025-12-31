@@ -77,6 +77,10 @@ export interface Territory {
     garrison: number;
     requirements: TerritoryRequirement[];
     difficulty: number;
+    description: string;
+    pros: string[];
+    cons: string[];
+    history: string;
 }
 
 export interface TerritoryRequirement {

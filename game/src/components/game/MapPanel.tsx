@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { staggerContainer, fadeInUp, cardHover } from '@/lib/animations';
-import { Map, Landmark, Swords, X, User, Target, Shield, Building2, TrendingUp, Eye, ChevronUp, ChevronDown } from 'lucide-react';
+import { Map, Landmark, Swords, X, User, Target, Shield, Building2, TrendingUp, Eye, ChevronUp, ChevronDown, Check, ScrollText } from 'lucide-react';
 import {
     GOVERNORS, TERRITORY_FOCUS,
     TERRITORY_LEVELS, TERRITORY_BUILDINGS, GARRISON_CONFIG,
@@ -306,6 +306,51 @@ export function MapPanel() {
                                                         </div>
                                                     )}
                                                 </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            <div>
+                                                <p className="text-sm text-muted leading-relaxed">{selectedTerritory.description}</p>
+                                            </div>
+
+                                            {/* Pros & Cons */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="p-3 rounded-xl bg-white/5">
+                                                    <div className="text-xs text-green-400 font-bold mb-2 flex items-center gap-1">
+                                                        <Check className="w-3 h-3" /> Advantages
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        {selectedTerritory.pros.map((pro, i) => (
+                                                            <div key={i} className="text-xs text-muted flex items-start gap-1.5">
+                                                                <span className="text-green-400 mt-0.5">+</span>
+                                                                <span>{pro}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="p-3 rounded-xl bg-white/5">
+                                                    <div className="text-xs text-red-400 font-bold mb-2 flex items-center gap-1">
+                                                        <X className="w-3 h-3" /> Challenges
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        {selectedTerritory.cons.map((con, i) => (
+                                                            <div key={i} className="text-xs text-muted flex items-start gap-1.5">
+                                                                <span className="text-red-400 mt-0.5">-</span>
+                                                                <span>{con}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Historical Background */}
+                                            <div className="p-4 rounded-xl bg-white/5">
+                                                <div className="text-xs text-roman-gold font-bold mb-2 flex items-center gap-1">
+                                                    <ScrollText className="w-3 h-3" /> Historical Background
+                                                </div>
+                                                <p className="text-xs text-muted leading-relaxed">
+                                                    {selectedTerritory.history}
+                                                </p>
                                             </div>
                                         </motion.div>
                                     )}
