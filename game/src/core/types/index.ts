@@ -145,6 +145,10 @@ export interface MilitaryUnit {
     troopsMin: number;
     troopsMax: number;
     role: string;
+    description: string;
+    pros: string[];
+    cons: string[];
+    history: string;
 }
 
 export interface TradeCity {

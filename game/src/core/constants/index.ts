@@ -53,12 +53,78 @@ export const FOUNDERS: Record<FounderName, Founder> = {
 
 // === MILITARY UNITS (tightened variance for predictability) ===
 export const MILITARY_UNITS: MilitaryUnit[] = [
-    { id: 'militia', name: 'Militia', cost: { denarii: 80, food: 5 }, troopsMin: 9, troopsMax: 11, role: 'Cheap fodder' },
-    { id: 'auxiliaries', name: 'Auxiliaries', cost: { denarii: 100, food: 7 }, troopsMin: 12, troopsMax: 14, role: 'Mercenaries' },
-    { id: 'archers', name: 'Archers', cost: { denarii: 120, food: 6 }, troopsMin: 11, troopsMax: 14, role: 'Ranged support' },
-    { id: 'legionaries', name: 'Legionaries', cost: { denarii: 140, food: 8 }, troopsMin: 14, troopsMax: 16, role: 'Heavy infantry' },
-    { id: 'cavalry', name: 'Cavalry', cost: { denarii: 250, food: 12 }, troopsMin: 23, troopsMax: 27, role: 'Elite shock troops' },
-    { id: 'praetorians', name: 'Praetorian Guard', cost: { denarii: 400, food: 15 }, troopsMin: 40, troopsMax: 45, role: 'The finest' },
+    {
+        id: 'militia',
+        name: 'Militia',
+        cost: { denarii: 80, food: 5 },
+        troopsMin: 9,
+        troopsMax: 11,
+        role: 'Cheap fodder',
+        description: 'Hastily armed citizens called to defend Rome in times of need. Equipped with basic weapons and minimal training.',
+        pros: ['Very cheap to recruit', 'Low food requirements', 'Quick to mobilize'],
+        cons: ['Low combat effectiveness', 'Poor morale under pressure', 'High casualty rates'],
+        history: 'In early Rome, all male citizens were expected to serve in the militia when called. These citizen-soldiers provided their own equipment based on wealth class. While crucial for Rome\'s early survival, they were gradually replaced by professional soldiers as the empire expanded.'
+    },
+    {
+        id: 'auxiliaries',
+        name: 'Auxiliaries',
+        cost: { denarii: 100, food: 7 },
+        troopsMin: 12,
+        troopsMax: 14,
+        role: 'Mercenaries',
+        description: 'Non-citizen soldiers recruited from allied or conquered territories. They bring diverse fighting styles and specialized skills.',
+        pros: ['Diverse combat skills', 'Good value for cost', 'Specialty units available'],
+        cons: ['Loyalty can waver', 'Less disciplined than legions', 'Variable equipment quality'],
+        history: 'Auxiliaries (auxilia) were non-Roman soldiers who served alongside the legions. They included Gallic cavalry, Syrian archers, and Germanic infantry. After 25 years of service, auxiliaries earned Roman citizenship—a powerful incentive for loyalty.'
+    },
+    {
+        id: 'archers',
+        name: 'Archers',
+        cost: { denarii: 120, food: 6 },
+        troopsMin: 11,
+        troopsMax: 14,
+        role: 'Ranged support',
+        description: 'Skilled bowmen who rain death upon enemies from a distance. Essential for softening enemy formations before infantry engagement.',
+        pros: ['Attack from safety', 'Weaken enemies before melee', 'Effective against light troops'],
+        cons: ['Vulnerable in close combat', 'Affected by weather', 'Limited ammunition'],
+        history: 'Rome initially lacked strong archery traditions, relying on auxiliary units from Crete, Syria, and Numidia. The sagittarii became essential for eastern campaigns against Parthian horse archers. Their composite bows could pierce armor at 150 meters.'
+    },
+    {
+        id: 'legionaries',
+        name: 'Legionaries',
+        cost: { denarii: 140, food: 8 },
+        troopsMin: 14,
+        troopsMax: 16,
+        role: 'Heavy infantry',
+        description: 'The backbone of Roman military might. Professional soldiers equipped with pilum, gladius, and the iconic rectangular scutum shield.',
+        pros: ['Excellent discipline', 'Superior equipment', 'Versatile tactics'],
+        cons: ['Expensive to maintain', 'Slow on the march', 'Requires extensive training'],
+        history: 'The Roman legionary was the most effective soldier of the ancient world. After the Marian reforms (107 BC), legions became professional standing armies. Each legionary carried 30kg of equipment and could march 30km daily. Their discipline and engineering skills built an empire.'
+    },
+    {
+        id: 'cavalry',
+        name: 'Cavalry',
+        cost: { denarii: 250, food: 12 },
+        troopsMin: 23,
+        troopsMax: 27,
+        role: 'Elite shock troops',
+        description: 'Mounted warriors capable of devastating charges and rapid flanking maneuvers. The hammer to the infantry\'s anvil.',
+        pros: ['High mobility', 'Devastating charges', 'Excellent for pursuit'],
+        cons: ['Very expensive', 'Horses need care', 'Vulnerable to pikes'],
+        history: 'Roman cavalry (equites) originally came from the wealthy patrician class who could afford horses. Later, Rome relied heavily on allied Gallic, Numidian, and Germanic cavalry. The cataphractii—heavily armored cavalry—became essential against eastern empires.'
+    },
+    {
+        id: 'praetorians',
+        name: 'Praetorian Guard',
+        cost: { denarii: 400, food: 15 },
+        troopsMin: 40,
+        troopsMax: 45,
+        role: 'The finest',
+        description: 'Elite imperial bodyguards, the finest soldiers in the empire. Handpicked veterans with the best equipment and triple pay.',
+        pros: ['Supreme combat ability', 'Unshakeable morale', 'Inspires nearby troops'],
+        cons: ['Extremely expensive', 'Politically dangerous', 'Limited numbers'],
+        history: 'Created by Augustus in 27 BC, the Praetorian Guard served as the emperor\'s personal bodyguard. Stationed in Rome, they received triple legionary pay and served only 16 years. Their political power grew dangerous—they assassinated several emperors and once auctioned off the throne.'
+    },
 ];
 
 // === ROMAN GODS ===

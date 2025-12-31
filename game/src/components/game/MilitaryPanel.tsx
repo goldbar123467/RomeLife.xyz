@@ -7,7 +7,7 @@ import { GlassCard, Button, Badge, SectionHeader, ProgressBar, Sheet, SheetConte
 import { MILITARY_UNITS } from '@/core/constants';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { Swords, Shield, Users, Zap, Package, Heart } from 'lucide-react';
+import { Swords, Shield, Users, Zap, Package, Heart, Check, X, ScrollText } from 'lucide-react';
 import { gameToast } from '@/lib/toast';
 import type { MilitaryUnit } from '@/core/types';
 
@@ -210,7 +210,7 @@ export function MilitaryPanel() {
 
             {/* Unit Detail Sheet */}
             <Sheet open={!!selectedUnit} onOpenChange={(open) => !open && setSelectedUnit(null)}>
-                <SheetContent side="bottom">
+                <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
                     {selectedUnit && (() => {
                         const cost = getUnitCost(selectedUnit);
                         const canAfford = canAffordUnit(selectedUnit);
@@ -224,55 +224,80 @@ export function MilitaryPanel() {
                                         <Badge variant="gold">{selectedUnit.role}</Badge>
                                     </SheetTitle>
                                     <SheetDescription>
-                                        Recruit {selectedUnit.troopsMin}-{selectedUnit.troopsMax} trained soldiers
+                                        {selectedUnit.description}
                                     </SheetDescription>
                                 </SheetHeader>
 
-                                <div className="py-6 space-y-4">
-                                    {/* Cost */}
-                                    <div className="glass-dark rounded-xl p-4">
-                                        <div className="text-sm text-muted mb-3">Recruitment Cost</div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-muted">Denarii</span>
-                                                <span className={`font-bold ${denarii >= cost ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {cost}
-                                                    {hasDiscount && (
-                                                        <span className="text-xs text-muted line-through ml-2">{selectedUnit.cost.denarii}</span>
-                                                    )}
-                                                </span>
+                                <div className="py-4 space-y-4">
+                                    {/* Pros & Cons */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="glass-dark rounded-xl p-3">
+                                            <div className="text-xs text-green-400 font-bold mb-2 flex items-center gap-1">
+                                                <Check className="w-3 h-3" /> Strengths
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-muted">Food</span>
-                                                <span className={`font-bold ${inventory.grain >= selectedUnit.cost.food ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {selectedUnit.cost.food}
-                                                </span>
+                                            <div className="space-y-1">
+                                                {selectedUnit.pros.map((pro, i) => (
+                                                    <div key={i} className="text-xs text-muted flex items-start gap-1.5">
+                                                        <span className="text-green-400 mt-0.5">+</span>
+                                                        <span>{pro}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="glass-dark rounded-xl p-3">
+                                            <div className="text-xs text-red-400 font-bold mb-2 flex items-center gap-1">
+                                                <X className="w-3 h-3" /> Weaknesses
+                                            </div>
+                                            <div className="space-y-1">
+                                                {selectedUnit.cons.map((con, i) => (
+                                                    <div key={i} className="text-xs text-muted flex items-start gap-1.5">
+                                                        <span className="text-red-400 mt-0.5">-</span>
+                                                        <span>{con}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Historical Info */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-xs text-roman-gold font-bold mb-2 flex items-center gap-1">
+                                            <ScrollText className="w-3 h-3" /> Historical Background
+                                        </div>
+                                        <p className="text-xs text-muted leading-relaxed">
+                                            {selectedUnit.history}
+                                        </p>
+                                    </div>
+
+                                    {/* Cost & Resources */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-sm text-muted mb-3">Recruitment</div>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <div className="text-xs text-muted mb-1">Cost</div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={denarii >= cost ? 'text-green-400' : 'text-red-400'}>
+                                                        {cost} gold
+                                                        {hasDiscount && <span className="text-muted line-through ml-1 text-xs">{selectedUnit.cost.denarii}</span>}
+                                                    </span>
+                                                    <span className={inventory.grain >= selectedUnit.cost.food ? 'text-green-400' : 'text-red-400'}>
+                                                        {selectedUnit.cost.food} food
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-muted mb-1">You Have</div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={denarii >= cost ? 'text-green-400' : 'text-red-400'}>{denarii} gold</span>
+                                                    <span className={inventory.grain >= selectedUnit.cost.food ? 'text-green-400' : 'text-red-400'}>{inventory.grain} food</span>
+                                                </div>
                                             </div>
                                         </div>
                                         {hasDiscount && (
                                             <div className="text-xs text-green-400 mt-3 pt-3 border-t border-white/10">
-                                                Mars blessing active: {Math.round(Math.abs(totalDiscount) * 100)}% cost reduction
+                                                Mars blessing: {Math.round(Math.abs(totalDiscount) * 100)}% cost reduction
                                             </div>
                                         )}
-                                    </div>
-
-                                    {/* Your Resources */}
-                                    <div className="glass-dark rounded-xl p-4">
-                                        <div className="text-sm text-muted mb-3">Your Resources</div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-muted">Denarii</span>
-                                                <span className={`font-bold ${denarii >= cost ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {denarii}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-muted">Food</span>
-                                                <span className={`font-bold ${inventory.grain >= selectedUnit.cost.food ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {inventory.grain}
-                                                </span>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
 
@@ -284,7 +309,7 @@ export function MilitaryPanel() {
                                         onClick={() => handleRecruit(selectedUnit)}
                                         disabled={!canAfford}
                                     >
-                                        {canAfford ? `Recruit ${selectedUnit.name}` : 'Insufficient Resources'}
+                                        {canAfford ? `Recruit ${selectedUnit.troopsMin}-${selectedUnit.troopsMax} ${selectedUnit.name}` : 'Insufficient Resources'}
                                     </Button>
                                 </SheetFooter>
                             </>
