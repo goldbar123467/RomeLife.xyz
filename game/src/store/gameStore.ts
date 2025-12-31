@@ -1620,6 +1620,13 @@ export const useGameStore = create<GameStore>()(
         }),
         {
             name: 'rome-empire-save',
+            version: 2, // Increment when schema changes
+            onRehydrateStorage: () => (state, error) => {
+                if (error) {
+                    console.error('Failed to rehydrate store, clearing localStorage:', error);
+                    localStorage.removeItem('rome-empire-save');
+                }
+            },
             partialize: (state) => ({
                 round: state.round,
                 season: state.season,
