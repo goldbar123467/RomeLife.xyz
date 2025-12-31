@@ -1621,7 +1621,18 @@ export const useGameStore = create<GameStore>()(
         }),
         {
             name: 'rome-empire-save',
-            version: 2, // Increment when schema changes
+            version: 3, // Increment when schema changes - v3 fixes building NaN bug
+            migrate: (persistedState: unknown, version: number) => {
+                const state = persistedState as Record<string, unknown>;
+
+                // v2 -> v3: Fix corrupted buildings with missing cost data
+                if (version < 3) {
+                    // Reset buildings to initial state to fix NaN issues
+                    state.buildings = INITIAL_BUILDINGS;
+                }
+
+                return state;
+            },
             onRehydrateStorage: () => (state, error) => {
                 if (error) {
                     console.error('Failed to rehydrate store, clearing localStorage:', error);
