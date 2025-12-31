@@ -7,7 +7,7 @@ import { GlassCard, Button, SectionHeader, ProgressBar, GameImage, Sheet, SheetC
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { gameToast } from '@/lib/toast';
 import { Home, Droplets, Shield, Building2, Info, Wheat, Coins, Heart, Sparkles, Package } from 'lucide-react';
-import type { Building } from '@/core/types';
+import type { Building, ResourceType } from '@/core/types';
 
 // Calculate total building buffs from all buildings
 const calculateBuildingBuffs = (buildings: Building[]) => {
@@ -44,7 +44,7 @@ const calculateBuildingBuffs = (buildings: Building[]) => {
 
 export function SettlementPanel() {
     const state = useGameStore();
-    const { population, housing, sanitation, forts, denarii, buildings, buildStructure } = state;
+    const { population, housing, sanitation, forts, denarii, buildings, buildStructure, inventory } = state;
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
     // Calculate building stats
@@ -60,10 +60,23 @@ export function SettlementPanel() {
     const diseaseRisk = sanitation < 30 ? 'High' : sanitation < 50 ? 'Medium' : 'Low';
 
     const handleBuild = (building: Building) => {
+        // Check denarii
         if (denarii < building.cost.denarii) {
-            gameToast.danger('Not Enough Resources', `You need ${building.cost.denarii - denarii} more denarii to build ${building.name}`);
+            gameToast.danger('Not Enough Denarii', `You need ${building.cost.denarii - denarii} more denarii to build ${building.name}`);
             return;
         }
+
+        // Check resource costs
+        if (building.cost.resources) {
+            for (const [resource, amount] of Object.entries(building.cost.resources)) {
+                const have = inventory[resource as ResourceType] || 0;
+                if (have < amount) {
+                    gameToast.danger('Not Enough Resources', `You need ${amount - have} more ${resource} to build ${building.name}`);
+                    return;
+                }
+            }
+        }
+
         buildStructure(building.id);
         gameToast.building(`${building.name} Built!`, `Your empire grows stronger`);
         setSelectedBuilding(null);
@@ -348,7 +361,11 @@ export function SettlementPanel() {
                     animate="animate"
                 >
                     {buildings.map(building => {
-                        const canAfford = denarii >= building.cost.denarii;
+                        const hasEnoughDenarii = denarii >= building.cost.denarii;
+                        const hasEnoughResources = !building.cost.resources || Object.entries(building.cost.resources).every(
+                            ([res, amount]) => (inventory[res as ResourceType] || 0) >= amount
+                        );
+                        const canAfford = hasEnoughDenarii && hasEnoughResources;
 
                         return (
                             <motion.div
@@ -445,29 +462,44 @@ export function SettlementPanel() {
                                     <div className="glass-dark rounded-xl p-4">
                                         <div className="text-sm text-muted mb-3">Resource Requirements</div>
                                         <div className="space-y-2">
-                                            {Object.entries(selectedBuilding.cost.resources).map(([resource, amount]) => (
-                                                <div key={resource} className="flex justify-between items-center">
-                                                    <span className="text-[#e8e4dc] capitalize">{resource}</span>
-                                                    <span className="text-[#f0c14b] font-bold">{amount}</span>
-                                                </div>
-                                            ))}
+                                            {Object.entries(selectedBuilding.cost.resources).map(([resource, amount]) => {
+                                                const have = inventory[resource as ResourceType] || 0;
+                                                const hasEnough = have >= amount;
+                                                return (
+                                                    <div key={resource} className="flex justify-between items-center">
+                                                        <span className="text-[#e8e4dc] capitalize">{resource}</span>
+                                                        <span className={`font-bold ${hasEnough ? 'text-green-400' : 'text-red-400'}`}>
+                                                            {have}/{amount}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
                             <SheetFooter>
-                                <Button
-                                    variant="gold"
-                                    size="lg"
-                                    className="w-full"
-                                    onClick={() => handleBuild(selectedBuilding)}
-                                    disabled={denarii < selectedBuilding.cost.denarii}
-                                >
-                                    {denarii >= selectedBuilding.cost.denarii
-                                        ? (selectedBuilding.count > 0 ? 'Build Another' : 'Construct Building')
-                                        : 'Insufficient Funds'}
-                                </Button>
+                                {(() => {
+                                    const hasEnoughDenarii = denarii >= selectedBuilding.cost.denarii;
+                                    const hasEnoughResources = !selectedBuilding.cost.resources || Object.entries(selectedBuilding.cost.resources).every(
+                                        ([res, amt]) => (inventory[res as ResourceType] || 0) >= amt
+                                    );
+                                    const canBuild = hasEnoughDenarii && hasEnoughResources;
+                                    return (
+                                        <Button
+                                            variant="gold"
+                                            size="lg"
+                                            className="w-full"
+                                            onClick={() => handleBuild(selectedBuilding)}
+                                            disabled={!canBuild}
+                                        >
+                                            {canBuild
+                                                ? (selectedBuilding.count > 0 ? 'Build Another' : 'Construct Building')
+                                                : (!hasEnoughDenarii ? 'Insufficient Denarii' : 'Insufficient Resources')}
+                                        </Button>
+                                    );
+                                })()}
                             </SheetFooter>
                         </>
                     )}
