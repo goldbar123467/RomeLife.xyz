@@ -1649,14 +1649,18 @@ export const useGameStore = create<GameStore>()(
         }),
         {
             name: 'rome-empire-save',
-            version: 3, // Increment when schema changes - v3 fixes building NaN bug
+            version: 4, // v4 adds territory descriptions/pros/cons/history
             migrate: (persistedState: unknown, version: number) => {
                 const state = persistedState as Record<string, unknown>;
 
                 // v2 -> v3: Fix corrupted buildings with missing cost data
                 if (version < 3) {
-                    // Reset buildings to initial state to fix NaN issues
                     state.buildings = INITIAL_BUILDINGS;
+                }
+
+                // v3 -> v4: Add territory rich info (description, pros, cons, history)
+                if (version < 4) {
+                    state.territories = INITIAL_TERRITORIES;
                 }
 
                 return state;
