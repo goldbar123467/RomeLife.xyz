@@ -232,6 +232,10 @@ export interface Wonder {
     built: boolean;
     turnsRemaining?: number; // Turns left to complete construction
     effects: WonderEffect[];
+    history: string;
+    facts: string[];
+    yearBuilt: string;
+    latinName: string;
 }
 
 export interface WonderCost {
