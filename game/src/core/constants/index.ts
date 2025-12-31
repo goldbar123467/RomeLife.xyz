@@ -140,6 +140,10 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 75, name: 'Divine Authority', effect: '+20% Territory Stability' },
             { tier: 100, name: 'Apotheosis', effect: 'Double all God bonuses' },
         ],
+        description: 'Supreme deity of the Roman pantheon, Jupiter Optimus Maximus rules from his temple atop the Capitoline Hill. As god of sky, thunder, and lightning, he presides over laws, social order, and the Roman state itself.',
+        symbols: ['⚡ Lightning Bolt', '🦅 Eagle', '🏛️ Scepter', '🌳 Oak Tree'],
+        greekEquivalent: 'Zeus',
+        history: 'Jupiter was the chief deity in Roman religion throughout the Republican and Imperial eras. His temple on the Capitoline Hill was the most important in Rome, where triumphing generals would climb to offer thanks. Every Roman general swore oaths before Jupiter before departing for war. The phrase "By Jupiter!" (Mehercle!) was the most common Roman oath. His cult title "Optimus Maximus" (Best and Greatest) reflected his supreme position among the gods.',
     },
     mars: {
         id: 'mars',
@@ -152,6 +156,10 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 75, name: 'War Machine', effect: '+25% Troop Production' },
             { tier: 100, name: 'God of War', effect: 'Guaranteed critical hits in battle' },
         ],
+        description: 'Father of Romulus and Remus, Mars holds a special place as the divine ancestor of the Roman people. Unlike the Greek Ares, Mars was also a god of agriculture, spring, and guardian of the state—embodying Rome\'s identity as a warrior civilization.',
+        symbols: ['⚔️ Sword & Spear', '🛡️ Shield', '🐺 Wolf', '🪶 Woodpecker'],
+        greekEquivalent: 'Ares',
+        history: 'Mars was second only to Jupiter in importance. The month of March (Martius) bears his name, as does the Campus Martius where soldiers trained. Legend holds that Mars fathered Romulus and Remus with the Vestal Virgin Rhea Silvia. Before any military campaign, generals sacrificed at the Temple of Mars and consulted the sacred shields (ancilia) kept by his priests, the Salii. Roman soldiers believed Mars personally watched over them in battle.',
     },
     venus: {
         id: 'venus',
@@ -164,6 +172,10 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 75, name: 'Adoration', effect: '+20% Happiness Cap' },
             { tier: 100, name: 'Divine Beauty', effect: 'All relations start at Friendly' },
         ],
+        description: 'Goddess of love, beauty, desire, and fertility, Venus was claimed as divine ancestor by the Julian family through her son Aeneas. Her influence extends beyond romance to prosperity, victory, and the success of Rome itself.',
+        symbols: ['🌹 Rose', '🐚 Scallop Shell', '🕊️ Dove', '🪞 Mirror'],
+        greekEquivalent: 'Aphrodite',
+        history: 'Venus rose to prominence as the divine mother of Aeneas, legendary founder of the Roman race. Julius Caesar claimed direct descent from Venus through the Julii family, building a temple to Venus Genetrix in her honor. Sulla, Pompey, and Caesar all invoked Venus before battles, believing she granted victory to those she favored. Her most famous temple stood at the summit of the Roman Forum, rebuilt by Hadrian as one of the largest in Rome.',
     },
     ceres: {
         id: 'ceres',
@@ -176,6 +188,10 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 75, name: 'Cornucopia', effect: 'Food never spoils' },
             { tier: 100, name: 'Eternal Harvest', effect: 'Double food production' },
         ],
+        description: 'Ancient goddess of agriculture, grain, and the harvest, Ceres ensures Rome never starves. Her annual festival, the Cerealia, celebrated the life-giving power of grain that sustained civilization itself.',
+        symbols: ['🌾 Wheat Sheaf', '🌽 Corn', '🔥 Torch', '👑 Corona Spicea'],
+        greekEquivalent: 'Demeter',
+        history: 'Ceres was worshipped in Rome from the earliest times, with her temple on the Aventine Hill serving as headquarters for the plebeian aediles. Her cult was closely associated with the common people (plebs) rather than the patricians. The word "cereal" derives from her name. During times of famine, Romans would make special sacrifices to Ceres, and her priestesses (sacerdotes publicae) were among the few women to hold official religious positions in Rome.',
     },
     mercury: {
         id: 'mercury',
@@ -188,6 +204,10 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 75, name: 'Golden Touch', effect: '+25% All Income' },
             { tier: 100, name: 'Merchant King', effect: 'No tariffs anywhere' },
         ],
+        description: 'Swift messenger of the gods and patron of merchants, travelers, and thieves, Mercury guides both commerce and souls to the underworld. His winged sandals carry him between the mortal and divine realms.',
+        symbols: ['🪽 Winged Sandals', '⚕️ Caduceus', '👜 Money Bag', '🎩 Petasus Hat'],
+        greekEquivalent: 'Hermes',
+        history: 'Mercury was adopted relatively late into the Roman pantheon (495 BC) but quickly became essential to Rome\'s commercial identity. His temple near the Circus Maximus overlooked the main commercial district. Merchants would sprinkle themselves with water from Mercury\'s sacred well (aqua Mercurii) to purify their goods and ensure profitable sales. His festival, the Mercuralia on May 15th, saw merchants sprinkle their heads and merchandise with sacred water.',
     },
     minerva: {
         id: 'minerva',
@@ -200,6 +220,10 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 75, name: 'Strategic Mind', effect: '+30% Battle Planning' },
             { tier: 100, name: 'Omniscience', effect: 'See all outcomes before decisions' },
         ],
+        description: 'Virgin goddess of wisdom, strategic warfare, arts, and crafts, Minerva emerged fully armed from Jupiter\'s head. She represents the intellectual and civilized aspects of conflict—planning, strategy, and righteous defense.',
+        symbols: ['🦉 Owl', '🫒 Olive Branch', '🛡️ Aegis Shield', '🎭 Craft Tools'],
+        greekEquivalent: 'Athena',
+        history: 'Minerva was one of the Capitoline Triad, worshipped alongside Jupiter and Juno in the great temple on the Capitoline Hill. Unlike Mars, who represented the chaos of battle, Minerva embodied strategic warfare and victory through superior planning. She was patron goddess of craftsmen, artists, doctors, teachers, and all skilled professions. The Quinquatria festival (March 19-23) honored her as protector of artisans. Soldiers would pray to Minerva before battles requiring cunning rather than brute force.',
     },
 };
 

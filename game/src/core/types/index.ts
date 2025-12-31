@@ -172,6 +172,10 @@ export interface God {
     domain: string;
     patronBonus: string;
     blessings: Blessing[];
+    description: string;
+    symbols: string[];
+    greekEquivalent: string;
+    history: string;
 }
 
 export interface Blessing {

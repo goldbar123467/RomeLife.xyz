@@ -6,15 +6,16 @@ import { useGameStore } from '@/store/gameStore';
 import { ROMAN_GODS, RELIGIOUS_BUILDINGS, WORSHIP_ACTIONS, getActiveBlessings } from '@/core/constants';
 import { GOD_ICONS } from '@/components/ui/icons';
 import { staggerContainer, fadeInUp, cardHover } from '@/lib/animations';
-import { Zap, Heart, Check, Building2, Sparkles } from 'lucide-react';
-import { GlassCard, Button, Badge, GameImage } from '@/components/ui';
+import { Zap, Heart, Check, Building2, Sparkles, ScrollText, Info } from 'lucide-react';
+import { GlassCard, Button, Badge, GameImage, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
 import { RELIGIOUS_BUILDING_ASSETS, WORSHIP_ACTION_ASSETS } from '@/lib/assets';
-import type { GodName } from '@/core/types';
+import type { GodName, God } from '@/core/types';
 
 type ReligionTab = 'gods' | 'buildings' | 'worship';
 
 export function ReligionPanel() {
     const [activeTab, setActiveTab] = useState<ReligionTab>('gods');
+    const [selectedGod, setSelectedGod] = useState<God | null>(null);
     const {
         patronGod, godFavor, piety, setPatronGod, worship, denarii, inventory,
         religiousBuildings, buildReligiousBuilding
@@ -126,7 +127,7 @@ export function ReligionPanel() {
                                     <motion.div
                                         key={id}
                                         variants={fadeInUp}
-                                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all relative ${
                                             isPatron
                                                 ? 'bg-gradient-to-br from-roman-gold/15 to-transparent border-roman-gold/50 shadow-glow-gold'
                                                 : 'bg-paper-light border-line hover:border-roman-gold/30'
@@ -135,6 +136,17 @@ export function ReligionPanel() {
                                         whileTap={cardHover.whileTap}
                                         onClick={() => setPatronGod(id as GodName)}
                                     >
+                                        {/* Info button */}
+                                        <button
+                                            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedGod(god);
+                                            }}
+                                        >
+                                            <Info className="w-4 h-4 text-muted hover:text-roman-gold" />
+                                        </button>
+
                                         <div className="text-center">
                                             <div className={`inline-flex p-3 rounded-xl mb-3 ${
                                                 isPatron ? 'bg-roman-gold/20' : 'bg-religion/20'
@@ -366,6 +378,129 @@ export function ReligionPanel() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* God Detail Sheet */}
+            <Sheet open={!!selectedGod} onOpenChange={(open) => !open && setSelectedGod(null)}>
+                <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+                    {selectedGod && (() => {
+                        const GodIcon = GOD_ICONS[selectedGod.id as keyof typeof GOD_ICONS];
+                        const favor = godFavor[selectedGod.id];
+                        const isPatron = patronGod === selectedGod.id;
+
+                        return (
+                            <>
+                                <SheetHeader>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-3 rounded-xl ${isPatron ? 'bg-roman-gold/20' : 'bg-religion/20'}`}>
+                                            <GodIcon className={`w-8 h-8 ${isPatron ? 'text-roman-gold' : 'text-religion'}`} />
+                                        </div>
+                                        <div>
+                                            <SheetTitle className="flex items-center gap-2">
+                                                {selectedGod.name}
+                                                {isPatron && <Badge variant="gold" size="sm">Patron</Badge>}
+                                            </SheetTitle>
+                                            <SheetDescription className="flex items-center gap-2">
+                                                {selectedGod.domain} • Greek: {selectedGod.greekEquivalent}
+                                            </SheetDescription>
+                                        </div>
+                                    </div>
+                                </SheetHeader>
+
+                                <div className="py-4 space-y-4">
+                                    {/* Description */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <p className="text-sm text-foreground leading-relaxed">
+                                            {selectedGod.description}
+                                        </p>
+                                    </div>
+
+                                    {/* Symbols */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-xs text-roman-gold font-bold mb-3 flex items-center gap-1">
+                                            <Sparkles className="w-3 h-3" /> Sacred Symbols
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedGod.symbols.map((symbol, i) => (
+                                                <span key={i} className="text-sm bg-roman-gold/10 text-roman-gold px-3 py-1.5 rounded-lg">
+                                                    {symbol}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Historical Background */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-xs text-roman-gold font-bold mb-2 flex items-center gap-1">
+                                            <ScrollText className="w-3 h-3" /> Historical Background
+                                        </div>
+                                        <p className="text-xs text-muted leading-relaxed">
+                                            {selectedGod.history}
+                                        </p>
+                                    </div>
+
+                                    {/* Patron Bonus */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-xs text-green-400 font-bold mb-2 flex items-center gap-1">
+                                            <Check className="w-3 h-3" /> Patron Bonus
+                                        </div>
+                                        <p className="text-sm text-green-400">
+                                            {selectedGod.patronBonus}
+                                        </p>
+                                    </div>
+
+                                    {/* Blessings Preview */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-xs text-roman-gold font-bold mb-3">Blessings</div>
+                                        <div className="space-y-2">
+                                            {selectedGod.blessings.map((blessing, idx) => {
+                                                const isUnlocked = favor >= blessing.tier;
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`flex items-center gap-3 p-2 rounded-lg ${
+                                                            isUnlocked ? 'bg-green-500/10' : 'bg-bg'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                                            isUnlocked
+                                                                ? 'bg-green-500/20 text-green-400'
+                                                                : 'bg-muted/20 text-muted'
+                                                        }`}>
+                                                            {blessing.tier}%
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className={`font-medium text-sm ${isUnlocked ? 'text-green-400' : 'text-muted'}`}>
+                                                                {blessing.name}
+                                                            </div>
+                                                            <div className="text-xs text-muted">{blessing.effect}</div>
+                                                        </div>
+                                                        {isUnlocked && <Check className="w-4 h-4 text-green-400" />}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <SheetFooter>
+                                    <Button
+                                        variant="gold"
+                                        size="lg"
+                                        className="w-full"
+                                        onClick={() => {
+                                            setPatronGod(selectedGod.id);
+                                            setSelectedGod(null);
+                                        }}
+                                        disabled={isPatron}
+                                    >
+                                        {isPatron ? `${selectedGod.name} is Your Patron` : `Choose ${selectedGod.name} as Patron`}
+                                    </Button>
+                                </SheetFooter>
+                            </>
+                        );
+                    })()}
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }
