@@ -115,7 +115,7 @@ export function checkFailureConditions(state: GameState): FailureResult | null {
         };
     }
 
-    // Unrest: Happiness ≤ 20%
+    // Unrest: Happiness ≤ 25% (FAILURE_MIN_HAPPINESS = 25)
     if (happiness <= GAME_CONSTANTS.FAILURE_MIN_HAPPINESS) {
         return {
             type: 'unrest',

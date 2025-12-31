@@ -327,6 +327,9 @@ interface GameStore extends GameState {
     // Last events for UI display
     lastEvents: string[];
 
+    // Senate event guard - tracks consecutive blocked attempts
+    _endSeasonBlockedAttempts: number;
+
     // Battle Animation Settings
     battleSpeed: 'normal' | 'fast' | 'instant';
     setBattleSpeed: (speed: 'normal' | 'fast' | 'instant') => void;
@@ -453,6 +456,7 @@ const createInitialState = (): Omit<GameStore,
 
     // UI State
     lastEvents: [],
+    _endSeasonBlockedAttempts: 0,
 
     // Emergency Cooldowns
     emergencyCooldowns: {},
@@ -488,19 +492,27 @@ export const useGameStore = create<GameStore>()(
             },
 
             endSeason: () => {
-                const state = get();
+                let state = get();
 
-                // Guard: Don't end season while senate events need resolution
-                if (state.senate?.currentEvent) {
-                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
-                    return;
+                // Clear any pending senate events before season processing
+                // This prevents permanent game lockout if events can't be resolved
+                if (state.senate?.currentEvent || (state.senate?.pendingEvents?.length ?? 0) > 0) {
+                    set({
+                        senate: {
+                            ...state.senate,
+                            currentEvent: null,
+                            pendingEvents: [],
+                        },
+                    });
+                    state = get();
                 }
 
                 const result = executeEndSeason(state);
 
-                // Apply state changes
+                // Apply state changes and reset the blocked attempts counter
                 set({
                     ...result.newState,
+                    _endSeasonBlockedAttempts: 0,
                     lastEvents: result.events,
                 } as Partial<GameStore>);
             },
