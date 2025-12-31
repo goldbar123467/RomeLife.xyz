@@ -1649,7 +1649,7 @@ export const useGameStore = create<GameStore>()(
         }),
         {
             name: 'rome-empire-save',
-            version: 4, // v4 adds territory descriptions/pros/cons/history
+            version: 5, // v5 adds wonder history/facts/yearBuilt/latinName
             migrate: (persistedState: unknown, version: number) => {
                 const state = persistedState as Record<string, unknown>;
 
@@ -1661,6 +1661,11 @@ export const useGameStore = create<GameStore>()(
                 // v3 -> v4: Add territory rich info (description, pros, cons, history)
                 if (version < 4) {
                     state.territories = INITIAL_TERRITORIES;
+                }
+
+                // v4 -> v5: Add wonder rich info (history, facts, yearBuilt, latinName)
+                if (version < 5) {
+                    state.wonders = WONDERS;
                 }
 
                 return state;
