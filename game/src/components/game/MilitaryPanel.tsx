@@ -1,241 +1,297 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
+import { GlassCard, Button, Badge, SectionHeader, ProgressBar, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
 import { MILITARY_UNITS } from '@/core/constants';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { Swords, Shield, Users, Trophy } from 'lucide-react';
+import { Swords, Shield, Users, Zap, Package, Heart } from 'lucide-react';
 import { gameToast } from '@/lib/toast';
+import type { MilitaryUnit } from '@/core/types';
 
 export function MilitaryPanel() {
     const state = useGameStore();
-    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, lastEvents, patronGod, godFavor, founder } = state;
+    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, patronGod, godFavor, founder, winStreak } = state;
+    const [selectedUnit, setSelectedUnit] = useState<MilitaryUnit | null>(null);
 
     // Calculate Mars recruitment discount (-15% at tier 25)
     const marsRecruitDiscount = calculateBlessingBonus(patronGod, godFavor, 'recruitCost');
     const founderRecruitMod = founder?.modifiers?.recruitCostMod || 0;
+    const totalDiscount = marsRecruitDiscount + founderRecruitMod;
 
-    const handleRecruit = (unitId: string) => {
-        const unit = MILITARY_UNITS.find(u => u.id === unitId);
-        recruitTroops(unitId);
-        if (unit) {
-            gameToast.recruit('Troops Recruited', `${unit.name} join your legions`);
-        }
+    // Combat calculations
+    const combatStrength = Math.floor(troops * (morale / 100) * (1 + supplies / 500));
+    const upkeepCost = troops * 2;
+    const foodRequired = Math.floor(troops * 0.55);
+
+    const handleRecruit = (unit: MilitaryUnit) => {
+        recruitTroops(unit.id);
+        gameToast.recruit('Troops Recruited', `${unit.name} join your legions`);
+        setSelectedUnit(null);
+    };
+
+    // Calculate cost for a unit
+    const getUnitCost = (unit: MilitaryUnit) => {
+        const discountMod = 1 + totalDiscount;
+        return Math.floor(unit.cost.denarii * Math.max(0.5, discountMod));
+    };
+
+    const canAffordUnit = (unit: MilitaryUnit) => {
+        const cost = getUnitCost(unit);
+        return denarii >= cost && inventory.grain >= unit.cost.food;
     };
 
     return (
-        <div className="p-6 space-y-6 fade-in">
+        <div className="p-4 md:p-6 space-y-6 fade-in">
             <SectionHeader
                 title="Military"
                 subtitle="Command your legions and defend Rome"
                 icon={<Swords className="w-6 h-6 text-roman-gold" />}
             />
 
-            {/* Military Stats */}
-            <motion.div
-                className="grid grid-cols-2 md:grid-cols-4 gap-4"
-                variants={staggerContainer}
-                initial="initial"
-                animate="animate"
-            >
-                <motion.div variants={fadeInUp}>
-                    <GlassCard variant="gold" className="p-4 text-center">
-                        <div className="text-4xl font-black text-roman-gold">{troops}</div>
-                        <div className="text-sm text-muted">Total Troops</div>
-                    </GlassCard>
-                </motion.div>
+            {/* Key Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                <GlassCard variant="gold" className="p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-roman-gold/20 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-roman-gold" />
+                        </div>
+                        <div>
+                            <div className="text-2xl md:text-3xl font-black text-roman-gold">{troops}</div>
+                            <div className="text-xs text-muted">Troops</div>
+                        </div>
+                    </div>
+                </GlassCard>
 
-                <motion.div variants={fadeInUp}>
-                    <GlassCard className="p-4 text-center">
-                        <div className="text-3xl font-bold text-green-400">{morale}%</div>
-                        <div className="text-sm text-muted">Morale</div>
-                        <ProgressBar value={morale} max={100} variant="default" height="sm" className="mt-2" />
-                    </GlassCard>
-                </motion.div>
+                <GlassCard className="p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                            <Heart className="w-5 h-5 text-green-400" />
+                        </div>
+                        <div>
+                            <div className="text-2xl md:text-3xl font-bold text-green-400">{morale}%</div>
+                            <div className="text-xs text-muted">Morale</div>
+                        </div>
+                    </div>
+                </GlassCard>
 
-                <motion.div variants={fadeInUp}>
-                    <GlassCard className="p-4 text-center">
-                        <div className="text-3xl font-bold text-blue-400">{supplies}</div>
-                        <div className="text-sm text-muted">Supplies</div>
-                        <ProgressBar value={supplies} max={200} variant="default" height="sm" className="mt-2" />
-                    </GlassCard>
-                </motion.div>
+                <GlassCard className="p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                            <Package className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                            <div className="text-2xl md:text-3xl font-bold text-blue-400">{supplies}</div>
+                            <div className="text-xs text-muted">Supplies</div>
+                        </div>
+                    </div>
+                </GlassCard>
 
-                <motion.div variants={fadeInUp}>
-                    <GlassCard className="p-4 text-center">
-                        <div className="text-3xl font-bold text-purple-400">{forts}</div>
-                        <div className="text-sm text-muted">Forts</div>
-                    </GlassCard>
-                </motion.div>
-            </motion.div>
+                <GlassCard className="p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                            <Shield className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div>
+                            <div className="text-2xl md:text-3xl font-bold text-purple-400">{forts}</div>
+                            <div className="text-xs text-muted">Forts</div>
+                        </div>
+                    </div>
+                </GlassCard>
+            </div>
 
-            {/* Recruitment */}
-            <GlassCard className="p-6">
-                <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5" /> Recruitment
+            {/* Combat Power Summary */}
+            <GlassCard className="p-4 md:p-6">
+                <h3 className="text-lg font-bold text-roman-gold mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5" /> Combat Power
                 </h3>
 
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center">
+                        <div className="text-2xl md:text-3xl font-black text-green-400">{combatStrength}</div>
+                        <div className="text-xs text-muted">Strength</div>
+                    </div>
+                    <div className="text-center border-x border-white/10">
+                        <div className="text-2xl md:text-3xl font-black text-red-400">-{upkeepCost}</div>
+                        <div className="text-xs text-muted">Upkeep/Season</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-2xl md:text-3xl font-black text-orange-400">{foodRequired}</div>
+                        <div className="text-xs text-muted">Food/Season</div>
+                    </div>
+                </div>
+
+                {/* Morale Bar */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                    <div className="flex justify-between text-sm mb-2">
+                        <span className="text-muted">Legion Morale</span>
+                        <span className={morale >= 70 ? 'text-green-400' : morale >= 40 ? 'text-yellow-400' : 'text-red-400'}>
+                            {morale >= 70 ? 'High' : morale >= 40 ? 'Steady' : 'Low'}
+                        </span>
+                    </div>
+                    <ProgressBar
+                        value={morale}
+                        max={100}
+                        variant={morale >= 70 ? 'default' : morale >= 40 ? 'gold' : 'danger'}
+                        height="sm"
+                    />
+                    {winStreak > 0 && (
+                        <div className="text-xs text-green-400 mt-2">
+                            Victory streak: {winStreak} wins (+{winStreak * 5} morale bonus)
+                        </div>
+                    )}
+                </div>
+            </GlassCard>
+
+            {/* Recruitment Section */}
+            <GlassCard className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-roman-gold flex items-center gap-2">
+                        <Users className="w-5 h-5" /> Recruit Units
+                    </h3>
+                    {totalDiscount < 0 && (
+                        <Badge variant="gold" size="sm">
+                            {Math.round(Math.abs(totalDiscount) * 100)}% discount
+                        </Badge>
+                    )}
+                </div>
+
                 <motion.div
-                    className="grid md:grid-cols-2 lg:grid-cols-4 gap-4"
+                    className="grid grid-cols-2 lg:grid-cols-3 gap-3"
                     variants={staggerContainer}
                     initial="initial"
                     animate="animate"
                 >
                     {MILITARY_UNITS.map((unit) => {
-                        // Calculate discounted cost with Mars blessing and founder modifiers
-                        const discountMod = 1 + marsRecruitDiscount + founderRecruitMod;
-                        const discountedCost = Math.floor(unit.cost.denarii * Math.max(0.5, discountMod)); // Min 50% discount
-                        const hasDiscount = discountedCost < unit.cost.denarii;
-                        const canAfford = denarii >= discountedCost && inventory.grain >= unit.cost.food;
+                        const cost = getUnitCost(unit);
+                        const canAfford = canAffordUnit(unit);
+                        const hasDiscount = cost < unit.cost.denarii;
 
                         return (
                             <motion.div
                                 key={unit.id}
                                 variants={fadeInUp}
+                                className={`glass-dark rounded-xl p-3 md:p-4 cursor-pointer transition-all ${
+                                    !canAfford ? 'opacity-50' : 'hover:bg-white/5'
+                                }`}
+                                onClick={() => setSelectedUnit(unit)}
                             >
-                                <GlassCard
-                                    className={`p-4 h-full ${!canAfford ? 'opacity-60' : ''}`}
-                                    hover={canAfford}
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <h4 className="font-bold text-roman-gold">{unit.name}</h4>
-                                        <Badge variant="gold" size="sm">{unit.role}</Badge>
-                                    </div>
+                                <div className="flex items-start justify-between mb-2">
+                                    <h4 className="font-bold text-roman-gold text-sm md:text-base">{unit.name}</h4>
+                                    <Badge variant="default" size="sm" className="text-[10px]">{unit.role}</Badge>
+                                </div>
 
-                                    <p className="text-sm text-muted mb-3">
-                                        Recruits {unit.troopsMin}-{unit.troopsMax} troops
-                                    </p>
+                                <div className="text-xs text-muted mb-3">
+                                    +{unit.troopsMin}-{unit.troopsMax} troops
+                                </div>
 
-                                    <div className="space-y-1 text-sm mb-4">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-muted">Cost</span>
-                                            <span className={denarii >= discountedCost ? 'text-green-400' : 'text-red-400'}>
-                                                <span className="flex items-center gap-1">
-                                                    <GameImage src="coin-gold" size="sm" />
-                                                    {discountedCost}
-                                                    {hasDiscount && (
-                                                        <span className="text-xs text-muted line-through ml-1">{unit.cost.denarii}</span>
-                                                    )}
-                                                </span>
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted">Food</span>
-                                            <span className={inventory.grain >= unit.cost.food ? 'text-green-400' : 'text-red-400'}>
-                                                <><GameImage src="amphora" size="sm" /> {unit.cost.food}</>
-                                            </span>
-                                        </div>
-                                    </div>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className={denarii >= cost ? 'text-green-400' : 'text-red-400'}>
+                                        {cost} gold
+                                        {hasDiscount && <span className="text-muted line-through ml-1">{unit.cost.denarii}</span>}
+                                    </span>
+                                    <span className={inventory.grain >= unit.cost.food ? 'text-green-400' : 'text-red-400'}>
+                                        {unit.cost.food} food
+                                    </span>
+                                </div>
 
-                                    <Button
-                                        variant="roman"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => handleRecruit(unit.id)}
-                                        disabled={!canAfford}
-                                    >
-                                        Recruit
-                                    </Button>
-                                </GlassCard>
+                                <div className={`mt-3 text-xs font-medium text-center py-1.5 rounded ${
+                                    canAfford ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'
+                                }`}>
+                                    {canAfford ? 'Tap to recruit' : 'Cannot afford'}
+                                </div>
                             </motion.div>
                         );
                     })}
                 </motion.div>
             </GlassCard>
 
-            {/* Army Composition */}
-            <GlassCard className="p-6">
-                <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2">
-                    <Shield className="w-5 h-5" /> Legion Status
-                </h3>
+            {/* Unit Detail Sheet */}
+            <Sheet open={!!selectedUnit} onOpenChange={(open) => !open && setSelectedUnit(null)}>
+                <SheetContent side="bottom">
+                    {selectedUnit && (() => {
+                        const cost = getUnitCost(selectedUnit);
+                        const canAfford = canAffordUnit(selectedUnit);
+                        const hasDiscount = cost < selectedUnit.cost.denarii;
 
-                <motion.div
-                    className="grid md:grid-cols-3 gap-4"
-                    variants={staggerContainer}
-                    initial="initial"
-                    animate="animate"
-                >
-                    <motion.div variants={fadeInUp} className="glass-dark rounded-xl p-4">
-                        <div className="text-lg font-bold text-roman-gold mb-2">Combat Strength</div>
-                        <div className="text-3xl font-black text-green-400">
-                            {Math.floor(troops * (morale / 100) * (1 + supplies / 500))}
-                        </div>
-                        <div className="text-xs text-muted mt-1">
-                            Troops × Morale × Supply Bonus
-                        </div>
-                    </motion.div>
+                        return (
+                            <>
+                                <SheetHeader>
+                                    <SheetTitle className="flex items-center gap-2">
+                                        {selectedUnit.name}
+                                        <Badge variant="gold">{selectedUnit.role}</Badge>
+                                    </SheetTitle>
+                                    <SheetDescription>
+                                        Recruit {selectedUnit.troopsMin}-{selectedUnit.troopsMax} trained soldiers
+                                    </SheetDescription>
+                                </SheetHeader>
 
-                    <motion.div variants={fadeInUp} className="glass-dark rounded-xl p-4">
-                        <div className="text-lg font-bold text-roman-gold mb-2">Upkeep Cost</div>
-                        <div className="text-3xl font-black text-red-400">
-                            {troops * 2}/season
-                        </div>
-                        <div className="text-xs text-muted mt-1">
-                            2 denarii per soldier
-                        </div>
-                    </motion.div>
+                                <div className="py-6 space-y-4">
+                                    {/* Cost */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-sm text-muted mb-3">Recruitment Cost</div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted">Denarii</span>
+                                                <span className={`font-bold ${denarii >= cost ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {cost}
+                                                    {hasDiscount && (
+                                                        <span className="text-xs text-muted line-through ml-2">{selectedUnit.cost.denarii}</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted">Food</span>
+                                                <span className={`font-bold ${inventory.grain >= selectedUnit.cost.food ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {selectedUnit.cost.food}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {hasDiscount && (
+                                            <div className="text-xs text-green-400 mt-3 pt-3 border-t border-white/10">
+                                                Mars blessing active: {Math.round(Math.abs(totalDiscount) * 100)}% cost reduction
+                                            </div>
+                                        )}
+                                    </div>
 
-                    <motion.div variants={fadeInUp} className="glass-dark rounded-xl p-4">
-                        <div className="text-lg font-bold text-roman-gold mb-2">Food Required</div>
-                        <div className="text-3xl font-black text-orange-400">
-                            {Math.floor(troops * 0.55)}
-                        </div>
-                        <div className="text-xs text-muted mt-1">
-                            0.55 grain per soldier
-                        </div>
-                    </motion.div>
-                </motion.div>
-            </GlassCard>
+                                    {/* Your Resources */}
+                                    <div className="glass-dark rounded-xl p-4">
+                                        <div className="text-sm text-muted mb-3">Your Resources</div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted">Denarii</span>
+                                                <span className={`font-bold ${denarii >= cost ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {denarii}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted">Food</span>
+                                                <span className={`font-bold ${inventory.grain >= selectedUnit.cost.food ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {inventory.grain}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-            {/* Morale Factors */}
-            <GlassCard className="p-6">
-                <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2">
-                    <Trophy className="w-5 h-5" /> Morale Factors
-                </h3>
-
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted">Base Morale</span>
-                        <span className="text-green-400">+50</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted">Victory Streak ({state.winStreak} wins)</span>
-                        <span className="text-green-400">+{state.winStreak * 5}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted">Supplies ({supplies > 100 ? 'Well supplied' : 'Low'})</span>
-                        <span className={supplies > 100 ? 'text-green-400' : 'text-red-400'}>
-                            {supplies > 100 ? '+10' : '-10'}
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted">Fort Presence</span>
-                        <span className="text-green-400">+{forts * 5}</span>
-                    </div>
-
-                    <div className="border-t border-white/10 pt-3 mt-3">
-                        <div className="flex justify-between items-center font-bold">
-                            <span>Current Morale</span>
-                            <span className={morale >= 70 ? 'text-green-400' : morale >= 40 ? 'text-yellow-400' : 'text-red-400'}>
-                                {morale}%
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </GlassCard>
-
-            {/* Last Recruitment Event */}
-            {lastEvents.length > 0 && lastEvents[0].includes('Recruited') && (
-                <motion.div
-                    className="glass-gold rounded-xl p-4 text-center"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                >
-                    <span className="text-roman-gold">{lastEvents[0]}</span>
-                </motion.div>
-            )}
+                                <SheetFooter>
+                                    <Button
+                                        variant="gold"
+                                        size="lg"
+                                        className="w-full"
+                                        onClick={() => handleRecruit(selectedUnit)}
+                                        disabled={!canAfford}
+                                    >
+                                        {canAfford ? `Recruit ${selectedUnit.name}` : 'Insufficient Resources'}
+                                    </Button>
+                                </SheetFooter>
+                            </>
+                        );
+                    })()}
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }
