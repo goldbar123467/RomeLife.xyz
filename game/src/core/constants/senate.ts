@@ -484,22 +484,22 @@ export const STATE_TRANSITIONS: Record<SenatorId, StateTransitionRule[]> = {
 export const ATTENTION_TIERS: AttentionEffectTier[] = [
     {
         minAttention: 0,
-        maxAttention: 10,
+        maxAttention: 9,        // Changed from 10 - severe neglect only below 10%
         description: 'Neglect',
         relationDrift: -3,
         eventChance: 0.2,
         warningChance: 0.1,
     },
     {
-        minAttention: 11,
-        maxAttention: 20,
+        minAttention: 10,       // Changed from 11
+        maxAttention: 19,       // Changed from 20 - maintenance is 10-19%
         description: 'Maintenance',
         relationDrift: -1,
         eventChance: 0.5,
         warningChance: 0.4,
     },
     {
-        minAttention: 21,
+        minAttention: 20,       // Changed from 21 - "Balanced" (20%) now gives +1
         maxAttention: 30,
         description: 'Engaged',
         relationDrift: 1,

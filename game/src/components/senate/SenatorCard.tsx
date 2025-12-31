@@ -91,7 +91,7 @@ export function SenatorCard({ senator, attention, onClick }: SenatorCardProps) {
                 {/* State Badge */}
                 <div className="mb-3">
                     <div className="text-xs text-muted mb-1">Status</div>
-                    <div className="text-sm font-medium text-foreground line-clamp-2">
+                    <div className="text-sm font-medium text-ink line-clamp-2">
                         {stateDescription}
                     </div>
                 </div>
@@ -104,7 +104,7 @@ export function SenatorCard({ senator, attention, onClick }: SenatorCardProps) {
                             {senator.relation > 0 ? '+' : ''}{senator.relation}
                         </span>
                     </div>
-                    <div className="h-2 bg-background/50 rounded-full overflow-hidden">
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <div
                             className={`h-full transition-all duration-500 ${relationBarColor}`}
                             style={{ width: `${relationNormalized * 100}%` }}
@@ -134,7 +134,9 @@ export function SenatorCard({ senator, attention, onClick }: SenatorCardProps) {
                             <Skull className="w-4 h-4" />
                             {senator.assassination.turnsUntilAttempt === 1
                                 ? 'IMMINENT THREAT!'
-                                : `Threat in ${senator.assassination.turnsUntilAttempt} seasons`}
+                                : senator.assassination.turnsUntilAttempt !== null
+                                    ? `Threat in ${senator.assassination.turnsUntilAttempt} seasons`
+                                    : 'THREAT DETECTED'}
                         </div>
                     </div>
                 )}

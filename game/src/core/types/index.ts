@@ -105,7 +105,7 @@ export interface Building {
     cost: BuildingCost;
     upkeep: number;
     effects: BuildingEffect[];
-    built: boolean;
+    count: number;  // How many of this building have been built (allows multiples)
     territoryId?: string;
 }
 

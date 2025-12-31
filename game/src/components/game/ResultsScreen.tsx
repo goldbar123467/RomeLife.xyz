@@ -16,7 +16,7 @@ export function ResultsScreen() {
     } = state;
 
     const ownedTerritories = territories.filter(t => t.owned);
-    const builtBuildings = buildings.filter(b => b.built);
+    const builtBuildings = buildings.filter(b => b.count > 0);
 
     // Check for victory or failure
     const victory = checkVictoryConditions(state);

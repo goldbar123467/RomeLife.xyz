@@ -101,7 +101,7 @@ export function SenatorEventModal({ event, onChoice, onDismiss }: SenatorEventMo
                         <div className="p-6 border-b border-roman-gold/10">
                             <div className="prose prose-invert prose-sm max-w-none">
                                 {event.description.split('\n\n').map((paragraph, i) => (
-                                    <p key={i} className="text-foreground/90 mb-3 last:mb-0 leading-relaxed">
+                                    <p key={i} className="text-ink/90 mb-3 last:mb-0 leading-relaxed">
                                         {paragraph}
                                     </p>
                                 ))}
@@ -141,7 +141,7 @@ export function SenatorEventModal({ event, onChoice, onDismiss }: SenatorEventMo
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <p className={`text-sm ${canAfford ? 'text-foreground' : 'text-muted'}`}>
+                                                <p className={`text-sm ${canAfford ? 'text-ink' : 'text-muted'}`}>
                                                     {choice.text}
                                                 </p>
 

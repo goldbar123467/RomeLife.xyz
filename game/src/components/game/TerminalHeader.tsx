@@ -28,8 +28,6 @@ const CORE_RESOURCES: ResourceType[] = ['grain', 'iron', 'timber', 'stone', 'woo
 const flashScaleAnimation = { scale: [1, 1.05, 1] };
 const noAnimation = {};
 const resourceFlashAnimation = { scale: [1, 1.08, 1] };
-const scanlineAnimation = { top: ['-2px', '100%'] };
-const scanlineTransition = { duration: 4, repeat: Infinity, ease: 'linear' as const };
 const logoAnimation = { scale: [1, 1.02, 1] };
 const logoTransition = { duration: 3, repeat: Infinity };
 
@@ -190,14 +188,8 @@ export function TerminalHeader() {
 
     return (
         <header className="relative border-b border-line bg-paper">
-            {/* Scanline effect - hidden on mobile */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden hidden md:block">
-                <motion.div
-                    className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-roman-gold/30 to-transparent"
-                    animate={scanlineAnimation}
-                    transition={scanlineTransition}
-                />
-            </div>
+            {/* Subtle bottom accent line */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-roman-gold/20 to-transparent hidden md:block" />
 
             {/* Mobile Header - Compact single row */}
             <div className="flex md:hidden items-center justify-between px-3 py-2">

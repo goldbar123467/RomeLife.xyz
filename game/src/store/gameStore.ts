@@ -238,16 +238,16 @@ const createInitialTradeState = (): TradeState => ({
 
 // === INITIAL BUILDINGS ===
 const INITIAL_BUILDINGS: Building[] = [
-    { id: 'granary_1', name: 'Granary', category: 'production', rarity: 'common', cost: { denarii: 200, resources: { timber: 10, stone: 5 } }, upkeep: 5, effects: [{ type: 'production', resource: 'grain', value: 1.3, multiplier: true }, { type: 'capacity', resource: 'grain', value: 50 }], built: false, territoryId: 'palatine' },
-    { id: 'marketplace_1', name: 'Marketplace', category: 'economic', rarity: 'common', cost: { denarii: 300, resources: { timber: 15, stone: 10 } }, upkeep: 8, effects: [{ type: 'income', value: 50 }], built: false, territoryId: 'palatine' },
-    { id: 'barracks_1', name: 'Barracks', category: 'military', rarity: 'common', cost: { denarii: 250, resources: { timber: 20, iron: 5 } }, upkeep: 10, effects: [{ type: 'defense', value: 15 }], built: false, territoryId: 'palatine' },
-    { id: 'shrine_1', name: 'Shrine', category: 'religious', rarity: 'common', cost: { denarii: 150, resources: { stone: 10, clay: 5 } }, upkeep: 3, effects: [{ type: 'piety', value: 2 }, { type: 'happiness', value: 5 }], built: false, territoryId: 'palatine' },
-    { id: 'workshop_1', name: 'Workshop', category: 'production', rarity: 'common', cost: { denarii: 350, resources: { timber: 20, iron: 10 } }, upkeep: 8, effects: [{ type: 'production', value: 1.2, multiplier: true }], built: false, territoryId: 'palatine' },
-    { id: 'walls_1', name: 'City Walls', category: 'military', rarity: 'uncommon', cost: { denarii: 500, resources: { stone: 50, timber: 20 } }, upkeep: 15, effects: [{ type: 'defense', value: 30 }, { type: 'happiness', value: 5 }], built: false, territoryId: 'palatine' },
-    { id: 'temple_1', name: 'Temple', category: 'religious', rarity: 'uncommon', cost: { denarii: 400, resources: { stone: 30, clay: 15 } }, upkeep: 10, effects: [{ type: 'piety', value: 5 }, { type: 'happiness', value: 10 }], built: false, territoryId: 'palatine' },
-    { id: 'farm_1', name: 'Farm Complex', category: 'production', rarity: 'common', cost: { denarii: 180, resources: { timber: 15 } }, upkeep: 4, effects: [{ type: 'production', resource: 'grain', value: 2.0, multiplier: true }], built: false, territoryId: 'palatine' },
-    { id: 'mine_1', name: 'Iron Mine', category: 'production', rarity: 'uncommon', cost: { denarii: 400, resources: { timber: 25, stone: 15 } }, upkeep: 12, effects: [{ type: 'production', resource: 'iron', value: 3 }], built: false, territoryId: 'veii' },
-    { id: 'banking_house', name: 'Banking House', category: 'economic', rarity: 'rare', cost: { denarii: 600, resources: { stone: 40, timber: 20 } }, upkeep: 15, effects: [{ type: 'income', value: 200 }], built: false, territoryId: 'palatine' },
+    { id: 'granary_1', name: 'Granary', category: 'production', rarity: 'common', cost: { denarii: 200, resources: { timber: 10, stone: 5 } }, upkeep: 5, effects: [{ type: 'production', resource: 'grain', value: 1.3, multiplier: true }, { type: 'capacity', resource: 'grain', value: 50 }], count: 0, territoryId: 'palatine' },
+    { id: 'marketplace_1', name: 'Marketplace', category: 'economic', rarity: 'common', cost: { denarii: 300, resources: { timber: 15, stone: 10 } }, upkeep: 8, effects: [{ type: 'income', value: 50 }], count: 0, territoryId: 'palatine' },
+    { id: 'barracks_1', name: 'Barracks', category: 'military', rarity: 'common', cost: { denarii: 250, resources: { timber: 20, iron: 5 } }, upkeep: 10, effects: [{ type: 'defense', value: 15 }], count: 0, territoryId: 'palatine' },
+    { id: 'shrine_1', name: 'Shrine', category: 'religious', rarity: 'common', cost: { denarii: 150, resources: { stone: 10, clay: 5 } }, upkeep: 3, effects: [{ type: 'piety', value: 2 }, { type: 'happiness', value: 5 }], count: 0, territoryId: 'palatine' },
+    { id: 'workshop_1', name: 'Workshop', category: 'production', rarity: 'common', cost: { denarii: 350, resources: { timber: 20, iron: 10 } }, upkeep: 8, effects: [{ type: 'production', value: 1.2, multiplier: true }], count: 0, territoryId: 'palatine' },
+    { id: 'walls_1', name: 'City Walls', category: 'military', rarity: 'uncommon', cost: { denarii: 500, resources: { stone: 50, timber: 20 } }, upkeep: 15, effects: [{ type: 'defense', value: 30 }, { type: 'happiness', value: 5 }], count: 0, territoryId: 'palatine' },
+    { id: 'temple_1', name: 'Temple', category: 'religious', rarity: 'uncommon', cost: { denarii: 400, resources: { stone: 30, clay: 15 } }, upkeep: 10, effects: [{ type: 'piety', value: 5 }, { type: 'happiness', value: 10 }], count: 0, territoryId: 'palatine' },
+    { id: 'farm_1', name: 'Farm Complex', category: 'production', rarity: 'common', cost: { denarii: 180, resources: { timber: 15 } }, upkeep: 4, effects: [{ type: 'production', resource: 'grain', value: 2.0, multiplier: true }], count: 0, territoryId: 'palatine' },
+    { id: 'mine_1', name: 'Iron Mine', category: 'production', rarity: 'uncommon', cost: { denarii: 400, resources: { timber: 25, stone: 15 } }, upkeep: 12, effects: [{ type: 'production', resource: 'iron', value: 3 }], count: 0, territoryId: 'veii' },
+    { id: 'banking_house', name: 'Banking House', category: 'economic', rarity: 'rare', cost: { denarii: 600, resources: { stone: 40, timber: 20 } }, upkeep: 15, effects: [{ type: 'income', value: 200 }], count: 0, territoryId: 'palatine' },
 ];
 
 // === STORE INTERFACE ===
@@ -569,12 +569,12 @@ export const useGameStore = create<GameStore>()(
                 const marsAttackBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'attack');
                 const totalAttackBonus = attackBonus + jupiterBattleBonus + marsAttackBonus;
 
-                // Collect building defense (reduces enemy effective strength)
+                // Collect building defense (reduces enemy effective strength) - multiplied by count
                 const buildingDefense = state.buildings
-                    .filter(b => b.built)
+                    .filter(b => b.count > 0)
                     .reduce((sum, b) => {
                         const defEffect = b.effects.find(e => e.type === 'defense');
-                        return sum + (defEffect?.value || 0);
+                        return sum + ((defEffect?.value || 0) * b.count);
                     }, 0);
 
                 // Tech defense bonus
@@ -834,7 +834,7 @@ export const useGameStore = create<GameStore>()(
             buildStructure: (buildingId) => {
                 const state = get();
                 const building = state.buildings.find(b => b.id === buildingId);
-                if (!building || building.built || state.denarii < building.cost.denarii) return;
+                if (!building || state.denarii < building.cost.denarii) return;
 
                 // Check resource costs
                 if (building.cost.resources) {
@@ -850,7 +850,7 @@ export const useGameStore = create<GameStore>()(
                     }
                 }
 
-                // Apply building effects (capacity, happiness, piety, etc.)
+                // Apply building effects (capacity, happiness, piety, etc.) for this new building
                 const newCapacity = { ...state.capacity };
                 let newHappiness = state.happiness;
                 let newPiety = state.piety;
@@ -866,14 +866,15 @@ export const useGameStore = create<GameStore>()(
                     }
                 }
 
+                const newCount = building.count + 1;
                 set({
                     denarii: state.denarii - building.cost.denarii,
                     inventory: newInventory,
                     capacity: newCapacity,
                     happiness: newHappiness,
                     piety: newPiety,
-                    buildings: state.buildings.map(b => b.id === buildingId ? { ...b, built: true } : b),
-                    lastEvents: [`🏗️ Built ${building.name}!`],
+                    buildings: state.buildings.map(b => b.id === buildingId ? { ...b, count: newCount } : b),
+                    lastEvents: [`🏗️ Built ${building.name}! (x${newCount})`],
                 });
             },
 

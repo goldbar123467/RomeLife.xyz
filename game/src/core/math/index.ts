@@ -185,15 +185,16 @@ export function calculateTerritoryProduction(
         production[res.type] = (production[res.type] || 0) + amount;
     }
 
-    // Apply building multipliers
-    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.built);
+    // Apply building multipliers (effects stack with count)
+    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
     for (const building of territoryBuildings) {
         for (const effect of building.effects) {
             if (effect.type === 'production' && effect.resource && effect.multiplier) {
                 const current = production[effect.resource] || 0;
-                production[effect.resource] = current * effect.value;
+                // For multipliers, apply once per building count: value^count for stacking
+                production[effect.resource] = current * Math.pow(effect.value, building.count);
             } else if (effect.type === 'production' && effect.resource) {
-                production[effect.resource] = (production[effect.resource] || 0) + effect.value;
+                production[effect.resource] = (production[effect.resource] || 0) + (effect.value * building.count);
             }
         }
     }
@@ -299,12 +300,12 @@ export function calculateIncome(state: GameState): number {
     // Apply Census Office tax bonus to base tax
     baseTax *= (1 + territoryBuildingTaxBonus);
 
-    // Building income effects (Marketplace +50, Banking House +200, etc.)
+    // Building income effects (Marketplace +50, Banking House +200, etc.) - multiplied by count
     const buildingIncome = state.buildings
-        .filter(b => b.built)
+        .filter(b => b.count > 0)
         .reduce((sum, b) => {
             const incomeEffect = b.effects.find(e => e.type === 'income');
-            return sum + (incomeEffect?.value || 0);
+            return sum + ((incomeEffect?.value || 0) * b.count);
         }, 0);
 
     // Territory stability modifier
@@ -331,10 +332,10 @@ export function calculateUpkeep(state: GameState, seasonMod?: SeasonModifiers): 
     const { troops, housing, forts, sanitation, buildings, infiniteMode } = state;
     seasonMod = seasonMod || SEASON_MODIFIERS[state.season];
 
-    // Building upkeep
+    // Building upkeep (multiplied by count for each building)
     const buildingUpkeep = buildings
-        .filter(b => b.built)
-        .reduce((sum, b) => sum + b.upkeep, 0);
+        .filter(b => b.count > 0)
+        .reduce((sum, b) => sum + (b.upkeep * b.count), 0);
 
     // Military upkeep
     const troopUpkeep = troops * GAME_CONSTANTS.TROOP_UPKEEP;
@@ -593,12 +594,12 @@ export function calculateStabilityChange(
         change -= 2;
     }
 
-    // Building bonuses
-    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.built);
+    // Building bonuses (multiply by count for stacking)
+    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
     for (const building of territoryBuildings) {
         for (const effect of building.effects) {
             if (effect.type === 'happiness') {
-                change += effect.value * 0.1; // Stability from happiness buildings
+                change += (effect.value * building.count) * 0.1; // Stability from happiness buildings
             }
         }
     }

@@ -5,9 +5,10 @@ import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divider, SectionHeader, GameImage, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui';
 import { RESOURCE_ASSETS } from '@/lib/assets';
 import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
+import { getSenatorDangerLevel, getSenatorStateDescription } from '@/core/constants/senate';
 import { calculateProductionSummary } from '@/core/math';
-import type { ResourceType } from '@/core/types';
-import { AlertTriangle } from 'lucide-react';
+import type { ResourceType, SenatorState } from '@/core/types';
+import { AlertTriangle, Building2 } from 'lucide-react';
 
 export function OverviewPanel() {
     const state = useGameStore();
@@ -15,11 +16,11 @@ export function OverviewPanel() {
         founder, round, season, denarii, population, happiness,
         troops, morale, territories, buildings, piety, patronGod,
         inventory, endSeason, technologies, lastEvents,
-        emergencyCooldowns, executeEmergency, setTab
+        emergencyCooldowns, executeEmergency, setTab, senate
     } = state;
 
     const ownedTerritories = territories.filter(t => t.owned);
-    const builtBuildings = buildings.filter(b => b.built);
+    const builtBuildings = buildings.filter(b => b.count > 0);
     const production = calculateProductionSummary(state);
     const imperialEvents = lastEvents || [];
 
@@ -27,12 +28,12 @@ export function OverviewPanel() {
     const totalGarrison = ownedTerritories.reduce((acc, t) => acc + (t.garrison || 0), 0);
     const totalPower = troops + totalGarrison;
 
-    // Calculate Active Effects
+    // Calculate Active Effects (multiply by count for stacking)
     const activeEffects = [
         ...builtBuildings.flatMap(b => b.effects.map(e => ({
-            name: b.name,
+            name: `${b.name}${b.count > 1 ? ` x${b.count}` : ''}`,
             type: e.type,
-            value: e.multiplier ? `x${e.value}` : `+${e.value}`,
+            value: e.multiplier ? `x${(e.value * b.count).toFixed(1)}` : `+${e.value * b.count}`,
             icon: '🏛️'
         }))),
         ...(technologies?.filter(t => t.researched) || []).flatMap(t => t.effects.map(e => ({
@@ -60,6 +61,58 @@ export function OverviewPanel() {
         if (action.cost.denarii && denarii < action.cost.denarii) return false;
 
         return true;
+    };
+
+    // Senator Row Component for Senate Standing dashboard
+    const SenatorRow = ({ senator }: { senator: SenatorState }) => {
+        const dangerLevel = getSenatorDangerLevel(senator);
+        const stateDesc = getSenatorStateDescription(senator.id, senator.currentState);
+
+        const dangerColors: Record<string, string> = {
+            safe: 'bg-green-500',
+            warning: 'bg-yellow-500',
+            danger: 'bg-red-500',
+            critical: 'bg-red-500 animate-pulse'
+        };
+
+        // Calculate bar width and position for centered-at-zero display
+        const barWidth = Math.abs(senator.relation) / 2; // 0-50% width
+        const barLeft = senator.relation >= 0 ? 50 : 50 - barWidth;
+
+        return (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-help">
+                        <span className="w-20 text-xs font-medium truncate text-muted">
+                            {senator.name.split(' ').pop()}
+                        </span>
+                        <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden relative">
+                            {/* Center line marker */}
+                            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/20" />
+                            {/* Relation bar */}
+                            <div
+                                className={`absolute h-full rounded-full ${senator.relation >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                                style={{
+                                    width: `${barWidth}%`,
+                                    left: `${barLeft}%`
+                                }}
+                            />
+                        </div>
+                        <span className={`w-8 text-xs text-right font-mono ${senator.relation >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {senator.relation > 0 ? '+' : ''}{senator.relation}
+                        </span>
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${dangerColors[dangerLevel]}`} />
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <div className="space-y-1">
+                        <p className="font-bold text-roman-gold">{senator.name}</p>
+                        <p className="text-xs text-muted italic">&ldquo;{senator.cognomen}&rdquo;</p>
+                        <p className="text-xs">{stateDesc}</p>
+                    </div>
+                </TooltipContent>
+            </Tooltip>
+        );
     };
 
     return (
@@ -235,6 +288,30 @@ export function OverviewPanel() {
                             )}
                         </div>
                     </GlassCard>
+
+                    {/* Senate Standing */}
+                    {senate?.initialized && (
+                        <GlassCard>
+                            <SectionHeader
+                                title="Senate Standing"
+                                subtitle="Relations with senators"
+                                icon={<Building2 className="w-5 h-5 text-roman-gold" />}
+                            />
+                            <div className="space-y-1 mt-3">
+                                {Object.values(senate.senators).map((senator) => (
+                                    <SenatorRow key={senator.id} senator={senator} />
+                                ))}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full mt-3"
+                                onClick={() => setTab('senate')}
+                            >
+                                View Senate
+                            </Button>
+                        </GlassCard>
+                    )}
                 </div>
 
                 {/* === CENTER COLUMN === */}

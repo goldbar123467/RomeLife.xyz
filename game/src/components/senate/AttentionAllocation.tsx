@@ -47,7 +47,20 @@ export function AttentionAllocation({ currentAllocation, locked, onAllocate, rou
         const others = SENATOR_ORDER.filter(id => id !== senatorId);
         const otherTotal = others.reduce((sum, id) => sum + allocation[id], 0);
 
-        if (otherTotal === 0 && diff > 0) return; // Can't increase if others are at 0
+        // Handle edge case: all other senators at 0
+        if (otherTotal === 0) {
+            if (diff > 0) return; // Can't increase if others are at 0
+            // When decreasing, distribute evenly among others
+            const newAllocation = { ...allocation, [senatorId]: newValue };
+            const perSenator = Math.floor(-diff / others.length);
+            let extraPoints = -diff - (perSenator * others.length);
+            for (const id of others) {
+                newAllocation[id] = perSenator + (extraPoints > 0 ? 1 : 0);
+                if (extraPoints > 0) extraPoints--;
+            }
+            setAllocation(newAllocation);
+            return;
+        }
 
         // Distribute the difference proportionally among others
         const newAllocation = { ...allocation, [senatorId]: newValue };
@@ -148,7 +161,7 @@ export function AttentionAllocation({ currentAllocation, locked, onAllocate, rou
                     return (
                         <div key={id} className="space-y-1">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-foreground font-medium">{senator.name}</span>
+                                <span className="text-ink font-medium">{senator.name}</span>
                                 <span className={`font-bold ${
                                     value >= 30 ? 'text-green-400' :
                                     value >= 15 ? 'text-yellow-400' :

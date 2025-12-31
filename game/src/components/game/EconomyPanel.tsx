@@ -253,7 +253,7 @@ export function EconomyPanel() {
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted">Buildings</span>
-                        <span className="text-red-400">-{state.buildings.filter(b => b.built).reduce((sum, b) => sum + b.upkeep, 0)}</span>
+                        <span className="text-red-400">-{state.buildings.filter(b => b.count > 0).reduce((sum, b) => sum + (b.upkeep * b.count), 0)}</span>
                     </div>
 
                     <div className="border-t border-white/10 pt-3 mt-3">

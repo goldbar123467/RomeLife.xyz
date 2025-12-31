@@ -3,19 +3,54 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
-import { GlassCard, Button, SectionHeader, ProgressBar, GameImage, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
+import { GlassCard, Button, SectionHeader, ProgressBar, GameImage, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, Badge } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { gameToast } from '@/lib/toast';
-import { Home, Droplets, Shield, Building2, Info } from 'lucide-react';
+import { Home, Droplets, Shield, Building2, Info, Wheat, Coins, Heart, Sparkles, Package } from 'lucide-react';
 import type { Building } from '@/core/types';
+
+// Calculate total building buffs from all buildings
+const calculateBuildingBuffs = (buildings: Building[]) => {
+    const buffs = {
+        grainProduction: 0,
+        income: 0,
+        defense: 0,
+        happiness: 0,
+        piety: 0,
+        capacity: 0,
+    };
+
+    for (const building of buildings) {
+        if (building.count === 0) continue;
+        for (const effect of building.effects) {
+            const total = effect.value * building.count;
+            if (effect.multiplier && effect.resource === 'grain') {
+                buffs.grainProduction += Math.round((total - building.count) * 100); // Convert 1.3x to +30% per building
+            } else if (effect.type === 'income') {
+                buffs.income += total;
+            } else if (effect.type === 'defense') {
+                buffs.defense += total;
+            } else if (effect.type === 'happiness') {
+                buffs.happiness += total;
+            } else if (effect.type === 'piety') {
+                buffs.piety += total;
+            } else if (effect.type === 'capacity') {
+                buffs.capacity += total;
+            }
+        }
+    }
+    return buffs;
+};
 
 export function SettlementPanel() {
     const state = useGameStore();
     const { population, housing, sanitation, forts, denarii, buildings, buildStructure } = state;
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
-    // Find all buildable structures
-    const settlementBuildings = buildings.filter(b => !b.built);
+    // Calculate building stats
+    const totalBuildingCount = buildings.reduce((sum, b) => sum + b.count, 0);
+    const builtBuildings = buildings.filter(b => b.count > 0);
+    const buildingBuffs = calculateBuildingBuffs(buildings);
 
     const housingCapacity = housing;
     const housingUsed = population;
@@ -25,6 +60,10 @@ export function SettlementPanel() {
     const diseaseRisk = sanitation < 30 ? 'High' : sanitation < 50 ? 'Medium' : 'Low';
 
     const handleBuild = (building: Building) => {
+        if (denarii < building.cost.denarii) {
+            gameToast.danger('Not Enough Resources', `You need ${building.cost.denarii - denarii} more denarii to build ${building.name}`);
+            return;
+        }
         buildStructure(building.id);
         gameToast.building(`${building.name} Built!`, `Your empire grows stronger`);
         setSelectedBuilding(null);
@@ -40,7 +79,7 @@ export function SettlementPanel() {
 
             {/* Key Stats */}
             <motion.div
-                className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                className="grid grid-cols-2 md:grid-cols-5 gap-4"
                 variants={staggerContainer}
                 initial="initial"
                 animate="animate"
@@ -70,6 +109,16 @@ export function SettlementPanel() {
                     <GlassCard className="p-4 text-center">
                         <div className="text-3xl font-bold text-purple-400">{forts}</div>
                         <div className="text-sm text-muted">Forts</div>
+                    </GlassCard>
+                </motion.div>
+
+                <motion.div variants={fadeInUp}>
+                    <GlassCard className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-1">
+                            <Building2 className="w-4 h-4 text-roman-gold" />
+                        </div>
+                        <div className="text-3xl font-bold text-roman-gold">{totalBuildingCount}</div>
+                        <div className="text-sm text-muted">Buildings</div>
                     </GlassCard>
                 </motion.div>
             </motion.div>
@@ -208,58 +257,139 @@ export function SettlementPanel() {
                 </div>
             </GlassCard>
 
-            {/* Buildings Available */}
-            {settlementBuildings.length > 0 && (
-                <GlassCard className="p-6">
-                    <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2">
-                        <Building2 className="w-5 h-5" /> Available Structures
-                    </h3>
+            {/* City Buildings Dashboard */}
+            <GlassCard className="p-6">
+                <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2">
+                    <Building2 className="w-5 h-5" /> City Buildings
+                </h3>
 
-                    <motion.div
-                        className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4"
-                        variants={staggerContainer}
-                        initial="initial"
-                        animate="animate"
-                    >
-                        {settlementBuildings.slice(0, 9).map(building => {
-                            const canAfford = denarii >= building.cost.denarii;
+                {/* Constructed Buildings */}
+                <h4 className="text-sm font-semibold text-muted mb-3">Constructed Buildings</h4>
+                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mb-4">
+                    {builtBuildings.length > 0 ? (
+                        builtBuildings.map(building => (
+                            <div
+                                key={building.id}
+                                className="flex flex-col items-center p-3 rounded-lg bg-surface/30 border border-roman-gold/20"
+                            >
+                                <Badge className="text-lg font-bold bg-roman-gold/20 text-roman-gold border-none">
+                                    {building.count}
+                                </Badge>
+                                <span className="text-xs text-muted mt-1 text-center truncate w-full">
+                                    {building.name}
+                                </span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="col-span-full text-muted text-sm italic">
+                            No buildings constructed yet
+                        </p>
+                    )}
+                </div>
 
-                            return (
-                                <motion.div
-                                    key={building.id}
-                                    variants={fadeInUp}
-                                    className={`glass-dark rounded-xl p-3 md:p-4 ${!canAfford ? 'opacity-60' : 'cursor-pointer'}`}
-                                    whileHover={canAfford ? { scale: 1.02 } : {}}
-                                    onClick={() => canAfford && setSelectedBuilding(building)}
-                                >
-                                    <div className="flex items-start justify-between mb-2">
-                                        <h4 className="font-bold text-roman-gold text-sm md:text-base">{building.name}</h4>
-                                        <Info className="w-4 h-4 text-muted md:hidden" />
-                                    </div>
-                                    <div className="text-xs md:text-sm text-muted mb-2 md:mb-3">
-                                        {building.cost.denarii} denarii
-                                    </div>
-                                    {/* Show effects preview on desktop */}
-                                    <div className="hidden md:block text-xs text-muted mb-3">
-                                        {building.effects.slice(0, 2).map((e, i) => (
-                                            <div key={i}>+{e.value} {e.type}</div>
-                                        ))}
-                                    </div>
-                                    <Button
-                                        variant="gold"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => handleBuild(building)}
-                                        disabled={!canAfford}
-                                    >
-                                        Build
-                                    </Button>
-                                </motion.div>
-                            );
-                        })}
+                {/* Building Buffs Summary */}
+                <div className="border-t border-white/10 my-4" />
+                <h4 className="text-sm font-semibold text-muted mb-3">Active Building Buffs</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                    {buildingBuffs.grainProduction > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded border border-green-500/20">
+                            <Wheat className="w-4 h-4 text-green-400" />
+                            <span className="text-green-400">+{buildingBuffs.grainProduction}% Grain</span>
+                        </div>
+                    )}
+                    {buildingBuffs.income > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
+                            <Coins className="w-4 h-4 text-yellow-400" />
+                            <span className="text-yellow-400">+{buildingBuffs.income} Income</span>
+                        </div>
+                    )}
+                    {buildingBuffs.defense > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-blue-500/10 rounded border border-blue-500/20">
+                            <Shield className="w-4 h-4 text-blue-400" />
+                            <span className="text-blue-400">+{buildingBuffs.defense} Defense</span>
+                        </div>
+                    )}
+                    {buildingBuffs.happiness > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-pink-500/10 rounded border border-pink-500/20">
+                            <Heart className="w-4 h-4 text-pink-400" />
+                            <span className="text-pink-400">+{buildingBuffs.happiness} Happiness</span>
+                        </div>
+                    )}
+                    {buildingBuffs.piety > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-purple-500/10 rounded border border-purple-500/20">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            <span className="text-purple-400">+{buildingBuffs.piety} Piety</span>
+                        </div>
+                    )}
+                    {buildingBuffs.capacity > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-orange-500/10 rounded border border-orange-500/20">
+                            <Package className="w-4 h-4 text-orange-400" />
+                            <span className="text-orange-400">+{buildingBuffs.capacity} Storage</span>
+                        </div>
+                    )}
+                    {totalBuildingCount === 0 && (
+                        <p className="col-span-full text-muted text-sm italic">
+                            Build structures to gain bonuses
+                        </p>
+                    )}
+                </div>
+            </GlassCard>
+
+            {/* Build Structures - Show ALL buildings */}
+            <GlassCard className="p-6">
+                <h3 className="text-xl font-bold text-roman-gold mb-4 flex items-center gap-2">
+                    <Building2 className="w-5 h-5" /> Build Structures
+                </h3>
+
+                <motion.div
+                    className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4"
+                    variants={staggerContainer}
+                    initial="initial"
+                    animate="animate"
+                >
+                    {buildings.map(building => {
+                        const canAfford = denarii >= building.cost.denarii;
+
+                        return (
+                            <motion.div
+                                key={building.id}
+                                variants={fadeInUp}
+                                className={`glass-dark rounded-xl p-3 md:p-4 relative cursor-pointer ${!canAfford ? 'opacity-60' : ''}`}
+                                whileHover={{ scale: 1.02 }}
+                                onClick={() => setSelectedBuilding(building)}
+                            >
+                                {/* Count badge */}
+                                {building.count > 0 && (
+                                    <Badge className="absolute -top-2 -right-2 bg-roman-gold text-black font-bold">
+                                        x{building.count}
+                                    </Badge>
+                                )}
+                                <div className="flex items-start justify-between mb-2">
+                                    <h4 className="font-bold text-roman-gold text-sm md:text-base">{building.name}</h4>
+                                    <Info className="w-4 h-4 text-muted" />
+                                </div>
+                                <div className={`text-xs md:text-sm mb-2 md:mb-3 ${canAfford ? 'text-muted' : 'text-red-400'}`}>
+                                    {building.cost.denarii} denarii
+                                </div>
+                                {/* Show effects preview */}
+                                <div className="text-xs text-muted">
+                                    {building.effects.slice(0, 2).map((e, i) => (
+                                        <div key={i}>+{e.value} {e.type}</div>
+                                    ))}
+                                </div>
+                                {/* Status indicator */}
+                                <div className={`mt-2 text-xs font-medium text-center py-1 rounded ${
+                                    canAfford
+                                        ? 'text-green-400 bg-green-500/10'
+                                        : 'text-red-400 bg-red-500/10'
+                                }`}>
+                                    {canAfford ? (building.count > 0 ? 'Tap to build more' : 'Available') : 'Cannot afford'}
+                                </div>
+                            </motion.div>
+                        );
+                    })}
                     </motion.div>
                 </GlassCard>
-            )}
 
             {/* Building Detail Sheet */}
             <Sheet open={!!selectedBuilding} onOpenChange={(open) => !open && setSelectedBuilding(null)}>
@@ -267,7 +397,12 @@ export function SettlementPanel() {
                     {selectedBuilding && (
                         <>
                             <SheetHeader>
-                                <SheetTitle>{selectedBuilding.name}</SheetTitle>
+                                <SheetTitle>
+                                    {selectedBuilding.name}
+                                    {selectedBuilding.count > 0 && (
+                                        <Badge className="ml-2 bg-roman-gold text-black">x{selectedBuilding.count}</Badge>
+                                    )}
+                                </SheetTitle>
                                 <SheetDescription>
                                     Category: {selectedBuilding.category}
                                 </SheetDescription>
@@ -329,7 +464,9 @@ export function SettlementPanel() {
                                     onClick={() => handleBuild(selectedBuilding)}
                                     disabled={denarii < selectedBuilding.cost.denarii}
                                 >
-                                    {denarii >= selectedBuilding.cost.denarii ? 'Construct Building' : 'Insufficient Funds'}
+                                    {denarii >= selectedBuilding.cost.denarii
+                                        ? (selectedBuilding.count > 0 ? 'Build Another' : 'Construct Building')
+                                        : 'Insufficient Funds'}
                                 </Button>
                             </SheetFooter>
                         </>

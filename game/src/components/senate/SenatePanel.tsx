@@ -11,7 +11,7 @@ import { GlassCard, Badge } from '@/components/ui';
 import { SenatorCard } from './SenatorCard';
 import { SenatorDetail } from './SenatorDetail';
 import { AttentionAllocation } from './AttentionAllocation';
-import { SenatorEventModal } from './SenatorEventModal';
+// Note: SenatorEventModal moved to GameLayout.tsx for global visibility
 
 const SENATOR_ORDER: SenatorId[] = ['sertorius', 'sulla', 'clodius', 'pulcher', 'oppius'];
 
@@ -21,18 +21,21 @@ export function SenatePanel() {
         round,
         initializeSenate,
         allocateAttention,
-        resolveSenatorEvent,
-        dismissSenatorEvent,
     } = useGameStore();
 
     const [selectedSenator, setSelectedSenator] = useState<SenatorId | null>(null);
 
-    // Initialize senate if needed
+    // Initialize senate if needed - only during early game, never during active play
     if (!senate.initialized) {
-        initializeSenate();
+        // Only auto-initialize during game start (round 1), not during active play
+        if (round <= 1) {
+            initializeSenate();
+        }
         return (
             <div className="p-6 flex items-center justify-center">
-                <div className="text-muted">Initializing Senate...</div>
+                <div className="text-muted">
+                    {round <= 1 ? 'Initializing Senate...' : 'Senate unavailable'}
+                </div>
             </div>
         );
     }
@@ -55,10 +58,6 @@ export function SenatePanel() {
 
     const handleAllocate = (allocation: AttentionAllocationType) => {
         allocateAttention(allocation);
-    };
-
-    const handleEventChoice = (choiceId: string) => {
-        resolveSenatorEvent(choiceId);
     };
 
     const selectedSenatorData = selectedSenator ? senate.senators[selectedSenator] : null;
@@ -190,12 +189,7 @@ export function SenatePanel() {
                 )}
             </AnimatePresence>
 
-            {/* Event Modal */}
-            <SenatorEventModal
-                event={senate.currentEvent}
-                onChoice={handleEventChoice}
-                onDismiss={dismissSenatorEvent}
-            />
+            {/* Note: SenatorEventModal is now rendered globally in GameLayout.tsx */}
         </div>
     );
 }

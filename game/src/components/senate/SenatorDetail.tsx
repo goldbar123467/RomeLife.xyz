@@ -120,30 +120,30 @@ export function SenatorDetail({ senator, attention, onClose }: SenatorDetailProp
                         {/* Backstory */}
                         <div>
                             <h3 className="text-sm font-bold text-roman-gold mb-2">Background</h3>
-                            <p className="text-sm text-foreground/80 leading-relaxed">
+                            <p className="text-sm text-ink/80 leading-relaxed">
                                 {def.backstory}
                             </p>
                         </div>
 
                         {/* Current Status */}
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-background/50 rounded-lg p-4 border border-roman-gold/20">
+                            <div className="bg-black/30 rounded-xl p-4 border border-roman-gold/20">
                                 <div className="flex items-center gap-2 mb-2">
                                     {getSentimentIcon()}
                                     <span className="text-xs text-muted">Current Status</span>
                                 </div>
-                                <p className="font-medium text-foreground">{stateDescription}</p>
+                                <p className="font-medium text-ink">{stateDescription}</p>
                                 <p className="text-xs text-muted mt-1">{getSentimentLabel()}</p>
                             </div>
 
-                            <div className="bg-background/50 rounded-lg p-4 border border-roman-gold/20">
+                            <div className="bg-black/30 rounded-xl p-4 border border-roman-gold/20">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs text-muted">Relation</span>
                                     <span className={`font-bold ${getRelationColor(senator.relation)}`}>
                                         {senator.relation > 0 ? '+' : ''}{senator.relation}
                                     </span>
                                 </div>
-                                <div className="h-3 bg-background rounded-full overflow-hidden">
+                                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
                                     <div className="h-full relative">
                                         {/* Center line */}
                                         <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/30" />
@@ -165,7 +165,7 @@ export function SenatorDetail({ senator, attention, onClose }: SenatorDetailProp
 
                         {/* Attention & Tracking */}
                         <div className="grid grid-cols-3 gap-4">
-                            <div className="bg-background/50 rounded-lg p-3 border border-roman-gold/20 text-center">
+                            <div className="bg-black/30 rounded-xl p-3 border border-roman-gold/20 text-center">
                                 <div className="text-xs text-muted mb-1">Attention</div>
                                 <div className={`text-xl font-bold ${
                                     attention >= 30 ? 'text-green-400' :
@@ -175,15 +175,15 @@ export function SenatorDetail({ senator, attention, onClose }: SenatorDetailProp
                                     {attention}%
                                 </div>
                             </div>
-                            <div className="bg-background/50 rounded-lg p-3 border border-roman-gold/20 text-center">
+                            <div className="bg-black/30 rounded-xl p-3 border border-roman-gold/20 text-center">
                                 <div className="text-xs text-muted mb-1">Deals Made</div>
-                                <div className="text-xl font-bold text-foreground">
+                                <div className="text-xl font-bold text-ink">
                                     {senator.tracking.dealsMade}
                                 </div>
                             </div>
-                            <div className="bg-background/50 rounded-lg p-3 border border-roman-gold/20 text-center">
+                            <div className="bg-black/30 rounded-xl p-3 border border-roman-gold/20 text-center">
                                 <div className="text-xs text-muted mb-1">Secrets</div>
-                                <div className="text-xl font-bold text-foreground">
+                                <div className="text-xl font-bold text-ink">
                                     {senator.tracking.secretsShared}
                                 </div>
                             </div>
@@ -240,7 +240,9 @@ export function SenatorDetail({ senator, attention, onClose }: SenatorDetailProp
                                         <div className="font-bold">
                                             {senator.assassination.turnsUntilAttempt === 1
                                                 ? 'ASSASSINATION IMMINENT!'
-                                                : `Assassination in ${senator.assassination.turnsUntilAttempt} seasons`}
+                                                : senator.assassination.turnsUntilAttempt !== null
+                                                    ? `Assassination in ${senator.assassination.turnsUntilAttempt} seasons`
+                                                    : 'ASSASSINATION THREAT DETECTED'}
                                         </div>
                                         <div className="text-sm opacity-80">
                                             {def.assassinationMethod || 'This senator is planning to eliminate you.'}

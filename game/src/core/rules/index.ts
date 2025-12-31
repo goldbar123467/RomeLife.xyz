@@ -20,7 +20,7 @@ export interface VictoryResult {
 export function checkVictoryConditions(state: GameState): VictoryResult | null {
     const { denarii, population, happiness, troops, reputation, territories, buildings } = state;
     const ownedTerritories = territories.filter(t => t.owned).length;
-    const builtBuildings = buildings.filter(b => b.built).length;
+    const builtBuildings = buildings.reduce((sum, b) => sum + b.count, 0);
 
     // The Eternal City: 10 territories, 500 pop, 75% happiness
     if (
@@ -173,7 +173,7 @@ export function checkAchievements(state: GameState, previousState: GameState): A
     const newlyUnlocked: Achievement[] = [];
     const { totalConquests, totalTrades, winStreak, infiniteMode } = state;
     const ownedTerritories = state.territories.filter(t => t.owned).length;
-    const builtBuildings = state.buildings.filter(b => b.built).length;
+    const builtBuildings = state.buildings.reduce((sum, b) => sum + b.count, 0);
     const researchedTechs = state.technologies.filter(t => t.researched).length;
     const maxGodFavor = Math.max(...Object.values(state.godFavor));
 
@@ -205,7 +205,7 @@ export function checkAchievements(state: GameState, previousState: GameState): A
             case 'legendary_find':
                 // Check if player owns any legendary/imperial rarity territory or has built such building
                 unlocked = state.territories.some(t => t.owned && (t.rarity === 'legendary' || t.rarity === 'imperial')) ||
-                    state.buildings.some(b => b.built && (b.rarity === 'legendary' || b.rarity === 'imperial'));
+                    state.buildings.some(b => b.count > 0 && (b.rarity === 'legendary' || b.rarity === 'imperial'));
                 break;
         }
 
@@ -281,7 +281,7 @@ export function generateQuest(_state: GameState): Quest {
 export function checkQuestProgress(state: GameState, quest: Quest): number {
     switch (quest.type) {
         case 'build':
-            return state.buildings.filter(b => b.built).length;
+            return state.buildings.reduce((sum, b) => sum + b.count, 0);
         case 'conquer':
             return state.totalConquests;
         case 'trade':

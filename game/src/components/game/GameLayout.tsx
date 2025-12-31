@@ -20,14 +20,14 @@ import { MapPanel } from './MapPanel';
 import { ReligionPanel } from './ReligionPanel';
 import { WondersPanel } from './WondersPanel';
 import { QuestsPanel } from './QuestsPanel';
-import { SenatePanel } from '@/components/senate';
+import { SenatePanel, SenatorEventModal } from '@/components/senate';
 import { BattleScreen } from './BattleScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { MobileNav } from './MobileNav';
 
 // Main Game Layout
 export function GameLayout() {
-    const { stage, activeTab, battle } = useGameStore();
+    const { stage, activeTab, battle, senate, resolveSenatorEvent, dismissSenatorEvent } = useGameStore();
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -108,6 +108,13 @@ export function GameLayout() {
             <AnimatePresence>
                 {battle && <BattleScreen />}
             </AnimatePresence>
+
+            {/* Senate Event Modal - Global so it appears on any tab */}
+            <SenatorEventModal
+                event={senate?.currentEvent ?? null}
+                onChoice={resolveSenatorEvent}
+                onDismiss={dismissSenatorEvent}
+            />
 
             {/* Mobile Navigation */}
             <MobileNav />
