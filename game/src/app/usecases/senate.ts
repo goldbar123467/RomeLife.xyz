@@ -89,6 +89,15 @@ export function processSenateSeasonEnd(
         return result;
     }
 
+    // Debug logging for Season 21 investigation
+    if (typeof window !== 'undefined') {
+        console.log(`[Senate] Round ${round} START - Relations:`,
+            Object.entries(gameState.senate.senators)
+                .map(([id, s]) => `${id.slice(0, 3)}:${(s as { relation: number }).relation}`)
+                .join(', ')
+        );
+    }
+
     let senators = { ...gameState.senate.senators };
     const attention = gameState.senate.attentionThisSeason || getDefaultAttention();
 
@@ -186,6 +195,66 @@ export function processSenateSeasonEnd(
                     };
                 }
             }
+        }
+    }
+
+    // === 3.5 APPLY RELATION CONSEQUENCES ===
+    // When senator relations drop below -30, they take hostile actions
+    const CONSEQUENCE_THRESHOLD = -30;
+    for (const id of Object.keys(senators) as SenatorId[]) {
+        const senator = senators[id];
+
+        // Skip if relation is above consequence threshold
+        if (senator.relation >= CONSEQUENCE_THRESHOLD) continue;
+
+        // Calculate penalty severity: how far below -30 they are
+        const penaltyTier = Math.floor((Math.abs(senator.relation) - 30) / 10);
+
+        switch (id) {
+            case 'sulla':
+                // Sulla weakens military: -morale per tier
+                const sullaMoralePenalty = Math.min(penaltyTier * 3, 12);
+                result.moraleChange -= sullaMoralePenalty;
+                if (sullaMoralePenalty > 0) {
+                    result.messages.push(`Sulla undermines your officers (-${sullaMoralePenalty} morale)`);
+                }
+                break;
+
+            case 'clodius':
+                // Clodius stirs street unrest: -happiness per tier
+                const clodiusHappinessPenalty = Math.min(penaltyTier * 2, 8);
+                result.happinessChange -= clodiusHappinessPenalty;
+                if (clodiusHappinessPenalty > 0) {
+                    result.messages.push(`Clodius's mobs cause unrest (-${clodiusHappinessPenalty} happiness)`);
+                }
+                break;
+
+            case 'pulcher':
+                // Pulcher spreads religious doubt: -piety per tier
+                const pulcherPietyPenalty = Math.min(penaltyTier * 3, 12);
+                result.pietyChange -= pulcherPietyPenalty;
+                if (pulcherPietyPenalty > 0) {
+                    result.messages.push(`Pulcher spreads divine disfavor (-${pulcherPietyPenalty} piety)`);
+                }
+                break;
+
+            case 'oppius':
+                // Oppius disrupts commerce: -denarii per tier
+                const oppiusDenariiPenalty = Math.min(penaltyTier * 40, 160);
+                result.denariiChange -= oppiusDenariiPenalty;
+                if (oppiusDenariiPenalty > 0) {
+                    result.messages.push(`Oppius's network disrupts trade (-${oppiusDenariiPenalty} denarii)`);
+                }
+                break;
+
+            case 'sertorius':
+                // Sertorius damages your reputation (even if he's your friend)
+                const sertoriusRepPenalty = Math.min(penaltyTier * 2, 6);
+                result.reputationChange -= sertoriusRepPenalty;
+                if (sertoriusRepPenalty > 0) {
+                    result.messages.push(`Sertorius speaks of your dishonor (-${sertoriusRepPenalty} reputation)`);
+                }
+                break;
         }
     }
 
@@ -292,7 +361,9 @@ export function processSenateSeasonEnd(
         senators,
         attentionThisSeason: null, // Reset for next season
         attentionLocked: false,
-        pendingEvents: result.events,
+        // Set first event as currentEvent to display modal, rest go to pendingEvents
+        currentEvent: result.events[0] || null,
+        pendingEvents: result.events.slice(1),
         actionQueue: [
             ...queueResult.remainingActions,
             ...queueResult.processedActions.filter(a => !a.resolved),

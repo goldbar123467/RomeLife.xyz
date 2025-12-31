@@ -164,8 +164,8 @@ export const TERRITORY_BUILDINGS: Record<string, TerritoryBuilding> = {
     latinName: 'Tabularium',
     icon: '📜',
     cost: 180,
-    effects: { taxBonus: 0.10, stability: -5 },
-    description: 'Tax collection improvement. +10% tax efficiency, -5 stability.',
+    effects: { taxBonus: 0.20, stability: -2 },
+    description: 'Tax collection improvement. +20% tax efficiency, -2 stability.',
   },
 };
 

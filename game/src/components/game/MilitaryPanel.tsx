@@ -4,13 +4,18 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { MILITARY_UNITS } from '@/core/constants';
+import { calculateBlessingBonus } from '@/core/constants/religion';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
 import { Swords, Shield, Users, Trophy } from 'lucide-react';
 import { gameToast } from '@/lib/toast';
 
 export function MilitaryPanel() {
     const state = useGameStore();
-    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, lastEvents } = state;
+    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, lastEvents, patronGod, godFavor, founder } = state;
+
+    // Calculate Mars recruitment discount (-15% at tier 25)
+    const marsRecruitDiscount = calculateBlessingBonus(patronGod, godFavor, 'recruitCost');
+    const founderRecruitMod = founder?.modifiers?.recruitCostMod || 0;
 
     const handleRecruit = (unitId: string) => {
         const unit = MILITARY_UNITS.find(u => u.id === unitId);
@@ -79,7 +84,11 @@ export function MilitaryPanel() {
                     animate="animate"
                 >
                     {MILITARY_UNITS.map((unit) => {
-                        const canAfford = denarii >= unit.cost.denarii && inventory.grain >= unit.cost.food;
+                        // Calculate discounted cost with Mars blessing and founder modifiers
+                        const discountMod = 1 + marsRecruitDiscount + founderRecruitMod;
+                        const discountedCost = Math.floor(unit.cost.denarii * Math.max(0.5, discountMod)); // Min 50% discount
+                        const hasDiscount = discountedCost < unit.cost.denarii;
+                        const canAfford = denarii >= discountedCost && inventory.grain >= unit.cost.food;
 
                         return (
                             <motion.div
@@ -100,10 +109,16 @@ export function MilitaryPanel() {
                                     </p>
 
                                     <div className="space-y-1 text-sm mb-4">
-                                        <div className="flex justify-between">
+                                        <div className="flex justify-between items-center">
                                             <span className="text-muted">Cost</span>
-                                            <span className={denarii >= unit.cost.denarii ? 'text-green-400' : 'text-red-400'}>
-                                                <><GameImage src="coin-gold" size="sm" /> {unit.cost.denarii}</>
+                                            <span className={denarii >= discountedCost ? 'text-green-400' : 'text-red-400'}>
+                                                <span className="flex items-center gap-1">
+                                                    <GameImage src="coin-gold" size="sm" />
+                                                    {discountedCost}
+                                                    {hasDiscount && (
+                                                        <span className="text-xs text-muted line-through ml-1">{unit.cost.denarii}</span>
+                                                    )}
+                                                </span>
                                             </span>
                                         </div>
                                         <div className="flex justify-between">

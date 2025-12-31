@@ -4,9 +4,9 @@ This file provides guidance to Claude Code when working with this repository.
 
 ---
 
-## Current Status: ✅ V1.0 COMPLETE
+## Current Status: ✅ V1.0 COMPLETE + Mobile Optimized
 
-The game is a turn-based Roman empire simulation. **All core systems are now fully integrated and working.**
+The game is a turn-based Roman empire simulation. **All core systems are now fully integrated and working. Mobile view fully optimized.**
 
 ### Run the Game
 ```bash
@@ -72,17 +72,20 @@ game/src/
 ├── app/
 │   ├── page.tsx                 # Entry point
 │   ├── layout.tsx               # Root layout
+│   ├── globals.css              # Global styles + mobile utilities
 │   └── usecases/index.ts        # Season simulation, battles, trade
 ├── components/
-│   ├── game/                    # 13 panel components
+│   ├── game/                    # 14 panel components
 │   │   ├── GameLayout.tsx       # Main layout, stage routing
+│   │   ├── MobileNav.tsx        # Mobile bottom nav + drawer
 │   │   ├── OverviewPanel.tsx    # Dashboard
 │   │   ├── MapPanel.tsx         # Territory management (6 tabs)
 │   │   ├── ReligionPanel.tsx    # Gods, blessings, worship (3 tabs)
+│   │   ├── SenatePanel.tsx      # Political system
 │   │   ├── BattleScreen.tsx     # Battle overlay
 │   │   └── ...                  # Other panels
 │   ├── battle/                  # Battle animations
-│   └── ui/                      # GlassCard, Button, Badge, etc.
+│   └── ui/                      # GlassCard, Button, Badge, BellCurve, etc.
 ├── core/
 │   ├── constants/
 │   │   ├── index.ts             # GOVERNORS, TERRITORY_FOCUS, resources
@@ -92,6 +95,9 @@ game/src/
 │   ├── types/index.ts           # All TypeScript interfaces
 │   ├── rules/index.ts           # Victory/failure, achievements, techs
 │   └── math/index.ts            # Production, battle, consumption calcs
+├── hooks/
+│   ├── index.ts                 # Barrel exports
+│   └── useMobile.ts             # Mobile viewport detection hook
 ├── store/
 │   └── gameStore.ts             # Zustand store (~900 lines)
 └── lib/
@@ -103,39 +109,47 @@ game/src/
 
 ## Mobile View (Dec 2024)
 
-The game is optimized for mobile devices (390-430px target width).
+The game is fully optimized for mobile devices (390-430px target width).
+
+### Mobile Navigation
+
+**Bottom Nav Bar** (always visible, like Safari):
+```
+[ Overview | Senate | Economy | Military | More ]
+```
+
+**"More" Drawer** (slides up from bottom):
+- 4-column grid of all 14 tabs
+- Rounded top corners with drag handle
+- 70vh max height, scrollable
 
 ### Mobile Architecture
 
 | Component | File | Purpose |
 |-----------|------|---------|
 | `useMobile` hook | `hooks/useMobile.ts` | Detect mobile viewport |
-| `MobileNav` | `components/game/MobileNav.tsx` | Bottom nav bar + drawer |
+| `MobileNav` | `components/game/MobileNav.tsx` | Bottom nav bar + bottom sheet drawer |
 | Safe area utilities | `globals.css` | iOS notch/home bar support |
 
 ### Key Mobile Patterns
 
 **Responsive Padding**:
 ```tsx
-// GlassCard uses responsive padding
 className="p-3 md:p-5"
 ```
 
 **Touch Targets (44px minimum)**:
 ```tsx
-// Buttons have minimum height
 className="min-h-[44px]"
 ```
 
 **Responsive Grids**:
 ```tsx
-// Overview stats: 3 cols mobile, 6 cols desktop
 <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
 ```
 
 **BellCurve Charts**:
 ```tsx
-// Use compact mode on mobile for smaller charts
 <BellCurve compact={true} height={70} showPercentiles={false} />
 ```
 
@@ -144,17 +158,19 @@ className="min-h-[44px]"
 | Component | Mobile Behavior |
 |-----------|-----------------|
 | `TerminalHeader` | Compact single row with key stats |
-| `MobileNav` | Fixed bottom bar (56px) + slide-out drawer (w-64) |
+| `MobileNav` | Fixed bottom bar (56px, z-100) + bottom sheet drawer |
 | `GlassCard` | `p-3` padding instead of `p-5` |
 | `Button` | `min-h-[44px]` touch targets |
 | `BellCurve` | `compact` prop hides percentile labels, smaller fonts |
+| `OverviewPanel` | 3-column stat grid on mobile |
+| `BattleScreen` | Stacked charts with compact mode |
 
 ### Breakpoints (Tailwind)
 
 ```
 xs: 375px  (small phones)
 sm: 640px  (larger phones)
-md: 768px  (tablets - sidebar appears)
+md: 768px  (tablets - sidebar appears, mobile nav hides)
 lg: 1024px (desktops)
 ```
 
@@ -162,9 +178,10 @@ lg: 1024px (desktops)
 
 1. Chrome DevTools → Toggle Device Toolbar (Ctrl+Shift+M)
 2. Select iPhone 14 (390px) or similar
-3. Test navigation drawer opens/closes
-4. Verify touch targets are easy to tap
-5. Check BellCurve charts are readable
+3. Test "More" drawer slides up from bottom
+4. Verify Senate tab is in bottom nav
+5. Check touch targets are easy to tap (44px+)
+6. Verify bottom nav stays fixed while scrolling
 
 ---
 
@@ -292,10 +309,11 @@ Nice-to-have features for future versions:
 1. ~~**Religious Events**~~ - ✅ COMPLETE (Dec 2024) - Triggers in season, requires piety > 20
 2. ~~**Territory Events**~~ - ✅ COMPLETE - Already triggering with conditions
 3. ~~**Event Balance**~~ - ✅ COMPLETE (Dec 2024) - Grace period, scaling, cooldowns, conditions
-4. **Political/Senate System** - Factions, influence, political intrigue (V2 feature)
-5. **Infinite Mode Polish** - `enterInfiniteMode()` exists, needs polish
-6. **Save/Load UI** - Persistence works, needs buttons
-7. **Unit Tests** - None exist currently
+4. ~~**Political/Senate System**~~ - ✅ COMPLETE (Dec 2024) - Factions, influence, laws, elections
+5. ~~**Mobile View**~~ - ✅ COMPLETE (Dec 2024) - Bottom nav, touch targets, responsive grids
+6. **Infinite Mode Polish** - `enterInfiniteMode()` exists, needs polish
+7. **Save/Load UI** - Persistence works, needs buttons
+8. **Unit Tests** - None exist currently
 
 ---
 
@@ -398,5 +416,175 @@ if (season === 'winter') risk *= 1.5  // +50% risk in winter
 
 ---
 
-*Last Updated: December 2024*
-*Status: V1.0 COMPLETE - All systems integrated, mobile view optimized*
+## Bug Fixes (Dec 2024 - QA Test #1)
+
+### Fixed Issues
+
+| Bug ID | Severity | Issue | Fix |
+|--------|----------|-------|-----|
+| BUG-002 | CRITICAL | Senate events not displaying - `pendingEvents` populated but `currentEvent` never set | Set `currentEvent` from first event in `senate.ts` |
+| BUG-001 | CRITICAL | Game stagnates around round 19-20, failure conditions never trigger | Related to BUG-002 - events blocking game loop |
+
+### Root Cause Analysis
+
+The game would enter a stagnation state around round 19-20 because:
+1. Senate events were generated and added to `pendingEvents` array
+2. `currentEvent` was never set, so the SenatorEventModal never displayed
+3. Events piled up silently without player resolution
+4. When events WERE resolved/dismissed, the next event was not popped from the queue
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `game/src/app/usecases/senate.ts` | Line 305-306: Set `currentEvent` from first event, rest go to `pendingEvents` |
+| `game/src/store/gameStore.ts` | Lines 1463-1465: Pop next event after resolution |
+| `game/src/store/gameStore.ts` | Lines 1477-1479: Pop next event after dismissal |
+
+### Verification
+
+Run the victory playthrough test to verify the game no longer stagnates:
+```bash
+cd game && npx playwright test victory-playthrough --project=chromium
+```
+
+---
+
+## Bug Fixes (Dec 31, 2024 - QA Test #2)
+
+### Issues Identified
+
+| Bug ID | Severity | Issue |
+|--------|----------|-------|
+| BUG-001 | CRITICAL | Failure condition not triggering at 12% happiness (should fail at ≤25%) |
+| BUG-002 | HIGH | Game stagnates after round 19 - all values freeze |
+| BUG-003 | HIGH | Senator relations reset to 0 at round 19 |
+
+### Root Cause Analysis
+
+**Root Cause**: SenatorEventModal was ONLY rendered inside `SenatePanel.tsx`. If player was NOT on Senate tab when `currentEvent` was set, the modal never appeared and couldn't be dismissed.
+
+**Chain of Events**:
+1. Round 19: `processSenateSeasonEnd()` generates senator events
+2. First event set to `currentEvent` in senate state
+3. Player on non-Senate tab can't see/dismiss the modal
+4. Player calls `endSeason()` again (Space key)
+5. `endSeason()` had NO guard - it ran anyway
+6. `processSenateSeasonEnd()` ran again with stale state
+7. State became corrupted:
+   - Senator relations miscalculated (reset to 0)
+   - Multiple events piled up
+   - Game values froze because state updates were inconsistent
+
+### Fixes Applied
+
+| File | Change |
+|------|--------|
+| `game/src/components/game/GameLayout.tsx` | Added global `SenatorEventModal` at root level - appears on ANY tab |
+| `game/src/store/gameStore.ts` | Added guard in `endSeason()` - blocks season if events pending |
+| `game/src/components/senate/SenatePanel.tsx` | Added round check - only auto-initialize senate at round 1 |
+| `game/src/components/senate/SenatePanel.tsx` | Removed duplicate modal (now in GameLayout) |
+
+### Key Code Changes
+
+**GameLayout.tsx** (lines 112-117):
+```tsx
+{/* Senate Event Modal - Global so it appears on any tab */}
+<SenatorEventModal
+    event={senate?.currentEvent ?? null}
+    onChoice={resolveSenatorEvent}
+    onDismiss={dismissSenatorEvent}
+/>
+```
+
+**gameStore.ts** `endSeason()` (lines 489-493):
+```typescript
+// Guard: Don't end season while senate events need resolution
+if (state.senate?.currentEvent) {
+    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
+    return;
+}
+```
+
+**SenatePanel.tsx** (lines 30-42):
+```tsx
+if (!senate.initialized) {
+    // Only auto-initialize during game start (round 1), not during active play
+    if (round <= 1) {
+        initializeSenate();
+    }
+    // ...
+}
+```
+
+---
+
+## Bug Fixes (Dec 31, 2024 - Gameplay Balance Overhaul)
+
+### Critical Bugs Fixed
+
+| Bug ID | Issue | Fix |
+|--------|-------|-----|
+| C01 | Worship actions (Consecration, Divine Augury, Invoke Blessing) had no effect | Implemented all three effects in `gameStore.ts:worship()` |
+| C03 | Mars recruitment discount (-15%) not shown in Military UI | Added discount calculation and display in `MilitaryPanel.tsx` |
+
+### High Severity Fixes
+
+| Bug ID | Issue | Fix |
+|--------|-------|-----|
+| H01 | Senate had no consequences for negative relations | Added penalty system when relation < -30 in `senate.ts` |
+| H02 | Round 21 consumption cliff (80% to 100% instant) | Smoothed grace period: 75% -> 85% -> 92% -> 100% |
+| H05 | Minerva free tech too weak (1 per 5 rounds) | Buffed to 1 per 3 rounds, 2 at tier 75 |
+
+### Medium Severity Fixes
+
+| Bug ID | Issue | Fix |
+|--------|-------|-----|
+| M01 | Census Office was a trap building (+10% tax, -5 stability) | Rebalanced to +20% tax, -2 stability |
+| M02 | Territory events mutually exclusive (single roll) | Now uses independent rolls per event type |
+| M04 | Only 1 wonder at a time regardless of empire size | Now allows 1 + floor(territories/3) concurrent wonders |
+| M05 | Population growth too slow (2% base) | Increased to 3.5% base + 15% bonus when happiness > 80 |
+| M06 | Deficit protection ended at round 16 | Extended: 3% cap rounds 1-16, 5% cap rounds 17-24 |
+
+### New Features
+
+**Consecration Effect** (`gameStore.ts`)
+- Marks territory for +25% production bonus
+- Applied in `calculateTerritoryProduction()` in `math/index.ts`
+
+**Divine Augury Effect**
+- Reveals seasonal foresight (winter warnings)
+- +5 morale bonus
+
+**Invoke Divine Blessing Effect** (patron-god specific)
+- Jupiter: +15 reputation, +20 morale
+- Mars: +15 troops, +100 supplies
+- Venus: +20 happiness, +25 population
+- Ceres: +150 grain
+- Mercury: +400 denarii
+- Minerva: +25 piety, +10 reputation
+
+**Senate Consequences** (when relation < -30)
+- Sulla: -morale per tier below -30
+- Clodius: -happiness per tier
+- Pulcher: -piety per tier
+- Oppius: -denarii per tier
+- Sertorius: -reputation per tier
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `src/store/gameStore.ts` | Worship effects, wonder slots, consecratedTerritories state |
+| `src/components/game/MilitaryPanel.tsx` | Mars discount display |
+| `src/app/usecases/senate.ts` | Consequence system at section 3.5 |
+| `src/app/usecases/index.ts` | Minerva buff, deficit protection extension |
+| `src/core/constants/index.ts` | Smoothed GRACE_MULTIPLIERS |
+| `src/core/constants/territory.ts` | Census Office rebalance |
+| `src/core/math/index.ts` | Territory events, population growth, consecration bonus |
+| `src/core/types/index.ts` | Added consecratedTerritories, worshipCooldowns |
+
+---
+
+*Last Updated: December 31, 2024*
+*Status: V1.1 - Gameplay balance overhaul complete, 10 bugs fixed*

@@ -243,12 +243,14 @@ export const GAME_CONSTANTS = {
     STARVATION_POP_LOSS: 0.15,                // 15% pop loss on starvation
     STARVATION_MORALE_LOSS: 15,               // -15 morale on starvation
 
-    // Grace Period (early game) - extended for easier early game
+    // Grace Period (early game) - extended and smoothed to prevent consumption cliff
     GRACE_MULTIPLIERS: [
         { maxRound: 8, multiplier: 0.5 },   // Rounds 1-8: 50% consumption
         { maxRound: 14, multiplier: 0.65 }, // Rounds 9-14: 65% consumption
-        { maxRound: 20, multiplier: 0.8 },  // Rounds 15-20: 80% consumption
-        { maxRound: Infinity, multiplier: 1.0 },
+        { maxRound: 18, multiplier: 0.75 }, // Rounds 15-18: 75% consumption
+        { maxRound: 22, multiplier: 0.85 }, // Rounds 19-22: 85% consumption
+        { maxRound: 26, multiplier: 0.92 }, // Rounds 23-26: 92% consumption
+        { maxRound: Infinity, multiplier: 1.0 }, // Round 27+: Full consumption
     ],
 
     // Infinite Mode (Progressive scaling)

@@ -89,11 +89,23 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     if (popGrowth > 0) events.push(`👥 Population grew by ${popGrowth}`);
     if (starvationLoss > 0) events.push(`💀 Lost ${starvationLoss} to starvation`);
 
-    // Update denarii with early-game protection
+    // Update denarii with tiered deficit protection (extended to round 24)
     let effectiveNetIncome = summary.netIncome;
-    if (state.round <= 16 && summary.netIncome < 0) {
-        // Limit losses to 5% of current denarii during grace period
-        effectiveNetIncome = Math.max(summary.netIncome, -Math.floor(state.denarii * 0.05));
+    if (summary.netIncome < 0) {
+        // Tiered deficit protection:
+        // Rounds 1-16: Max 3% treasury loss per season
+        // Rounds 17-24: Max 5% treasury loss per season
+        // Round 25+: Full losses apply
+        let maxLossPct = 1.0; // Full loss by default
+        if (state.round <= 16) {
+            maxLossPct = 0.03; // 3% max loss
+        } else if (state.round <= 24) {
+            maxLossPct = 0.05; // 5% max loss
+        }
+
+        if (maxLossPct < 1.0) {
+            effectiveNetIncome = Math.max(summary.netIncome, -Math.floor(state.denarii * maxLossPct));
+        }
     }
     let newDenarii = Math.max(0, state.denarii + effectiveNetIncome);
     if (effectiveNetIncome > 0) {
@@ -527,17 +539,24 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         return { ...q, progress, completed };
     });
 
-    // Minerva tier 50: +1 free tech every 5 rounds
+    // Minerva tier 50: +1 free tech every 3 rounds (buffed from 5)
+    // Minerva tier 75: +2 free techs every 3 rounds
     let newTechnologies = state.technologies;
     const minervaFreeTech = calculateBlessingBonus(state.patronGod, state.godFavor, 'freeTech');
-    if (minervaFreeTech > 0 && newRound % 5 === 0 && newRound > 0) {
-        const unresearchedTechs = state.technologies.filter(t => !t.researched);
+    if (minervaFreeTech > 0 && newRound % 3 === 0 && newRound > 0) {
+        const unresearchedTechs = newTechnologies.filter(t => !t.researched);
         if (unresearchedTechs.length > 0) {
-            const randomTech = unresearchedTechs[Math.floor(random() * unresearchedTechs.length)];
-            newTechnologies = state.technologies.map(t =>
-                t.id === randomTech.id ? { ...t, researched: true } : t
-            );
-            events.push(`🦉 Minerva grants wisdom! Free technology: ${randomTech.name}`);
+            // At tier 75+, grant 2 techs instead of 1
+            const minervaTier75 = calculateBlessingBonus(state.patronGod, state.godFavor, 'buildingEfficiency');
+            const techsToGrant = minervaTier75 > 0 ? 2 : 1;
+
+            for (let i = 0; i < techsToGrant && i < unresearchedTechs.length; i++) {
+                const randomTech = unresearchedTechs[i];
+                newTechnologies = newTechnologies.map(t =>
+                    t.id === randomTech.id ? { ...t, researched: true } : t
+                );
+                events.push(`🦉 Minerva grants wisdom! Free technology: ${randomTech.name}`);
+            }
         }
     }
 

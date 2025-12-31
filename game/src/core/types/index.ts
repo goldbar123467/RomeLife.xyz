@@ -401,6 +401,12 @@ export interface GameState {
 
     // Event Cooldowns (prevent same event from repeating)
     eventCooldowns?: Record<string, number>;
+
+    // Religion - Consecrated territories get +25% production
+    consecratedTerritories: string[];
+
+    // Worship action cooldowns
+    worshipCooldowns?: Record<string, number>;
 }
 
 export interface GameHistoryEntry {

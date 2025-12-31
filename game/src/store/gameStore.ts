@@ -457,6 +457,10 @@ const createInitialState = (): Omit<GameStore,
     // Emergency Cooldowns
     emergencyCooldowns: {},
 
+    // Religion - Consecrated territories
+    consecratedTerritories: [],
+    worshipCooldowns: {},
+
     // Battle Animation Settings
     battleSpeed: 'normal' as const,
 });
@@ -485,6 +489,13 @@ export const useGameStore = create<GameStore>()(
 
             endSeason: () => {
                 const state = get();
+
+                // Guard: Don't end season while senate events need resolution
+                if (state.senate?.currentEvent) {
+                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
+                    return;
+                }
+
                 const result = executeEndSeason(state);
 
                 // Apply state changes
@@ -1011,6 +1022,91 @@ export const useGameStore = create<GameStore>()(
                 if (effect.reputation) newReputation += effect.reputation;
                 if (effect.population) newPopulation += effect.population;
 
+                // Track additional state changes
+                let newMorale = state.morale;
+                let newTroops = state.troops;
+                let newSupplies = state.supplies;
+                const newConsecratedTerritories = [...(state.consecratedTerritories || [])];
+                const eventMessages: string[] = [];
+
+                // Handle CONSECRATION - Mark territory for +25% production
+                if (effect.consecrate) {
+                    const ownedTerritories = state.territories.filter(t => t.owned);
+                    const unconsecrated = ownedTerritories.filter(t => !newConsecratedTerritories.includes(t.id));
+                    if (unconsecrated.length > 0) {
+                        const targetTerritory = unconsecrated[0]; // Consecrate first unconsecrated territory
+                        newConsecratedTerritories.push(targetTerritory.id);
+                        eventMessages.push(`✨ ${targetTerritory.name} has been consecrated! +25% production bonus`);
+                    } else if (ownedTerritories.length === 0) {
+                        eventMessages.push(`✨ No territories to consecrate. Conquer land first!`);
+                    } else {
+                        eventMessages.push(`✨ All territories already consecrated!`);
+                    }
+                }
+
+                // Handle DIVINE AUGURY - Preview upcoming events
+                if (effect.revealEvents) {
+                    // Provide useful foresight to the player
+                    const nextSeason = state.season === 'spring' ? 'summer' :
+                                       state.season === 'summer' ? 'autumn' :
+                                       state.season === 'autumn' ? 'winter' : 'spring';
+                    const isWinterComing = nextSeason === 'winter' || state.season === 'autumn';
+
+                    if (isWinterComing) {
+                        eventMessages.push(`🔮 The augurs warn: Winter approaches! Prepare grain stores.`);
+                    } else {
+                        eventMessages.push(`🔮 The omens are favorable. Prosperity lies ahead.`);
+                    }
+                    // Bonus: +5 morale from the reassurance
+                    newMorale = Math.min(100, newMorale + 5);
+                }
+
+                // Handle INVOKE BLESSING - Immediate powerful effect based on patron god
+                if (effect.invokeBlessing && state.patronGod) {
+                    switch (state.patronGod) {
+                        case 'jupiter':
+                            newReputation += 15;
+                            newMorale = Math.min(100, newMorale + 20);
+                            eventMessages.push(`⚡ Jupiter's thunder empowers your armies! +15 reputation, +20 morale`);
+                            break;
+                        case 'mars':
+                            newTroops += 15;
+                            newSupplies += 100;
+                            eventMessages.push(`⚔️ Mars grants warriors! +15 troops, +100 supplies`);
+                            break;
+                        case 'venus':
+                            newHappiness = Math.min(100, newHappiness + 20);
+                            newPopulation += 25;
+                            eventMessages.push(`💕 Venus blesses your people! +20 happiness, +25 population`);
+                            break;
+                        case 'ceres':
+                            newInventory.grain = Math.min(state.capacity.grain, newInventory.grain + 150);
+                            eventMessages.push(`🌾 Ceres fills your granaries! +150 grain`);
+                            break;
+                        case 'mercury':
+                            newDenarii += 400;
+                            eventMessages.push(`💰 Mercury brings fortune! +400 denarii`);
+                            break;
+                        case 'minerva':
+                            newPiety += 25;
+                            newReputation += 10;
+                            eventMessages.push(`🦉 Minerva grants wisdom! +25 piety, +10 reputation`);
+                            break;
+                    }
+                }
+
+                // Build the event message
+                const baseMessage = `🙏 ${worshipAction.name}!`;
+                const bonusText = [
+                    effect.godFavor ? `+${effect.godFavor} favor` : '',
+                    effect.piety ? `+${effect.piety} piety` : ''
+                ].filter(Boolean).join(', ');
+
+                const allMessages = [
+                    bonusText ? `${baseMessage} ${bonusText}` : baseMessage,
+                    ...eventMessages
+                ];
+
                 set({
                     inventory: newInventory,
                     denarii: newDenarii,
@@ -1019,7 +1115,11 @@ export const useGameStore = create<GameStore>()(
                     happiness: newHappiness,
                     reputation: newReputation,
                     population: newPopulation,
-                    lastEvents: [`🙏 ${worshipAction.name}! ${effect.godFavor ? `+${effect.godFavor} favor` : ''} ${effect.piety ? `+${effect.piety} piety` : ''}`],
+                    morale: newMorale,
+                    troops: newTroops,
+                    supplies: newSupplies,
+                    consecratedTerritories: newConsecratedTerritories,
+                    lastEvents: allMessages,
                 });
             },
 
@@ -1058,10 +1158,13 @@ export const useGameStore = create<GameStore>()(
                     return;
                 }
 
-                // Check if already building a wonder
-                const alreadyBuilding = state.wonders.some(w => w.turnsRemaining && w.turnsRemaining > 0);
-                if (alreadyBuilding) {
-                    set({ lastEvents: ['Already constructing a wonder! Complete it first.'] });
+                // Check wonder construction slots: 1 base + 1 per 3 owned territories
+                const ownedTerritories = state.territories.filter(t => t.owned).length;
+                const maxWonderSlots = 1 + Math.floor(ownedTerritories / 3);
+                const currentlyBuilding = state.wonders.filter(w => w.turnsRemaining && w.turnsRemaining > 0).length;
+
+                if (currentlyBuilding >= maxWonderSlots) {
+                    set({ lastEvents: [`Already constructing ${currentlyBuilding} wonder${currentlyBuilding > 1 ? 's' : ''}! (Max: ${maxWonderSlots})`] });
                     return;
                 }
 
@@ -1428,6 +1531,16 @@ export const useGameStore = create<GameStore>()(
                     }
                 }
 
+                // Mark introduction as shown if this is an intro event (rounds 2-5)
+                const isIntroEvent = state.round >= 2 && state.round <= 5 &&
+                    !newSenators[event.senatorId]?.introductionShown;
+                if (isIntroEvent && newSenators[event.senatorId]) {
+                    newSenators[event.senatorId] = {
+                        ...newSenators[event.senatorId],
+                        introductionShown: true,
+                    };
+                }
+
                 // Apply resource changes
                 const newState: Partial<GameStore> = {};
                 if (choice.effects.resourceChanges) {
@@ -1450,7 +1563,9 @@ export const useGameStore = create<GameStore>()(
                     senate: {
                         ...state.senate,
                         senators: newSenators,
-                        currentEvent: null,
+                        // Pop next event from pendingEvents queue
+                        currentEvent: state.senate.pendingEvents[0] || null,
+                        pendingEvents: state.senate.pendingEvents.slice(1),
                         eventHistory: newHistory,
                     },
                     lastEvents: [`Senate: Resolved "${event.title}"`],
@@ -1462,7 +1577,9 @@ export const useGameStore = create<GameStore>()(
                 set({
                     senate: {
                         ...state.senate,
-                        currentEvent: null,
+                        // Pop next event from pendingEvents queue
+                        currentEvent: state.senate.pendingEvents[0] || null,
+                        pendingEvents: state.senate.pendingEvents.slice(1),
                     },
                 });
             },

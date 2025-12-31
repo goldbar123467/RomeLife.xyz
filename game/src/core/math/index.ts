@@ -198,6 +198,14 @@ export function calculateTerritoryProduction(
         }
     }
 
+    // Apply CONSECRATION bonus (+25% all production for consecrated territories)
+    const isConsecrated = state.consecratedTerritories?.includes(territory.id);
+    if (isConsecrated) {
+        for (const resType of Object.keys(production) as ResourceType[]) {
+            production[resType] = (production[resType] || 0) * 1.25;
+        }
+    }
+
     return production as Record<ResourceType, number>;
 }
 
@@ -599,36 +607,45 @@ export function calculateStabilityChange(
 }
 
 /**
- * Check for random territory events
+ * Check for random territory events using INDEPENDENT rolls
+ * Multiple events can now trigger per territory per season
  */
-export function rollTerritoryEvent(territory: Territory): { type: string; effect: Record<string, number> } | null {
-    const roll = random();
+export function rollTerritoryEvents(territory: Territory): { type: string; effect: Record<string, number> }[] {
+    const events: { type: string; effect: Record<string, number> }[] = [];
 
-    // Rebellion: 5% if stability < 30 (range: 0 to 0.05)
-    if (territory.stability < 30 && roll < 0.05) {
-        return {
+    // Rebellion: 5% if stability < 30 (independent roll)
+    if (territory.stability < 30 && random() < 0.05) {
+        events.push({
             type: 'rebellion',
             effect: { stability: -10, garrison: -Math.floor(territory.garrison * 0.3) },
-        };
+        });
     }
 
-    // Prosperity: 8% if stability > 70 (exclusive range: 0.05 to 0.13)
-    if (territory.stability > 70 && roll >= 0.05 && roll < 0.13) {
-        return {
+    // Prosperity: 8% if stability > 70 (independent roll)
+    if (territory.stability > 70 && random() < 0.08) {
+        events.push({
             type: 'prosperity',
             effect: { income: 100, happiness: 10 },
-        };
+        });
     }
 
-    // Bandit Raid: 7% if garrison < 20 (exclusive range: 0.13 to 0.20)
-    if (territory.garrison < 20 && roll >= 0.13 && roll < 0.20) {
-        return {
+    // Bandit Raid: 7% if garrison < 20 (independent roll)
+    if (territory.garrison < 20 && random() < 0.07) {
+        events.push({
             type: 'bandit_raid',
             effect: { gold: -50, stability: -8 },
-        };
+        });
     }
 
-    return null;
+    return events;
+}
+
+/**
+ * Backward compatibility wrapper - returns first event or null
+ */
+export function rollTerritoryEvent(territory: Territory): { type: string; effect: Record<string, number> } | null {
+    const events = rollTerritoryEvents(territory);
+    return events.length > 0 ? events[0] : null;
 }
 
 // === PROCEDURAL GENERATION (Infinite Mode) ===
@@ -693,8 +710,8 @@ export function generateProceduralTerritory(
 export function calculatePopulationGrowth(state: GameState): number {
     const { population, housing, happiness, sanitation } = state;
 
-    // Base growth rate: 2% per season
-    let growthRate = 0.02;
+    // Base growth rate: 3.5% per season (buffed from 2%)
+    let growthRate = 0.035;
 
     // Venus blessing (Fertility Tier 50: +25% growth)
     const fertilityBonus = getGodBlessingBonus(state.patronGod, state.godFavor, 'fertility');
@@ -702,6 +719,11 @@ export function calculatePopulationGrowth(state: GameState): number {
 
     // Happiness modifier: 50% = 1x, 100% = 1.5x, 0% = 0.5x
     growthRate *= 0.5 + (happiness / 100);
+
+    // Prosperity bonus: +15% growth when happiness > 80
+    if (happiness > 80) {
+        growthRate *= 1.15;
+    }
 
     // Sanitation modifier: poor sanitation = disease/death
     if (sanitation < 30) {
