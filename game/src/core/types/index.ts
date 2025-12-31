@@ -431,6 +431,8 @@ export interface GameHistoryEntry {
     denarii: number;
     population: number;
     troops: number;
+    morale: number;
+    supplies: number;
     territories: number;
     events: string[];
 }

@@ -1,19 +1,121 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Button, Badge, SectionHeader, ProgressBar, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
 import { MILITARY_UNITS } from '@/core/constants';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { Swords, Shield, Users, Zap, Package, Heart, Check, X, ScrollText } from 'lucide-react';
+import { Swords, Shield, Users, Zap, Package, Heart, Check, X, ScrollText, TrendingUp } from 'lucide-react';
 import { gameToast } from '@/lib/toast';
 import type { MilitaryUnit } from '@/core/types';
 
+// Simple line chart component for military stats
+function MilitaryChart({ history }: { history: { round: number; troops: number; morale: number; supplies: number }[] }) {
+    const data = useMemo(() => {
+        // Take last 12 entries for display
+        const recentHistory = history.slice(-12);
+        if (recentHistory.length === 0) return null;
+
+        // Calculate max values for scaling
+        const maxTroops = Math.max(...recentHistory.map(h => h.troops), 1);
+        const maxSupplies = Math.max(...recentHistory.map(h => h.supplies), 1);
+        const maxMorale = 100; // Morale is always 0-100
+
+        return {
+            entries: recentHistory,
+            maxTroops,
+            maxSupplies,
+            maxMorale,
+        };
+    }, [history]);
+
+    if (!data || data.entries.length < 2) {
+        return (
+            <div className="h-32 flex items-center justify-center text-muted text-sm">
+                Play more seasons to see military trends...
+            </div>
+        );
+    }
+
+    const width = 100;
+    const height = 100;
+    const padding = 5;
+
+    // Generate SVG path for a data series
+    const generatePath = (values: number[], maxValue: number) => {
+        const points = values.map((val, i) => {
+            const x = padding + (i / (values.length - 1)) * (width - padding * 2);
+            const y = height - padding - (val / maxValue) * (height - padding * 2);
+            return `${x},${y}`;
+        });
+        return `M ${points.join(' L ')}`;
+    };
+
+    const troopsPath = generatePath(data.entries.map(h => h.troops), data.maxTroops);
+    const moralePath = generatePath(data.entries.map(h => h.morale), data.maxMorale);
+    const suppliesPath = generatePath(data.entries.map(h => h.supplies), data.maxSupplies);
+
+    return (
+        <div className="space-y-3">
+            {/* Chart */}
+            <div className="relative h-32 bg-bg/50 rounded-lg overflow-hidden">
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="none">
+                    {/* Grid lines */}
+                    <line x1={padding} y1={height/2} x2={width-padding} y2={height/2} stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
+                    <line x1={padding} y1={height/4} x2={width-padding} y2={height/4} stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+                    <line x1={padding} y1={height*3/4} x2={width-padding} y2={height*3/4} stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+
+                    {/* Troops line (gold) */}
+                    <path d={troopsPath} fill="none" stroke="#f0c14b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+                    {/* Morale line (green) */}
+                    <path d={moralePath} fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+                    {/* Supplies line (blue) */}
+                    <path d={suppliesPath} fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+
+                {/* Current values overlay */}
+                <div className="absolute top-2 right-2 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-roman-gold"></div>
+                        <span className="text-roman-gold font-medium">{data.entries[data.entries.length - 1].troops}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                        <span className="text-green-400 font-medium">{data.entries[data.entries.length - 1].morale}%</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                        <span className="text-blue-400 font-medium">{data.entries[data.entries.length - 1].supplies}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex justify-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-roman-gold rounded"></div>
+                    <span className="text-muted">Troops</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-green-400 rounded"></div>
+                    <span className="text-muted">Morale</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-blue-400 rounded"></div>
+                    <span className="text-muted">Supplies</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function MilitaryPanel() {
     const state = useGameStore();
-    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, patronGod, godFavor, founder, winStreak } = state;
+    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, patronGod, godFavor, founder, winStreak, history } = state;
     const [selectedUnit, setSelectedUnit] = useState<MilitaryUnit | null>(null);
 
     // Calculate Mars recruitment discount (-15% at tier 25)
@@ -101,6 +203,14 @@ export function MilitaryPanel() {
                     </div>
                 </GlassCard>
             </div>
+
+            {/* Military History Chart */}
+            <GlassCard className="p-4 md:p-6">
+                <h3 className="text-lg font-bold text-roman-gold mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" /> Military Trends
+                </h3>
+                <MilitaryChart history={history || []} />
+            </GlassCard>
 
             {/* Combat Power Summary */}
             <GlassCard className="p-4 md:p-6">

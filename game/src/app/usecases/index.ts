@@ -642,6 +642,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         denarii: newDenarii,
         population: newPopulation,
         troops: state.troops,
+        morale: newMorale,
+        supplies: newSupplies,
         territories: newTerritories.filter(t => t.owned).length,
         events,
     };
