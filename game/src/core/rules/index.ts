@@ -378,10 +378,10 @@ export const WONDERS: Wonder[] = [
         yearBuilt: '80 AD',
         history: 'Commissioned by Emperor Vespasian and completed by his son Titus, the Colosseum could hold 50,000-80,000 spectators. Built on the site of Nero\'s palace lake as a gift to the Roman people, it hosted gladiatorial contests, animal hunts, executions, and mock naval battles. The arena floor could be flooded for sea battles and featured an elaborate underground system (hypogeum) with lifts and trap doors.',
         facts: [
-            '🏟️ Largest amphitheater ever built',
-            '⚔️ Could host 50,000+ spectators',
-            '🦁 Featured exotic animal hunts',
-            '💀 Site of countless gladiator battles',
+            'Largest amphitheater ever built',
+            'Could host 50,000+ spectators',
+            'Featured exotic animal hunts',
+            'Site of countless gladiator battles',
         ],
     },
     {
@@ -398,10 +398,10 @@ export const WONDERS: Wonder[] = [
         yearBuilt: '125 AD',
         history: 'Originally built by Marcus Agrippa during Augustus\' reign, the current structure was completely rebuilt by Emperor Hadrian around 125 AD. The dome\'s oculus (open eye) remains the sole source of natural light and was an engineering marvel that would not be surpassed for over 1,300 years. The building has been in continuous use throughout its history.',
         facts: [
-            '🔵 Dome diameter: 43.3 meters',
-            '☀️ Oculus is 8.2 meters wide',
-            '⛪ Converted to church in 609 AD',
-            '🏛️ Best preserved ancient Roman building',
+            'Dome diameter: 43.3 meters',
+            'Oculus is 8.2 meters wide',
+            'Converted to church in 609 AD',
+            'Best preserved ancient Roman building',
         ],
     },
     {
@@ -418,10 +418,10 @@ export const WONDERS: Wonder[] = [
         yearBuilt: '6th century BC',
         history: 'Located in the valley between the Palatine and Aventine hills, the Circus Maximus was Rome\'s first and largest stadium. At its peak under Trajan, it could seat 250,000 spectators—making it the largest venue ever built for public entertainment. Chariot racing was the most popular Roman sport, with fans fanatically supporting their favorite teams (Blues, Greens, Reds, Whites).',
         facts: [
-            '🏇 Could seat 250,000 spectators',
-            '📏 621 meters long, 118 meters wide',
-            '🏁 Hosted 24 races per day',
-            '🎨 Four racing factions (teams)',
+            'Could seat 250,000 spectators',
+            '621 meters long, 118 meters wide',
+            'Hosted 24 races per day',
+            'Four racing factions (teams)',
         ],
     },
     {
@@ -438,10 +438,10 @@ export const WONDERS: Wonder[] = [
         yearBuilt: '52 AD',
         history: 'Begun by Emperor Caligula in 38 AD and completed by Claudius in 52 AD, the Aqua Claudia stretched 69 kilometers from springs near Subiaco. Its impressive arched sections towered up to 27 meters high. Combined with the Anio Novus (built simultaneously), these aqueducts doubled Rome\'s water supply. The monumental Porta Maggiore served as a joint gateway for both aqueducts.',
         facts: [
-            '💧 69 km total length',
-            '🏗️ 27 meters high at tallest point',
-            '⛲ Delivered 184,000 m³/day',
-            '🔧 Built by 30,000 workers',
+            '69 km total length',
+            '27 meters high at tallest point',
+            'Delivered 184,000 cubic meters per day',
+            'Built by 30,000 workers',
         ],
     },
     {
@@ -458,10 +458,10 @@ export const WONDERS: Wonder[] = [
         yearBuilt: '7th century BC',
         history: 'Originally a marshy burial ground, the Forum was drained by the Cloaca Maxima and transformed into Rome\'s civic center. Here citizens voted, senators debated, criminals were tried, and triumphs were celebrated. The Forum housed the Senate House (Curia), temples to Saturn and Vesta, the Rostra speaker\'s platform, and countless monuments. Julius Caesar was cremated here after his assassination.',
         facts: [
-            '⚖️ Center of Roman law and politics',
-            '🏛️ Home of the Roman Senate',
-            '🔥 Sacred flame of Vesta burned here',
-            '👑 Triumphal processions ended here',
+            'Center of Roman law and politics',
+            'Home of the Roman Senate',
+            'Sacred flame of Vesta burned here',
+            'Triumphal processions ended here',
         ],
     },
     {
@@ -479,10 +479,10 @@ export const WONDERS: Wonder[] = [
         yearBuilt: '92 AD',
         history: 'The Palatine Hill was Rome\'s most prestigious address, where Romulus allegedly founded the city. Emperor Domitian built the magnificent Domus Augustana complex that became the official imperial residence for 300 years. The palace featured elaborate gardens, dining rooms with revolving ceilings, private stadiums, and fountains. Our word "palace" derives from "Palatine."',
         facts: [
-            '👑 Official emperor\'s residence',
-            '📜 Word "palace" comes from Palatine',
-            '🏺 Legendary birthplace of Romulus',
-            '🌳 Featured elaborate private gardens',
+            'Official emperor\'s residence',
+            'Word "palace" comes from Palatine',
+            'Legendary birthplace of Romulus',
+            'Featured elaborate private gardens',
         ],
     },
 ];

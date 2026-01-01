@@ -10,7 +10,16 @@ import { simulateCaravan } from '@/core/math/monteCarlo';
 import { DistributionBar } from '@/components/ui/BellCurve';
 import type { ResourceType, TradeCity, CaravanType, TradeState, MarketState, TradeRoute } from '@/core/types';
 import type { CaravanSimulationResult } from '@/core/types/probability';
-import { Package, ArrowRightLeft, BarChart3, Truck, Shield, TrendingUp } from 'lucide-react';
+import { Package, ArrowRightLeft, BarChart3, Truck, Shield, TrendingUp, Briefcase, Zap, Gem, Star, AlertTriangle, PlusCircle, X, type LucideIcon } from 'lucide-react';
+import { RESOURCE_ICONS } from '@/components/ui/icons';
+
+// Mapping caravan icon identifiers to Lucide components
+const CARAVAN_ICON_MAP: Record<string, LucideIcon> = {
+    shield: Shield,
+    package: Package,
+    zap: Zap,
+    gem: Gem,
+};
 import { gameToast } from '@/lib/toast';
 
 // === PROP TYPES FOR TAB COMPONENTS ===
@@ -121,7 +130,7 @@ export function TradePanel() {
             <SectionHeader
                 title="Trade Hub"
                 subtitle="Buy, sell, and establish trade routes across the Mediterranean"
-                icon="💼"
+                icon={<Briefcase className="w-6 h-6 text-roman-gold" />}
             />
 
             {/* Sub-tabs */}
@@ -154,7 +163,7 @@ export function TradePanel() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <span className="text-3xl">🐫</span>
+                    <Truck size={32} className="text-roman-gold" />
                     <div className="flex-1">
                         <div className="font-bold text-roman-gold">Caravan in Transit</div>
                         <div className="text-sm text-muted">
@@ -267,7 +276,7 @@ function QuickTradeTab({
 
             {/* Market Prices */}
             <GlassCard className="p-3 md:p-4">
-                <h3 className="text-base md:text-lg font-bold text-roman-gold mb-3">📊 Market Prices</h3>
+                <h3 className="text-base md:text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><BarChart3 size={20} /> Market Prices</h3>
                 <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
                     {tradableResources.map(resource => (
                         <div
@@ -275,7 +284,10 @@ function QuickTradeTab({
                             className="glass-dark rounded-lg p-2 md:p-3 text-center cursor-pointer hover:border-roman-gold/50 transition-all min-h-[52px] flex flex-col items-center justify-center"
                             onClick={() => setSelectedResource(resource)}
                         >
-                            <div className="text-lg md:text-xl">{RESOURCE_INFO[resource].emoji}</div>
+                            {(() => {
+                                            const ResIcon = RESOURCE_ICONS[resource] || Package;
+                                            return <ResIcon size={24} className="text-roman-gold" />;
+                                        })()}
                             <div className="text-[10px] md:text-xs font-mono text-roman-gold">{market.prices[resource]}g</div>
                         </div>
                     ))}
@@ -327,11 +339,18 @@ function QuickTradeTab({
                                 <div className="mt-3 pt-3 border-t border-white/10">
                                     <div className="text-xs text-muted mb-1">Preferred Goods:</div>
                                     <div className="flex gap-1">
-                                        {city.biases.map((res: ResourceType) => (
-                                            <span key={res} className="text-lg" title={RESOURCE_INFO[res]?.name}>
-                                                {RESOURCE_INFO[res]?.emoji}
-                                            </span>
-                                        ))}
+                                        {city.biases.map((res: ResourceType) => {
+                                            const IconComponent = RESOURCE_ICONS[res];
+                                            return IconComponent ? (
+                                                <span key={res} title={RESOURCE_INFO[res]?.name}>
+                                                    <IconComponent className="w-5 h-5 text-roman-gold" />
+                                                </span>
+                                            ) : (
+                                                <span key={res} className="text-sm" title={RESOURCE_INFO[res]?.name}>
+                                                    {RESOURCE_INFO[res]?.name?.charAt(0)}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </GlassCard>
@@ -373,7 +392,12 @@ function QuickTradeTab({
                                                     disabled={owned === 0}
                                                     whileTap={{ scale: 0.95 }}
                                                 >
-                                                    <div className="text-lg">{RESOURCE_INFO[resource].emoji}</div>
+                                                    <div className="text-lg">
+                                                        {(() => {
+                                                            const IconComp = RESOURCE_ICONS[resource];
+                                                            return IconComp ? <IconComp className="w-5 h-5" /> : RESOURCE_INFO[resource].name?.charAt(0);
+                                                        })()}
+                                                    </div>
                                                     <div className="text-[10px] md:text-xs text-muted">{owned}</div>
                                                 </motion.button>
                                             );
@@ -404,7 +428,13 @@ function QuickTradeTab({
                                             <div className="glass-dark rounded-xl p-4 mb-4">
                                                 <div className="flex justify-between mb-2">
                                                     <span className="text-muted">You sell</span>
-                                                    <span>{tradeAmount}x {RESOURCE_INFO[selectedResource as ResourceType].emoji}</span>
+                                                    <span className="flex items-center gap-1">
+                                                        {tradeAmount}x
+                                                        {(() => {
+                                                            const IconComp = RESOURCE_ICONS[selectedResource as ResourceType];
+                                                            return IconComp ? <IconComp className="w-4 h-4" /> : RESOURCE_INFO[selectedResource as ResourceType].name;
+                                                        })()}
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between text-lg font-bold">
                                                     <span className="text-muted">You receive</span>
@@ -464,7 +494,7 @@ function TradeRoutesTab({
             {/* Active Routes */}
             {tradeState.routes.length > 0 && (
                 <div>
-                    <h3 className="text-lg font-bold text-roman-gold mb-3">📦 Active Trade Routes</h3>
+                    <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><Package size={20} /> Active Trade Routes</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {tradeState.routes.map((route: TradeRoute) => {
                             const city = tradeCities.find((c: TradeCity) => c.id === route.cityId);
@@ -477,7 +507,13 @@ function TradeRoutesTab({
                                     <div className="space-y-1 text-sm mb-3">
                                         <div className="flex justify-between">
                                             <span className="text-muted">Goods:</span>
-                                            <span>{RESOURCE_INFO[route.resourceId as ResourceType].emoji} {route.qty}/season</span>
+                                            <span className="flex items-center gap-1">
+                                                            {(() => {
+                                                                const ResIcon = RESOURCE_ICONS[route.resourceId as ResourceType] || Package;
+                                                                return <ResIcon size={14} className="text-roman-gold" />;
+                                                            })()}
+                                                            {route.qty}/season
+                                                        </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted">Income:</span>
@@ -490,7 +526,7 @@ function TradeRoutesTab({
                                         className="w-full"
                                         onClick={() => cancelTradeRoute(route.id)}
                                     >
-                                        ❌ Cancel Route
+                                        <span className="flex items-center gap-1"><X size={14} /> Cancel Route</span>
                                     </Button>
                                 </GlassCard>
                             );
@@ -501,11 +537,11 @@ function TradeRoutesTab({
 
             {/* Establish New Route */}
             <div>
-                <h3 className="text-lg font-bold text-roman-gold mb-3">➕ Establish New Route</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><PlusCircle size={20} /> Establish New Route</h3>
 
                 {resourcesWithStock.length === 0 ? (
-                    <GlassCard className="p-4 text-center text-yellow-400">
-                        ⚠️ Need at least 5 units of a good to establish a route.
+                    <GlassCard className="p-4 text-center text-yellow-400 flex items-center justify-center gap-2">
+                        <AlertTriangle size={18} /> Need at least 5 units of a good to establish a route.
                     </GlassCard>
                 ) : (
                     <GlassCard className="p-6">
@@ -537,7 +573,12 @@ function TradeRoutesTab({
                                             onClick={() => setRouteResource(resource)}
                                             whileTap={{ scale: 0.95 }}
                                         >
-                                            <div className="text-lg">{RESOURCE_INFO[resource].emoji}</div>
+                                            <div className="text-lg">
+                                                {(() => {
+                                                    const IconComp = RESOURCE_ICONS[resource];
+                                                    return IconComp ? <IconComp className="w-5 h-5" /> : RESOURCE_INFO[resource].name?.charAt(0);
+                                                })()}
+                                            </div>
                                             <div className="text-[10px] md:text-xs text-muted">{inventory[resource]}</div>
                                         </motion.button>
                                     ))}
@@ -610,7 +651,7 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
 
             {/* Price Comparison Table */}
             <GlassCard className="p-4 overflow-x-auto">
-                <h3 className="text-lg font-bold text-roman-gold mb-3">📊 Price Comparison</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><BarChart3 size={20} /> Price Comparison</h3>
                 <table className="w-full border-collapse text-sm">
                     <thead>
                         <tr className="border-b border-white/20">
@@ -624,7 +665,10 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
                         {tradableResources.map((resource: ResourceType) => (
                             <tr key={resource} className="border-b border-white/10">
                                 <td className="p-2">
-                                    {RESOURCE_INFO[resource].emoji} {RESOURCE_INFO[resource].name}
+                                    {(() => {
+                                                    const ResIcon = RESOURCE_ICONS[resource] || Package;
+                                                    return <span className="flex items-center gap-1"><ResIcon size={16} className="text-roman-gold" /> {RESOURCE_INFO[resource].name}</span>;
+                                                })()}
                                 </td>
                                 {tradeCities.map((city: TradeCity) => {
                                     const basePrice = market.prices[resource];
@@ -639,7 +683,7 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
                                             key={city.id}
                                             className={`text-center p-2 ${isSpecialty ? 'bg-roman-gold/20 font-bold text-roman-gold' : ''}`}
                                         >
-                                            {price}d{isSpecialty ? ' ⭐' : ''}
+                                            {price}d{isSpecialty && <Star size={12} className="inline ml-1 text-yellow-400" />}
                                         </td>
                                     );
                                 })}
@@ -651,7 +695,7 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
 
             {/* Inventory Overview */}
             <div>
-                <h3 className="text-lg font-bold text-roman-gold mb-3">📦 Your Inventory</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><Package size={20} /> Your Inventory</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {tradableResources.filter(r => inventory[r] > 0).map((resource: ResourceType) => {
                         const avgPrice = Math.floor(
@@ -665,7 +709,12 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
 
                         return (
                             <GlassCard key={resource} className="p-4 text-center">
-                                <div className="text-3xl mb-2">{RESOURCE_INFO[resource].emoji}</div>
+                                <div className="text-3xl mb-2 flex justify-center">
+                                    {(() => {
+                                        const IconComp = RESOURCE_ICONS[resource];
+                                        return IconComp ? <IconComp className="w-8 h-8 text-roman-gold" /> : RESOURCE_INFO[resource].name?.charAt(0);
+                                    })()}
+                                </div>
                                 <div className="font-bold">{RESOURCE_INFO[resource].name}</div>
                                 <div className="text-sm text-muted">Qty: {inventory[resource]}</div>
                                 <div className="text-xs text-muted">Avg: {avgPrice}d</div>
@@ -744,7 +793,7 @@ function CaravansTab({
 
             {/* Trade Upgrades */}
             <div>
-                <h3 className="text-lg font-bold text-roman-gold mb-3">⬆️ Trade Upgrades</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><TrendingUp size={20} /> Trade Upgrades</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[
                         { id: 'guards' as const, name: 'Caravan Guards', icon: Shield, desc: '-10% risk per level' },
@@ -791,7 +840,7 @@ function CaravansTab({
             {/* Caravan Status or Options */}
             {tradeState.activeCaravan ? (
                 <GlassCard className="p-6 text-center">
-                    <div className="text-4xl mb-3">🐫</div>
+                    <Truck size={48} className="text-roman-gold mb-3" />
                     <div className="text-xl font-bold text-roman-gold mb-2">Caravan in Transit</div>
                     <div className="text-muted mb-4">
                         Your caravan is en route to {tradeState.activeCaravan.cityName}.
@@ -811,11 +860,11 @@ function CaravansTab({
                 </GlassCard>
             ) : !hasGoods ? (
                 <GlassCard className="p-4 text-center text-yellow-400">
-                    ⚠️ No goods to send with caravans. Produce or acquire resources first.
+                    <AlertTriangle size={18} className="inline mr-1" /> No goods to send with caravans. Produce or acquire resources first.
                 </GlassCard>
             ) : (
                 <div>
-                    <h3 className="text-lg font-bold text-roman-gold mb-3">🐫 Send a Caravan</h3>
+                    <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><Truck size={20} /> Send a Caravan</h3>
 
                     {/* City Selection (shared across all caravan types) */}
                     <div className="mb-4">
@@ -850,7 +899,10 @@ function CaravansTab({
                             return (
                                 <GlassCard key={config.id} className="p-4">
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="text-3xl">{config.icon}</div>
+                                        {(() => {
+                                            const CaravanIcon = CARAVAN_ICON_MAP[config.icon] || Package;
+                                            return <CaravanIcon size={32} className="text-roman-gold" />;
+                                        })()}
                                         <div className="flex-1">
                                             <div className="font-bold text-lg">{config.name}</div>
                                             <div className="text-sm text-muted">{config.description}</div>

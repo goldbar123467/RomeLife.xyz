@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Pre-commit hook to prevent emoji characters in source code
+# Enforces use of Lucide icons or text prefixes instead
+
+# Check for emojis in staged TypeScript/JavaScript files
+EMOJI_PATTERN='[\x{1F300}-\x{1F9FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}]'
+
+# Get list of staged .ts/.tsx files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
+
+if [ -n "$STAGED_FILES" ]; then
+    # Check each file for emojis
+    for FILE in $STAGED_FILES; do
+        if [ -f "$FILE" ]; then
+            # Use grep with perl regex to find emojis
+            if grep -Pn "$EMOJI_PATTERN" "$FILE" 2>/dev/null; then
+                echo ""
+                echo "ERROR: Emoji characters found in $FILE"
+                echo "Please use Lucide icons or text prefixes instead."
+                echo "Examples:"
+                echo "  - UI icons: import { Trophy } from 'lucide-react'"
+                echo "  - Event logs: '[Victory] Battle won!' instead of '⚔️ Battle won!'"
+                echo ""
+                exit 1
+            fi
+        fi
+    done
+fi
+
+exit 0

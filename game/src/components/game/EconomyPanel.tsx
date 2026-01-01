@@ -217,7 +217,7 @@ export function EconomyPanel() {
                             {taxEfficiency.toFixed(0)}%
                         </div>
                         {taxRate > 0.20 && (
-                            <div className="text-xs text-red-400 mt-1">⚠️ Diminishing returns!</div>
+                            <div className="text-xs text-red-400 mt-1">[!] Diminishing returns!</div>
                         )}
                     </div>
 

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { ScrollText, Target, Coins, Trophy, Star, Check } from 'lucide-react';
+import { ScrollText, Target, Coins, Trophy, Star, Check, Sparkles, TrendingUp, Lightbulb } from 'lucide-react';
 import type { Quest } from '@/core/types';
 
 // Quest type icons
@@ -79,13 +79,13 @@ function QuestCard({ quest }: { quest: Quest }) {
                         )}
                         {quest.reward.favor && (
                             <div className="flex items-center gap-1 text-sm bg-white/5 px-2 py-1 rounded">
-                                <span>✨</span>
+                                <Sparkles className="w-4 h-4 text-yellow-400" />
                                 <span>+{quest.reward.favor} favor</span>
                             </div>
                         )}
                         {quest.reward.tradeBuff && (
                             <div className="flex items-center gap-1 text-sm bg-white/5 px-2 py-1 rounded">
-                                <span>📈</span>
+                                <TrendingUp className="w-4 h-4 text-green-400" />
                                 <span>{Math.floor((quest.reward.tradeBuff.multiplier - 1) * 100)}% trade ({quest.reward.tradeBuff.duration}s)</span>
                             </div>
                         )}
@@ -198,7 +198,7 @@ export function QuestsPanel() {
             {/* Info Box */}
             <GlassCard className="p-4">
                 <div className="flex items-start gap-3">
-                    <span className="text-2xl">💡</span>
+                    <Lightbulb className="w-6 h-6 text-roman-gold" />
                     <div>
                         <h4 className="font-bold text-roman-gold mb-1">Quest System</h4>
                         <p className="text-sm text-muted">

@@ -216,7 +216,7 @@ export const CARAVAN_CONFIGS: CaravanConfig[] = [
     {
         id: 'safe',
         name: 'Safe Caravan',
-        icon: '🛡️',
+        icon: 'shield',
         risk: 0.03,
         reward: 1.1,
         duration: 2,
@@ -226,7 +226,7 @@ export const CARAVAN_CONFIGS: CaravanConfig[] = [
     {
         id: 'standard',
         name: 'Standard Caravan',
-        icon: '🐫',
+        icon: 'package',
         risk: 0.15,
         reward: 1.4,
         duration: 1,
@@ -236,7 +236,7 @@ export const CARAVAN_CONFIGS: CaravanConfig[] = [
     {
         id: 'risky',
         name: 'Fast Caravan',
-        icon: '⚡',
+        icon: 'zap',
         risk: 0.30,
         reward: 2.0,
         duration: 1,
@@ -246,7 +246,7 @@ export const CARAVAN_CONFIGS: CaravanConfig[] = [
     {
         id: 'luxury',
         name: 'Luxury Caravan',
-        icon: '💎',
+        icon: 'gem',
         risk: 0.10,
         reward: 2.5,
         duration: 3,
@@ -680,7 +680,7 @@ export const useGameStore = create<GameStore>()(
                         winStreak: state.winStreak + 1,
                         battle: { ...state.battle, active: false, result: 'victory', casualties: { player: adjustedCasualties, enemy: result.enemyCasualties } },
                         lastEvents: [
-                            `⚔️ Victory! Lost ${adjustedCasualties} troops.${victoryDenarii > 0 ? ` Jupiter grants +${victoryDenarii} denarii!` : ''}`
+                            `[Victory] Won battle! Lost ${adjustedCasualties} troops.${victoryDenarii > 0 ? ` Jupiter grants +${victoryDenarii} denarii!` : ''}`
                         ],
                     });
                 } else {
@@ -690,7 +690,7 @@ export const useGameStore = create<GameStore>()(
                         morale: Math.max(0, state.morale - 10),
                         winStreak: 0,
                         battle: { ...state.battle, active: false, result: 'defeat', casualties: { player: adjustedCasualties, enemy: result.enemyCasualties } },
-                        lastEvents: [`💀 Defeat! Lost ${adjustedCasualties} troops.`],
+                        lastEvents: [`[Defeat] Battle lost! Lost ${adjustedCasualties} troops.`],
                     });
                 }
             },
@@ -720,11 +720,11 @@ export const useGameStore = create<GameStore>()(
 
                 if (!config || !city) return;
                 if (state.denarii < config.cost) {
-                    set({ lastEvents: ['❌ Not enough denarii for this caravan!'] });
+                    set({ lastEvents: ['[Error] Not enough denarii for this caravan!'] });
                     return;
                 }
                 if (state.tradeState.activeCaravan) {
-                    set({ lastEvents: ['❌ A caravan is already in transit!'] });
+                    set({ lastEvents: ['[Error] A caravan is already in transit!'] });
                     return;
                 }
 
@@ -740,7 +740,7 @@ export const useGameStore = create<GameStore>()(
                 }
 
                 if (goods.length === 0) {
-                    set({ lastEvents: ['❌ No goods to send with caravan!'] });
+                    set({ lastEvents: ['[Error] No goods to send with caravan!'] });
                     return;
                 }
 
@@ -769,7 +769,7 @@ export const useGameStore = create<GameStore>()(
                             goods: goods,
                         }
                     },
-                    lastEvents: [`🐫 Caravan sent to ${city.name}! Returns in ${config.duration} seasons.`],
+                    lastEvents: [`[Trade] Caravan sent to ${city.name}! Returns in ${config.duration} seasons.`],
                 });
             },
 
@@ -779,13 +779,13 @@ export const useGameStore = create<GameStore>()(
 
                 if (!city) return;
                 if (state.inventory[resourceId] < 5) {
-                    set({ lastEvents: ['❌ Need at least 5 units to establish a route!'] });
+                    set({ lastEvents: ['[Error] Need at least 5 units to establish a route!'] });
                     return;
                 }
 
                 const routeCost = 500;
                 if (state.denarii < routeCost) {
-                    set({ lastEvents: ['❌ Not enough denarii (500d required)!'] });
+                    set({ lastEvents: ['[Error] Not enough denarii (500d required)!'] });
                     return;
                 }
 
@@ -811,7 +811,7 @@ export const useGameStore = create<GameStore>()(
                         ...state.tradeState,
                         routes: [...state.tradeState.routes, newRoute],
                     },
-                    lastEvents: [`✓ Trade route established with ${city.name}! +${income}d/season for 10 seasons.`],
+                    lastEvents: [`[Trade] Route established with ${city.name}! +${income}d/season for 10 seasons.`],
                 });
             },
 
@@ -825,7 +825,7 @@ export const useGameStore = create<GameStore>()(
                         ...state.tradeState,
                         routes: state.tradeState.routes.filter(r => r.id !== routeId),
                     },
-                    lastEvents: city ? [`❌ Trade route with ${city.name} cancelled.`] : ['❌ Route cancelled.'],
+                    lastEvents: city ? [`[Trade] Route with ${city.name} cancelled.`] : ['[Trade] Route cancelled.'],
                 });
             },
 
@@ -833,13 +833,13 @@ export const useGameStore = create<GameStore>()(
                 const state = get();
                 const currentLevel = state.tradeState.upgrades[skill];
                 if (currentLevel >= 3) {
-                    set({ lastEvents: [`❌ ${skill} is already at max level!`] });
+                    set({ lastEvents: [`[Error] ${skill} is already at max level!`] });
                     return;
                 }
 
                 const cost = (currentLevel + 1) * 200; // 200, 400, 600
                 if (state.denarii < cost) {
-                    set({ lastEvents: [`❌ Not enough denarii (${cost}d required)!`] });
+                    set({ lastEvents: [`[Error] Not enough denarii (${cost}d required)!`] });
                     return;
                 }
 
@@ -854,7 +854,7 @@ export const useGameStore = create<GameStore>()(
                             [skill]: currentLevel + 1,
                         }
                     },
-                    lastEvents: [`⬆️ ${skillNames[skill]} upgraded to level ${currentLevel + 1}!`],
+                    lastEvents: [`[Trade] ${skillNames[skill]} upgraded to level ${currentLevel + 1}!`],
                 });
             },
 
@@ -902,7 +902,7 @@ export const useGameStore = create<GameStore>()(
                     happiness: newHappiness,
                     piety: newPiety,
                     buildings: state.buildings.map(b => b.id === buildingId ? { ...b, count: newCount } : b),
-                    lastEvents: [`🏗️ Built ${building.name}! (x${newCount})`],
+                    lastEvents: [`[Building] Built ${building.name}! (x${newCount})`],
                 });
             },
 
@@ -953,7 +953,7 @@ export const useGameStore = create<GameStore>()(
                             ? { ...t, level: nextLevel.level as 1 | 2 | 3 | 4 | 5, stability: Math.min(100, t.stability + nextLevel.stabilityBonus) }
                             : t
                     ),
-                    lastEvents: [`📈 ${territory.name} upgraded to ${nextLevel.name}!`],
+                    lastEvents: [`[Territory] ${territory.name} upgraded to ${nextLevel.name}!`],
                 });
             },
 
@@ -978,7 +978,7 @@ export const useGameStore = create<GameStore>()(
                             ? { ...t, buildings: [...t.buildings, buildingId], stability: newStability }
                             : t
                     ),
-                    lastEvents: [`🏗️ Built ${building.name} in ${territory.name}!`],
+                    lastEvents: [`[Building] Built ${building.name} in ${territory.name}!`],
                 });
             },
 
@@ -1000,7 +1000,7 @@ export const useGameStore = create<GameStore>()(
                             ? { ...t, garrison: newGarrison }
                             : t
                     ),
-                    lastEvents: [`🛡️ Assigned ${actualAssigned} troops to ${territory.name}`],
+                    lastEvents: [`[Military] Assigned ${actualAssigned} troops to ${territory.name}`],
                 });
             },
 
@@ -1016,7 +1016,7 @@ export const useGameStore = create<GameStore>()(
                             ? { ...t, garrison: t.garrison - troops }
                             : t
                     ),
-                    lastEvents: [`📤 Recalled ${troops} troops from ${territory.name}`],
+                    lastEvents: [`[Military] Recalled ${troops} troops from ${territory.name}`],
                 });
             },
 
@@ -1077,11 +1077,11 @@ export const useGameStore = create<GameStore>()(
                     if (unconsecrated.length > 0) {
                         const targetTerritory = unconsecrated[0]; // Consecrate first unconsecrated territory
                         newConsecratedTerritories.push(targetTerritory.id);
-                        eventMessages.push(`✨ ${targetTerritory.name} has been consecrated! +25% production bonus`);
+                        eventMessages.push(`[Religion] ${targetTerritory.name} has been consecrated! +25% production bonus`);
                     } else if (ownedTerritories.length === 0) {
-                        eventMessages.push(`✨ No territories to consecrate. Conquer land first!`);
+                        eventMessages.push(`[Religion] No territories to consecrate. Conquer land first!`);
                     } else {
-                        eventMessages.push(`✨ All territories already consecrated!`);
+                        eventMessages.push(`[Religion] All territories already consecrated!`);
                     }
                 }
 
@@ -1094,9 +1094,9 @@ export const useGameStore = create<GameStore>()(
                     const isWinterComing = nextSeason === 'winter' || state.season === 'autumn';
 
                     if (isWinterComing) {
-                        eventMessages.push(`🔮 The augurs warn: Winter approaches! Prepare grain stores.`);
+                        eventMessages.push(`[Augury] The augurs warn: Winter approaches! Prepare grain stores.`);
                     } else {
-                        eventMessages.push(`🔮 The omens are favorable. Prosperity lies ahead.`);
+                        eventMessages.push(`[Augury] The omens are favorable. Prosperity lies ahead.`);
                     }
                     // Bonus: +5 morale from the reassurance
                     newMorale = Math.min(100, newMorale + 5);
@@ -1108,36 +1108,36 @@ export const useGameStore = create<GameStore>()(
                         case 'jupiter':
                             newReputation += 15;
                             newMorale = Math.min(100, newMorale + 20);
-                            eventMessages.push(`⚡ Jupiter's thunder empowers your armies! +15 reputation, +20 morale`);
+                            eventMessages.push(`[Jupiter] Jupiter's thunder empowers your armies! +15 reputation, +20 morale`);
                             break;
                         case 'mars':
                             newTroops += 15;
                             newSupplies += 100;
-                            eventMessages.push(`⚔️ Mars grants warriors! +15 troops, +100 supplies`);
+                            eventMessages.push(`[Mars] Mars grants warriors! +15 troops, +100 supplies`);
                             break;
                         case 'venus':
                             newHappiness = Math.min(100, newHappiness + 20);
                             newPopulation += 25;
-                            eventMessages.push(`💕 Venus blesses your people! +20 happiness, +25 population`);
+                            eventMessages.push(`[Venus] Venus blesses your people! +20 happiness, +25 population`);
                             break;
                         case 'ceres':
                             newInventory.grain = Math.min(state.capacity.grain, newInventory.grain + 150);
-                            eventMessages.push(`🌾 Ceres fills your granaries! +150 grain`);
+                            eventMessages.push(`[Ceres] Ceres fills your granaries! +150 grain`);
                             break;
                         case 'mercury':
                             newDenarii += 400;
-                            eventMessages.push(`💰 Mercury brings fortune! +400 denarii`);
+                            eventMessages.push(`[Mercury] Mercury brings fortune! +400 denarii`);
                             break;
                         case 'minerva':
                             newPiety += 25;
                             newReputation += 10;
-                            eventMessages.push(`🦉 Minerva grants wisdom! +25 piety, +10 reputation`);
+                            eventMessages.push(`[Minerva] Minerva grants wisdom! +25 piety, +10 reputation`);
                             break;
                     }
                 }
 
                 // Build the event message
-                const baseMessage = `🙏 ${worshipAction.name}!`;
+                const baseMessage = `[Worship] ${worshipAction.name}!`;
                 const bonusText = [
                     effect.godFavor ? `+${effect.godFavor} favor` : '',
                     effect.piety ? `+${effect.piety} piety` : ''
@@ -1174,7 +1174,7 @@ export const useGameStore = create<GameStore>()(
                 set({
                     denarii: state.denarii - building.cost,
                     religiousBuildings: [...state.religiousBuildings, buildingId],
-                    lastEvents: [`🏛️ Built ${building.name}! +${building.pietyPerSeason} piety/season`],
+                    lastEvents: [`[Building] Built ${building.name}! +${building.pietyPerSeason} piety/season`],
                 });
             },
 

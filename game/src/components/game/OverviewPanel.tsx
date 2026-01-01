@@ -8,7 +8,27 @@ import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constan
 import { getSenatorDangerLevel, getSenatorStateDescription } from '@/core/constants/senate';
 import { calculateProductionSummary } from '@/core/math';
 import type { ResourceType, SenatorState } from '@/core/types';
-import { AlertTriangle, Building2 } from 'lucide-react';
+import {
+    AlertTriangle,
+    Building2,
+    Coins,
+    Users,
+    Smile,
+    Swords,
+    Shield,
+    Church,
+    Landmark,
+    ScrollText,
+    Flower2,
+    Sun,
+    Leaf,
+    Snowflake,
+    SkipForward,
+    Hammer,
+    Scale,
+    Zap,
+    Wheat,
+} from 'lucide-react';
 
 export function OverviewPanel() {
     const state = useGameStore();
@@ -34,13 +54,15 @@ export function OverviewPanel() {
             name: `${b.name}${b.count > 1 ? ` x${b.count}` : ''}`,
             type: e.type,
             value: e.multiplier ? `x${(e.value * b.count).toFixed(1)}` : `+${e.value * b.count}`,
-            icon: '🏛️'
+            icon: Landmark,
+            iconColor: 'text-roman-gold'
         }))),
         ...(technologies?.filter(t => t.researched) || []).flatMap(t => t.effects.map(e => ({
             name: t.name,
             type: e.type,
             value: e.multiplier ? `x${e.value}` : `+${e.value}`,
-            icon: '📜'
+            icon: ScrollText,
+            iconColor: 'text-purple-400'
         })))
     ].slice(0, 6);
 
@@ -122,7 +144,7 @@ export function OverviewPanel() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
-                            <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon="🪙" size="sm" />
+                            <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon={<Coins size={18} className="text-roman-gold" />} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -138,7 +160,7 @@ export function OverviewPanel() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
-                            <StatDisplay label="Population" value={population} icon="👥" size="sm" />
+                            <StatDisplay label="Population" value={population} icon={<Users size={18} className="text-blue-400" />} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -154,13 +176,13 @@ export function OverviewPanel() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
-                            <StatDisplay label="Happiness" value={`${happiness}%`} icon="😊" trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="sm" />
+                            <StatDisplay label="Happiness" value={`${happiness}%`} icon={<Smile size={18} className="text-green-400" />} trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
                         <div className="space-y-1">
                             <div className="font-bold text-[#f0c14b]">Happiness</div>
-                            <div className="text-xs">{happiness >= 70 ? '✓ Citizens are content' : happiness >= 40 ? '⚠ Citizens are restless' : '⚠ Citizens are unhappy'}</div>
+                            <div className="text-xs">{happiness >= 70 ? 'Citizens are content' : happiness >= 40 ? 'Citizens are restless' : 'Citizens are unhappy'}</div>
                             <div className="text-xs text-muted">Below 25% = Game Over</div>
                             <div className="text-xs text-muted">Affects growth & production</div>
                         </div>
@@ -170,7 +192,7 @@ export function OverviewPanel() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-military/30 cursor-help" whileHover={{ scale: 1.02 }}>
-                            <StatDisplay label="Troops" value={troops} icon="⚔️" size="sm" />
+                            <StatDisplay label="Troops" value={troops} icon={<Swords size={18} className="text-red-400" />} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -186,13 +208,13 @@ export function OverviewPanel() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
-                            <StatDisplay label="Morale" value={`${morale}%`} icon="🛡️" size="sm" />
+                            <StatDisplay label="Morale" value={`${morale}%`} icon={<Shield size={18} className="text-amber-400" />} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
                         <div className="space-y-1">
                             <div className="font-bold text-[#f0c14b]">Army Morale</div>
-                            <div className="text-xs">{morale >= 70 ? '✓ Troops are eager' : morale >= 40 ? '⚠ Troops are steady' : '⚠ Troops are wavering'}</div>
+                            <div className="text-xs">{morale >= 70 ? 'Troops are eager' : morale >= 40 ? 'Troops are steady' : 'Troops are wavering'}</div>
                             <div className="text-xs text-muted">Affects battle performance</div>
                             <div className="text-xs text-muted">Improved by victories & supplies</div>
                         </div>
@@ -202,7 +224,7 @@ export function OverviewPanel() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 border-religion/30 cursor-help" whileHover={{ scale: 1.02 }}>
-                            <StatDisplay label="Piety" value={piety} icon="🙏" size="sm" />
+                            <StatDisplay label="Piety" value={piety} icon={<Church size={18} className="text-purple-400" />} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -265,22 +287,25 @@ export function OverviewPanel() {
                         <SectionHeader title="Active Imperium Effects" subtitle="Current Global Bonuses" />
                         <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-hide">
                             {activeEffects.length > 0 ? (
-                                activeEffects.map((effect, i) => (
-                                    <motion.div
-                                        key={i}
-                                        className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10"
-                                        whileHover={{ borderColor: 'rgba(255, 215, 0, 0.3)' }}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <span>{effect.icon}</span>
-                                            <div>
-                                                <div className="text-sm font-bold">{effect.name}</div>
-                                                <div className="text-xs text-muted capitalize">{effect.type}</div>
+                                activeEffects.map((effect, i) => {
+                                    const EffectIcon = effect.icon;
+                                    return (
+                                        <motion.div
+                                            key={i}
+                                            className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10"
+                                            whileHover={{ borderColor: 'rgba(255, 215, 0, 0.3)' }}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <EffectIcon size={16} className={effect.iconColor} />
+                                                <div>
+                                                    <div className="text-sm font-bold">{effect.name}</div>
+                                                    <div className="text-xs text-muted capitalize">{effect.type}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="text-sm font-bold text-roman-gold">{effect.value}</div>
-                                    </motion.div>
-                                ))
+                                            <div className="text-sm font-bold text-roman-gold">{effect.value}</div>
+                                        </motion.div>
+                                    );
+                                })
                             ) : (
                                 <div className="text-center py-4 text-sm text-muted italic">
                                     No active effects. Build structures or research tech!
@@ -331,13 +356,19 @@ export function OverviewPanel() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <div className="text-sm text-muted">Net Income</div>
-                                <div className={`text-xl font-bold ${production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {production.netIncome >= 0 ? '+' : ''}{production.netIncome} 🪙/season
+                                <div className={`text-xl font-bold flex items-center gap-1 ${production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {production.netIncome >= 0 ? '+' : ''}{production.netIncome}
+                                    <Coins size={16} className="text-roman-gold" />
+                                    <span className="text-sm font-normal text-muted">/season</span>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <div className="text-sm text-muted">Food Consumption</div>
-                                <div className="text-xl font-bold text-red-400">-{production.foodConsumption} 🌾/season</div>
+                                <div className="text-xl font-bold text-red-400 flex items-center justify-end gap-1">
+                                    -{production.foodConsumption}
+                                    <Wheat size={16} className="text-amber-400" />
+                                    <span className="text-sm font-normal text-muted">/season</span>
+                                </div>
                             </div>
                         </div>
                     </GlassCard>
@@ -369,7 +400,7 @@ export function OverviewPanel() {
                         <div className="grid grid-cols-3 gap-2">
                             {Object.entries(inventory).map(([type, amount]) => (
                                 <motion.div key={type} className="p-2 rounded-lg bg-white/5 text-center" whileHover={{ backgroundColor: 'rgba(255, 215, 0, 0.1)' }}>
-                                    <GameImage src={RESOURCE_ASSETS[type] || RESOURCE_INFO[type as ResourceType]?.emoji || '📦'} size="md" alt={RESOURCE_INFO[type as ResourceType]?.name || type} />
+                                    <GameImage src={RESOURCE_ASSETS[type] || 'amphora'} size="md" alt={RESOURCE_INFO[type as ResourceType]?.name || type} />
                                     <div className="text-sm font-bold">{amount}</div>
                                     <div className="text-xs text-muted truncate">{RESOURCE_INFO[type as ResourceType]?.name || type}</div>
                                 </motion.div>
@@ -383,12 +414,15 @@ export function OverviewPanel() {
                     {/* Season Action */}
                     <GlassCard variant="gold">
                         <div className="text-center">
-                            <div className="text-4xl mb-3">
-                                {season === 'spring' ? '🌸' : season === 'summer' ? '☀️' : season === 'autumn' ? '🍂' : '❄️'}
+                            <div className="flex justify-center mb-3">
+                                {season === 'spring' && <Flower2 size={48} className="text-pink-400" />}
+                                {season === 'summer' && <Sun size={48} className="text-amber-400" />}
+                                {season === 'autumn' && <Leaf size={48} className="text-orange-400" />}
+                                {season === 'winter' && <Snowflake size={48} className="text-cyan-400" />}
                             </div>
                             <h3 className="text-xl font-bold text-roman-gold capitalize mb-2">{season}</h3>
                             <p className="text-sm text-muted mb-4">Round {round} of 25</p>
-                            <Button variant="roman" fullWidth onClick={endSeason} icon="⏭️">End Season</Button>
+                            <Button variant="roman" fullWidth onClick={endSeason} icon={<SkipForward size={18} />}>End Season</Button>
                             <div className="mt-3 text-xs text-muted">Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono">Space</kbd> to advance</div>
                         </div>
                     </GlassCard>
@@ -425,7 +459,9 @@ export function OverviewPanel() {
                         <SectionHeader title="Patron God" />
                         {patronGod ? (
                             <div className="text-center">
-                                <div className="text-4xl mb-2">⚡</div>
+                                <div className="flex justify-center mb-2">
+                                    <Zap size={40} className="text-roman-gold" />
+                                </div>
                                 <h4 className="text-lg font-bold text-roman-gold capitalize">{patronGod}</h4>
                                 <p className="text-sm text-muted mt-1">Favor: {state.godFavor[patronGod]}%</p>
                                 <ProgressBar value={state.godFavor[patronGod]} max={100} variant="gold" className="mt-3" />
@@ -443,10 +479,10 @@ export function OverviewPanel() {
                     <GlassCard>
                         <SectionHeader title="Quick Actions" />
                         <div className="grid grid-cols-2 gap-2">
-                            <Button variant="ghost" size="sm" icon="🏗️" onClick={() => setTab('settlement')}>Build</Button>
-                            <Button variant="ghost" size="sm" icon="⚔️" onClick={() => setTab('military')}>Recruit</Button>
-                            <Button variant="ghost" size="sm" icon="⚖️" onClick={() => setTab('trade')}>Trade</Button>
-                            <Button variant="ghost" size="sm" icon="📜" onClick={() => setTab('technology')}>Research</Button>
+                            <Button variant="ghost" size="sm" icon={<Hammer size={16} />} onClick={() => setTab('settlement')}>Build</Button>
+                            <Button variant="ghost" size="sm" icon={<Swords size={16} />} onClick={() => setTab('military')}>Recruit</Button>
+                            <Button variant="ghost" size="sm" icon={<Scale size={16} />} onClick={() => setTab('trade')}>Trade</Button>
+                            <Button variant="ghost" size="sm" icon={<ScrollText size={16} />} onClick={() => setTab('technology')}>Research</Button>
                         </div>
                     </GlassCard>
 

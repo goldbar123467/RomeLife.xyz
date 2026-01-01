@@ -430,7 +430,7 @@ export function SettlementPanel() {
                                 <div className="glass-dark rounded-xl p-4">
                                     <div className="text-sm text-muted mb-2">Construction Cost</div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-2xl">🪙</span>
+                                        <GameImage src="coin-gold" size="md" alt="Denarii" />
                                         <span className="text-xl font-bold text-[#f0c14b]">
                                             {selectedBuilding.cost.denarii} denarii
                                         </span>

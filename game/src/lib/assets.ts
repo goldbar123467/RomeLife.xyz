@@ -41,69 +41,68 @@ export interface AssetInfo {
     path: string;
     category: AssetCategory;
     fallbackIcon: LucideIcon;
-    fallbackEmoji: string;
 }
 
 export const ASSET_REGISTRY: Record<AssetKey, AssetInfo> = {
     // Architecture
-    'colosseum': { path: '/assets/architecture/colosseum.png', category: 'architecture', fallbackIcon: Castle, fallbackEmoji: '🏟️' },
-    'colosseum-new': { path: '/assets/architecture/colosseum-new.png', category: 'architecture', fallbackIcon: Castle, fallbackEmoji: '🏟️' },
-    'column': { path: '/assets/architecture/column.png', category: 'architecture', fallbackIcon: Building2, fallbackEmoji: '🏛️' },
-    'column2': { path: '/assets/architecture/column2.png', category: 'architecture', fallbackIcon: Building2, fallbackEmoji: '🏛️' },
-    'insula': { path: '/assets/architecture/insula.png', category: 'architecture', fallbackIcon: Building2, fallbackEmoji: '🏠' },
-    'obelisk': { path: '/assets/architecture/obelisk.png', category: 'architecture', fallbackIcon: Building2, fallbackEmoji: '🗼' },
-    'obelisk2': { path: '/assets/architecture/obelisk2.png', category: 'architecture', fallbackIcon: Building2, fallbackEmoji: '🗼' },
-    'temple': { path: '/assets/architecture/temple.png', category: 'architecture', fallbackIcon: Church, fallbackEmoji: '🏛️' },
-    'villa': { path: '/assets/architecture/villa.png', category: 'architecture', fallbackIcon: Building2, fallbackEmoji: '🏠' },
+    'colosseum': { path: '/assets/architecture/colosseum.png', category: 'architecture', fallbackIcon: Castle },
+    'colosseum-new': { path: '/assets/architecture/colosseum-new.png', category: 'architecture', fallbackIcon: Castle },
+    'column': { path: '/assets/architecture/column.png', category: 'architecture', fallbackIcon: Building2 },
+    'column2': { path: '/assets/architecture/column2.png', category: 'architecture', fallbackIcon: Building2 },
+    'insula': { path: '/assets/architecture/insula.png', category: 'architecture', fallbackIcon: Building2 },
+    'obelisk': { path: '/assets/architecture/obelisk.png', category: 'architecture', fallbackIcon: Building2 },
+    'obelisk2': { path: '/assets/architecture/obelisk2.png', category: 'architecture', fallbackIcon: Building2 },
+    'temple': { path: '/assets/architecture/temple.png', category: 'architecture', fallbackIcon: Church },
+    'villa': { path: '/assets/architecture/villa.png', category: 'architecture', fallbackIcon: Building2 },
 
     // Flags
-    'banner': { path: '/assets/flags/banner.png', category: 'flags', fallbackIcon: Flag, fallbackEmoji: '🏳️' },
-    'banner-chiro': { path: '/assets/flags/banner-chiro.png', category: 'flags', fallbackIcon: Flag, fallbackEmoji: '🏳️' },
-    'flag': { path: '/assets/flags/flag.png', category: 'flags', fallbackIcon: Flag, fallbackEmoji: '🚩' },
-    'flag-chiro': { path: '/assets/flags/flag-chiro.png', category: 'flags', fallbackIcon: Flag, fallbackEmoji: '🚩' },
-    'flag-spqr': { path: '/assets/flags/flag-spqr.png', category: 'flags', fallbackIcon: Flag, fallbackEmoji: '🏴' },
+    'banner': { path: '/assets/flags/banner.png', category: 'flags', fallbackIcon: Flag },
+    'banner-chiro': { path: '/assets/flags/banner-chiro.png', category: 'flags', fallbackIcon: Flag },
+    'flag': { path: '/assets/flags/flag.png', category: 'flags', fallbackIcon: Flag },
+    'flag-chiro': { path: '/assets/flags/flag-chiro.png', category: 'flags', fallbackIcon: Flag },
+    'flag-spqr': { path: '/assets/flags/flag-spqr.png', category: 'flags', fallbackIcon: Flag },
 
     // Military
-    'armor': { path: '/assets/military/armor.png', category: 'military', fallbackIcon: Shield, fallbackEmoji: '🛡️' },
-    'centurion-helmet': { path: '/assets/military/centurion-helmet.png', category: 'military', fallbackIcon: Swords, fallbackEmoji: '⚔️' },
-    'centurion-helmet2': { path: '/assets/military/centurion-helmet2.png', category: 'military', fallbackIcon: Swords, fallbackEmoji: '⚔️' },
-    'centurion-helmet-bronze': { path: '/assets/military/centurion-helmet-bronze.png', category: 'military', fallbackIcon: Swords, fallbackEmoji: '⚔️' },
-    'centurion-helmet-bronze2': { path: '/assets/military/centurion-helmet-bronze2.png', category: 'military', fallbackIcon: Swords, fallbackEmoji: '⚔️' },
-    'shield': { path: '/assets/military/shield.png', category: 'military', fallbackIcon: Shield, fallbackEmoji: '🛡️' },
+    'armor': { path: '/assets/military/armor.png', category: 'military', fallbackIcon: Shield },
+    'centurion-helmet': { path: '/assets/military/centurion-helmet.png', category: 'military', fallbackIcon: Swords },
+    'centurion-helmet2': { path: '/assets/military/centurion-helmet2.png', category: 'military', fallbackIcon: Swords },
+    'centurion-helmet-bronze': { path: '/assets/military/centurion-helmet-bronze.png', category: 'military', fallbackIcon: Swords },
+    'centurion-helmet-bronze2': { path: '/assets/military/centurion-helmet-bronze2.png', category: 'military', fallbackIcon: Swords },
+    'shield': { path: '/assets/military/shield.png', category: 'military', fallbackIcon: Shield },
 
     // Misc
-    'amphora': { path: '/assets/misc/amphora.png', category: 'misc', fallbackIcon: Package, fallbackEmoji: '🏺' },
-    'amphora2': { path: '/assets/misc/amphora2.png', category: 'misc', fallbackIcon: Package, fallbackEmoji: '🏺' },
-    'amphora-broken': { path: '/assets/misc/amphora-broken.png', category: 'misc', fallbackIcon: Package, fallbackEmoji: '🏺' },
-    'amphora-broken2': { path: '/assets/misc/amphora-broken2.png', category: 'misc', fallbackIcon: Package, fallbackEmoji: '🏺' },
-    'bust': { path: '/assets/misc/bust.png', category: 'misc', fallbackIcon: Users, fallbackEmoji: '🗿' },
-    'bust2': { path: '/assets/misc/bust2.png', category: 'misc', fallbackIcon: Users, fallbackEmoji: '🗿' },
-    'bust-old': { path: '/assets/misc/bust-old.png', category: 'misc', fallbackIcon: Users, fallbackEmoji: '🗿' },
-    'bust2-old': { path: '/assets/misc/bust2-old.png', category: 'misc', fallbackIcon: Users, fallbackEmoji: '🗿' },
-    'coin-bronze': { path: '/assets/misc/coin-bronze.png', category: 'misc', fallbackIcon: Coins, fallbackEmoji: '🪙' },
-    'coin-gold': { path: '/assets/misc/coin-gold.png', category: 'misc', fallbackIcon: Coins, fallbackEmoji: '🪙' },
-    'coin-silver': { path: '/assets/misc/coin-silver.png', category: 'misc', fallbackIcon: Coins, fallbackEmoji: '🪙' },
-    'column-misc': { path: '/assets/misc/column.png', category: 'misc', fallbackIcon: Building2, fallbackEmoji: '🏛️' },
-    'gear': { path: '/assets/misc/gear.png', category: 'misc', fallbackIcon: Hammer, fallbackEmoji: '⚙️' },
-    'grapes': { path: '/assets/misc/grapes.png', category: 'misc', fallbackIcon: Wine, fallbackEmoji: '🍇' },
-    'laurels': { path: '/assets/misc/laurels.png', category: 'misc', fallbackIcon: Star, fallbackEmoji: '🏆' },
-    'laurels-bronze': { path: '/assets/misc/laurels-bronze.png', category: 'misc', fallbackIcon: Star, fallbackEmoji: '🏆' },
-    'laurels-gold': { path: '/assets/misc/laurels-gold.png', category: 'misc', fallbackIcon: Star, fallbackEmoji: '🏆' },
-    'laurels-silver': { path: '/assets/misc/laurels-silver.png', category: 'misc', fallbackIcon: Star, fallbackEmoji: '🏆' },
-    'roman-misc': { path: '/assets/misc/roman.png', category: 'misc', fallbackIcon: Users, fallbackEmoji: '👤' },
-    'scroll': { path: '/assets/misc/scroll.png', category: 'misc', fallbackIcon: ScrollText, fallbackEmoji: '📜' },
-    'scroll2': { path: '/assets/misc/scroll2.png', category: 'misc', fallbackIcon: ScrollText, fallbackEmoji: '📜' },
-    'thumbs-down': { path: '/assets/misc/thumbs-down.png', category: 'misc', fallbackIcon: Heart, fallbackEmoji: '👎' },
-    'thumbs-up': { path: '/assets/misc/thumbs-up.png', category: 'misc', fallbackIcon: Heart, fallbackEmoji: '👍' },
+    'amphora': { path: '/assets/misc/amphora.png', category: 'misc', fallbackIcon: Package },
+    'amphora2': { path: '/assets/misc/amphora2.png', category: 'misc', fallbackIcon: Package },
+    'amphora-broken': { path: '/assets/misc/amphora-broken.png', category: 'misc', fallbackIcon: Package },
+    'amphora-broken2': { path: '/assets/misc/amphora-broken2.png', category: 'misc', fallbackIcon: Package },
+    'bust': { path: '/assets/misc/bust.png', category: 'misc', fallbackIcon: Users },
+    'bust2': { path: '/assets/misc/bust2.png', category: 'misc', fallbackIcon: Users },
+    'bust-old': { path: '/assets/misc/bust-old.png', category: 'misc', fallbackIcon: Users },
+    'bust2-old': { path: '/assets/misc/bust2-old.png', category: 'misc', fallbackIcon: Users },
+    'coin-bronze': { path: '/assets/misc/coin-bronze.png', category: 'misc', fallbackIcon: Coins },
+    'coin-gold': { path: '/assets/misc/coin-gold.png', category: 'misc', fallbackIcon: Coins },
+    'coin-silver': { path: '/assets/misc/coin-silver.png', category: 'misc', fallbackIcon: Coins },
+    'column-misc': { path: '/assets/misc/column.png', category: 'misc', fallbackIcon: Building2 },
+    'gear': { path: '/assets/misc/gear.png', category: 'misc', fallbackIcon: Hammer },
+    'grapes': { path: '/assets/misc/grapes.png', category: 'misc', fallbackIcon: Wine },
+    'laurels': { path: '/assets/misc/laurels.png', category: 'misc', fallbackIcon: Star },
+    'laurels-bronze': { path: '/assets/misc/laurels-bronze.png', category: 'misc', fallbackIcon: Star },
+    'laurels-gold': { path: '/assets/misc/laurels-gold.png', category: 'misc', fallbackIcon: Star },
+    'laurels-silver': { path: '/assets/misc/laurels-silver.png', category: 'misc', fallbackIcon: Star },
+    'roman-misc': { path: '/assets/misc/roman.png', category: 'misc', fallbackIcon: Users },
+    'scroll': { path: '/assets/misc/scroll.png', category: 'misc', fallbackIcon: ScrollText },
+    'scroll2': { path: '/assets/misc/scroll2.png', category: 'misc', fallbackIcon: ScrollText },
+    'thumbs-down': { path: '/assets/misc/thumbs-down.png', category: 'misc', fallbackIcon: Heart },
+    'thumbs-up': { path: '/assets/misc/thumbs-up.png', category: 'misc', fallbackIcon: Heart },
 
     // People
-    'emperor': { path: '/assets/people/emperor.png', category: 'people', fallbackIcon: Crown, fallbackEmoji: '👑' },
-    'legionnaire': { path: '/assets/people/legionnaire.png', category: 'people', fallbackIcon: Swords, fallbackEmoji: '⚔️' },
-    'roman': { path: '/assets/people/roman.png', category: 'people', fallbackIcon: Users, fallbackEmoji: '👤' },
-    'roman-old': { path: '/assets/people/roman-old.png', category: 'people', fallbackIcon: Users, fallbackEmoji: '👴' },
-    'roman-woman': { path: '/assets/people/roman-woman.png', category: 'people', fallbackIcon: Users, fallbackEmoji: '👩' },
-    'senate': { path: '/assets/people/senate.png', category: 'people', fallbackIcon: Landmark, fallbackEmoji: '🏛️' },
-    'slave': { path: '/assets/people/slave.png', category: 'people', fallbackIcon: Users, fallbackEmoji: '⛓️' },
+    'emperor': { path: '/assets/people/emperor.png', category: 'people', fallbackIcon: Crown },
+    'legionnaire': { path: '/assets/people/legionnaire.png', category: 'people', fallbackIcon: Swords },
+    'roman': { path: '/assets/people/roman.png', category: 'people', fallbackIcon: Users },
+    'roman-old': { path: '/assets/people/roman-old.png', category: 'people', fallbackIcon: Users },
+    'roman-woman': { path: '/assets/people/roman-woman.png', category: 'people', fallbackIcon: Users },
+    'senate': { path: '/assets/people/senate.png', category: 'people', fallbackIcon: Landmark },
+    'slave': { path: '/assets/people/slave.png', category: 'people', fallbackIcon: Users },
 };
 
 // === HELPER FUNCTIONS ===
@@ -211,12 +210,17 @@ export const RELIGIOUS_EVENT_ASSETS: Record<string, AssetKey> = {
     prophetic_dream: 'bust',
 };
 
-export const RESOURCE_ASSETS: Record<string, AssetKey> = {
+export const RESOURCE_ASSETS: Partial<Record<string, AssetKey>> = {
     denarii: 'coin-gold',
     grain: 'amphora',
     wine: 'grapes',
     clay: 'amphora2',
     livestock: 'amphora',
+    troops: 'centurion-helmet',
+    population: 'roman',
+    piety: 'bust',
+    // Resources without matching assets use Lucide icons as fallback:
+    // iron, timber, stone, wool, salt, olive_oil, spices, happiness, morale
 };
 
 export const EMERGENCY_ACTION_ASSETS: Record<string, AssetKey> = {

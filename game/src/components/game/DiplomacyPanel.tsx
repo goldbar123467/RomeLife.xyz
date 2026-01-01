@@ -11,9 +11,9 @@ export function DiplomacyPanel() {
 
     const factions = [
         { id: 'alba_longa', name: 'Alba Longa', description: 'Our mother city, Latin allies', icon: 'temple' },
-        { id: 'sabines', name: 'Sabine Tribes', description: 'Hill people to the northeast', icon: '⛰️' },
+        { id: 'sabines', name: 'Sabine Tribes', description: 'Hill people to the northeast', icon: 'mountain' },
         { id: 'etruscans', name: 'Etruscans', description: 'Powerful northern civilization', icon: 'emperor' },
-        { id: 'latins', name: 'Latin League', description: 'Confederation of Latin cities', icon: '🤝' },
+        { id: 'latins', name: 'Latin League', description: 'Confederation of Latin cities', icon: 'handshake' },
         { id: 'greeks', name: 'Greek Colonies', description: 'Southern coastal settlements', icon: 'amphora' },
     ];
 

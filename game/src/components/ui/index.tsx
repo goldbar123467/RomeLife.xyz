@@ -3,6 +3,9 @@
 import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
 import { RESOURCE_ICONS } from './icons';
+import { Package } from 'lucide-react';
+import { RESOURCE_ASSETS, isAssetKey } from '@/lib/assets';
+import { GameImage } from './GameImage';
 import type { ResourceType } from '@/core/types';
 
 // === GLASS CARD ===
@@ -268,6 +271,9 @@ interface ResourceIconProps {
     showLabel?: boolean;
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    /** Icon priority: 'asset' tries PNG first, 'lucide' tries Lucide first, 'emoji' uses emoji */
+    iconStyle?: 'asset' | 'lucide' | 'emoji';
+    /** @deprecated Use iconStyle instead */
     useLucide?: boolean;
 }
 
@@ -275,6 +281,13 @@ const iconSizes = {
     sm: 14,
     md: 18,
     lg: 24,
+};
+
+// Map size to GameImage size
+const imageSizes = {
+    sm: 'xs' as const,
+    md: 'sm' as const,
+    lg: 'md' as const,
 };
 
 const textSizes = {
@@ -289,12 +302,29 @@ export function ResourceIcon({
     showLabel = false,
     size = 'md',
     className = '',
+    iconStyle = 'asset',
     useLucide = true,
 }: ResourceIconProps) {
     const label = type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
     const IconComponent = RESOURCE_ICONS[type as ResourceType];
+    const assetKey = RESOURCE_ASSETS[type];
 
-    if (useLucide && IconComponent) {
+    // Determine effective style (handle deprecated useLucide prop)
+    const effectiveStyle = iconStyle === 'asset' && !useLucide ? 'emoji' : iconStyle;
+
+    // Priority 1: Try custom asset image (if asset style and asset exists)
+    if (effectiveStyle === 'asset' && assetKey && isAssetKey(assetKey)) {
+        return (
+            <span className={`inline-flex items-center gap-1.5 ${textSizes[size]} ${className}`}>
+                <GameImage src={assetKey} size={imageSizes[size]} alt={label} />
+                {amount !== undefined && <span className="font-semibold">{amount}</span>}
+                {showLabel && <span className="text-muted">{label}</span>}
+            </span>
+        );
+    }
+
+    // Priority 2: Try Lucide icon (if lucide style or asset fallback)
+    if ((effectiveStyle === 'lucide' || effectiveStyle === 'asset') && IconComponent) {
         return (
             <span className={`inline-flex items-center gap-1.5 ${textSizes[size]} ${className}`}>
                 <IconComponent size={iconSizes[size]} className="text-roman-gold" />
@@ -304,18 +334,10 @@ export function ResourceIcon({
         );
     }
 
-    // Fallback to emoji for non-resource types or when useLucide is false
-    const RESOURCE_EMOJIS: Record<string, string> = {
-        grain: '🌾', iron: '⚔️', timber: '🪵', stone: '🪨', clay: '🏺',
-        wool: '🐑', salt: '🧂', livestock: '🐄', wine: '🍷', olive_oil: '🫒',
-        spices: '🌶️', denarii: '🪙', troops: '⚔️', population: '👥',
-        happiness: '😊', piety: '🙏',
-    };
-    const emoji = RESOURCE_EMOJIS[type] || '📦';
-
+    // Priority 3: Default Lucide icon fallback (Package)
     return (
         <span className={`inline-flex items-center gap-1.5 ${textSizes[size]} ${className}`}>
-            <span>{emoji}</span>
+            <Package size={iconSizes[size]} className="text-roman-gold" />
             {amount !== undefined && <span className="font-semibold">{amount}</span>}
             {showLabel && <span className="text-muted">{label}</span>}
         </span>

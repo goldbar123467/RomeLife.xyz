@@ -26,7 +26,7 @@ export const POSITIVE_EVENTS: GameEvent[] = [
         id: 'bountiful_harvest',
         name: 'Bountiful Harvest',
         description: 'The gods have blessed our fields! Granaries overflow with wheat.',
-        icon: '🌾',
+        icon: 'wheat',
         category: 'positive',
         probability: 0.15,
         effects: [
@@ -38,7 +38,7 @@ export const POSITIVE_EVENTS: GameEvent[] = [
         id: 'trade_windfall',
         name: 'Trade Windfall',
         description: 'A wealthy merchant caravan passes through, eager to trade at premium prices.',
-        icon: '💰',
+        icon: 'coins',
         category: 'positive',
         probability: 0.12,
         effects: [
@@ -50,7 +50,7 @@ export const POSITIVE_EVENTS: GameEvent[] = [
         id: 'divine_blessing',
         name: 'Divine Blessing',
         description: 'The priests report favorable omens! The gods smile upon Rome.',
-        icon: '✨',
+        icon: 'sparkles',
         category: 'positive',
         probability: 0.10,
         effects: [
@@ -63,7 +63,7 @@ export const POSITIVE_EVENTS: GameEvent[] = [
         id: 'population_boom',
         name: 'Population Boom',
         description: 'Refugees from distant lands seek the safety of Rome\'s walls.',
-        icon: '👥',
+        icon: 'users',
         category: 'positive',
         probability: 0.10,
         effects: [
@@ -75,7 +75,7 @@ export const POSITIVE_EVENTS: GameEvent[] = [
         id: 'good_omens',
         name: 'Good Omens',
         description: 'The augurs report excellent omens for military ventures.',
-        icon: '🦅',
+        icon: 'bird',
         category: 'positive',
         probability: 0.12,
         effects: [
@@ -87,7 +87,7 @@ export const POSITIVE_EVENTS: GameEvent[] = [
         id: 'merchant_caravan',
         name: 'Merchant Caravan',
         description: 'A foreign caravan arrives bearing exotic goods and news from distant lands.',
-        icon: '🐫',
+        icon: 'truck',
         category: 'positive',
         probability: 0.12,
         effects: [
@@ -104,7 +104,7 @@ export const NEGATIVE_EVENTS: GameEvent[] = [
         id: 'plague_outbreak',
         name: 'Plague Outbreak',
         description: 'Disease spreads through the city! Healers work tirelessly to contain it.',
-        icon: '🏴',
+        icon: 'skull',
         category: 'negative',
         probability: 0.08,
         effects: [
@@ -117,7 +117,7 @@ export const NEGATIVE_EVENTS: GameEvent[] = [
         id: 'bandit_raid',
         name: 'Bandit Raid',
         description: 'Bandits attack our supply caravans on the roads!',
-        icon: '🗡️',
+        icon: 'sword',
         category: 'negative',
         probability: 0.12,
         effects: [
@@ -129,7 +129,7 @@ export const NEGATIVE_EVENTS: GameEvent[] = [
         id: 'crop_failure',
         name: 'Crop Failure',
         description: 'Drought withers the fields. The harvest is meager this season.',
-        icon: '🥀',
+        icon: 'flower',
         category: 'negative',
         probability: 0.10,
         effects: [
@@ -141,7 +141,7 @@ export const NEGATIVE_EVENTS: GameEvent[] = [
         id: 'fire_outbreak',
         name: 'Fire Outbreak',
         description: 'A terrible fire breaks out in the city! Buildings burn.',
-        icon: '🔥',
+        icon: 'flame',
         category: 'negative',
         probability: 0.08,
         effects: [
@@ -154,7 +154,7 @@ export const NEGATIVE_EVENTS: GameEvent[] = [
         id: 'tax_revolt',
         name: 'Tax Revolt',
         description: 'Citizens protest heavy taxation! Unrest spreads through the districts.',
-        icon: '😠',
+        icon: 'frown',
         category: 'negative',
         probability: 0.10,
         effects: [
@@ -167,7 +167,7 @@ export const NEGATIVE_EVENTS: GameEvent[] = [
         id: 'desertion',
         name: 'Military Desertion',
         description: 'Soldiers desert their posts, seeking fortune elsewhere.',
-        icon: '🏃',
+        icon: 'footprints',
         category: 'negative',
         probability: 0.10,
         effects: [
@@ -183,7 +183,7 @@ export const NEUTRAL_EVENTS: GameEvent[] = [
         id: 'senate_debate',
         name: 'Senate Debate',
         description: 'The Senate debates policy changes. Factions vie for influence.',
-        icon: '🏛️',
+        icon: 'landmark',
         category: 'neutral',
         probability: 0.15,
         effects: [
@@ -195,7 +195,7 @@ export const NEUTRAL_EVENTS: GameEvent[] = [
         id: 'foreign_emissary',
         name: 'Foreign Emissary',
         description: 'Diplomats from distant lands seek audience with Rome.',
-        icon: '📜',
+        icon: 'scroll-text',
         category: 'neutral',
         probability: 0.12,
         effects: [
@@ -207,7 +207,7 @@ export const NEUTRAL_EVENTS: GameEvent[] = [
         id: 'religious_schism',
         name: 'Religious Schism',
         description: 'Priests argue over proper rituals. The temples are in disarray.',
-        icon: '⚔️',
+        icon: 'swords',
         category: 'neutral',
         probability: 0.10,
         effects: [
@@ -220,7 +220,7 @@ export const NEUTRAL_EVENTS: GameEvent[] = [
         id: 'market_fluctuation',
         name: 'Market Fluctuation',
         description: 'Trade prices shift dramatically as merchants adjust to new conditions.',
-        icon: '📊',
+        icon: 'bar-chart',
         category: 'neutral',
         probability: 0.15,
         effects: [

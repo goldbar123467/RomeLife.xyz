@@ -141,7 +141,7 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 100, name: 'Apotheosis', effect: 'Double all God bonuses' },
         ],
         description: 'Supreme deity of the Roman pantheon, Jupiter Optimus Maximus rules from his temple atop the Capitoline Hill. As god of sky, thunder, and lightning, he presides over laws, social order, and the Roman state itself.',
-        symbols: ['⚡ Lightning Bolt', '🦅 Eagle', '🏛️ Scepter', '🌳 Oak Tree'],
+        symbols: ['Lightning Bolt', 'Eagle', 'Scepter', 'Oak Tree'],
         greekEquivalent: 'Zeus',
         history: 'Jupiter was the chief deity in Roman religion throughout the Republican and Imperial eras. His temple on the Capitoline Hill was the most important in Rome, where triumphing generals would climb to offer thanks. Every Roman general swore oaths before Jupiter before departing for war. The phrase "By Jupiter!" (Mehercle!) was the most common Roman oath. His cult title "Optimus Maximus" (Best and Greatest) reflected his supreme position among the gods.',
     },
@@ -157,7 +157,7 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 100, name: 'God of War', effect: 'Guaranteed critical hits in battle' },
         ],
         description: 'Father of Romulus and Remus, Mars holds a special place as the divine ancestor of the Roman people. Unlike the Greek Ares, Mars was also a god of agriculture, spring, and guardian of the state—embodying Rome\'s identity as a warrior civilization.',
-        symbols: ['⚔️ Sword & Spear', '🛡️ Shield', '🐺 Wolf', '🪶 Woodpecker'],
+        symbols: ['Sword & Spear', 'Shield', 'Wolf', 'Woodpecker'],
         greekEquivalent: 'Ares',
         history: 'Mars was second only to Jupiter in importance. The month of March (Martius) bears his name, as does the Campus Martius where soldiers trained. Legend holds that Mars fathered Romulus and Remus with the Vestal Virgin Rhea Silvia. Before any military campaign, generals sacrificed at the Temple of Mars and consulted the sacred shields (ancilia) kept by his priests, the Salii. Roman soldiers believed Mars personally watched over them in battle.',
     },
@@ -173,7 +173,7 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 100, name: 'Divine Beauty', effect: 'All relations start at Friendly' },
         ],
         description: 'Goddess of love, beauty, desire, and fertility, Venus was claimed as divine ancestor by the Julian family through her son Aeneas. Her influence extends beyond romance to prosperity, victory, and the success of Rome itself.',
-        symbols: ['🌹 Rose', '🐚 Scallop Shell', '🕊️ Dove', '🪞 Mirror'],
+        symbols: ['Rose', 'Scallop Shell', 'Dove', 'Mirror'],
         greekEquivalent: 'Aphrodite',
         history: 'Venus rose to prominence as the divine mother of Aeneas, legendary founder of the Roman race. Julius Caesar claimed direct descent from Venus through the Julii family, building a temple to Venus Genetrix in her honor. Sulla, Pompey, and Caesar all invoked Venus before battles, believing she granted victory to those she favored. Her most famous temple stood at the summit of the Roman Forum, rebuilt by Hadrian as one of the largest in Rome.',
     },
@@ -189,7 +189,7 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 100, name: 'Eternal Harvest', effect: 'Double food production' },
         ],
         description: 'Ancient goddess of agriculture, grain, and the harvest, Ceres ensures Rome never starves. Her annual festival, the Cerealia, celebrated the life-giving power of grain that sustained civilization itself.',
-        symbols: ['🌾 Wheat Sheaf', '🌽 Corn', '🔥 Torch', '👑 Corona Spicea'],
+        symbols: ['Wheat Sheaf', 'Corn', 'Torch', 'Corona Spicea'],
         greekEquivalent: 'Demeter',
         history: 'Ceres was worshipped in Rome from the earliest times, with her temple on the Aventine Hill serving as headquarters for the plebeian aediles. Her cult was closely associated with the common people (plebs) rather than the patricians. The word "cereal" derives from her name. During times of famine, Romans would make special sacrifices to Ceres, and her priestesses (sacerdotes publicae) were among the few women to hold official religious positions in Rome.',
     },
@@ -205,7 +205,7 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 100, name: 'Merchant King', effect: 'No tariffs anywhere' },
         ],
         description: 'Swift messenger of the gods and patron of merchants, travelers, and thieves, Mercury guides both commerce and souls to the underworld. His winged sandals carry him between the mortal and divine realms.',
-        symbols: ['🪽 Winged Sandals', '⚕️ Caduceus', '👜 Money Bag', '🎩 Petasus Hat'],
+        symbols: ['Winged Sandals', 'Caduceus', 'Money Bag', 'Petasus Hat'],
         greekEquivalent: 'Hermes',
         history: 'Mercury was adopted relatively late into the Roman pantheon (495 BC) but quickly became essential to Rome\'s commercial identity. His temple near the Circus Maximus overlooked the main commercial district. Merchants would sprinkle themselves with water from Mercury\'s sacred well (aqua Mercurii) to purify their goods and ensure profitable sales. His festival, the Mercuralia on May 15th, saw merchants sprinkle their heads and merchandise with sacred water.',
     },
@@ -221,7 +221,7 @@ export const ROMAN_GODS: Record<GodName, God> = {
             { tier: 100, name: 'Omniscience', effect: 'See all outcomes before decisions' },
         ],
         description: 'Virgin goddess of wisdom, strategic warfare, arts, and crafts, Minerva emerged fully armed from Jupiter\'s head. She represents the intellectual and civilized aspects of conflict—planning, strategy, and righteous defense.',
-        symbols: ['🦉 Owl', '🫒 Olive Branch', '🛡️ Aegis Shield', '🎭 Craft Tools'],
+        symbols: ['Owl', 'Olive Branch', 'Aegis Shield', 'Craft Tools'],
         greekEquivalent: 'Athena',
         history: 'Minerva was one of the Capitoline Triad, worshipped alongside Jupiter and Juno in the great temple on the Capitoline Hill. Unlike Mars, who represented the chaos of battle, Minerva embodied strategic warfare and victory through superior planning. She was patron goddess of craftsmen, artists, doctors, teachers, and all skilled professions. The Quinquatria festival (March 19-23) honored her as protector of artisans. Soldiers would pray to Minerva before battles requiring cunning rather than brute force.',
     },
@@ -286,18 +286,18 @@ export const BASE_PRICES: Record<ResourceType, number> = {
 };
 
 // === RESOURCE DISPLAY INFO ===
-export const RESOURCE_INFO: Record<ResourceType, { name: string; emoji: string; category: 'basic' | 'luxury' | 'strategic' }> = {
-    grain: { name: 'Grain', emoji: '🌾', category: 'basic' },
-    iron: { name: 'Iron', emoji: '⚔️', category: 'strategic' },
-    timber: { name: 'Timber', emoji: '🪵', category: 'basic' },
-    stone: { name: 'Stone', emoji: '🪨', category: 'basic' },
-    clay: { name: 'Clay', emoji: '🏺', category: 'basic' },
-    wool: { name: 'Wool', emoji: '🐑', category: 'basic' },
-    salt: { name: 'Salt', emoji: '🧂', category: 'strategic' },
-    livestock: { name: 'Livestock', emoji: '🐄', category: 'basic' },
-    wine: { name: 'Wine', emoji: '🍷', category: 'luxury' },
-    olive_oil: { name: 'Olive Oil', emoji: '🫒', category: 'luxury' },
-    spices: { name: 'Spices', emoji: '🌶️', category: 'luxury' },
+export const RESOURCE_INFO: Record<ResourceType, { name: string; icon: string; category: 'basic' | 'luxury' | 'strategic' }> = {
+    grain: { name: 'Grain', icon: 'wheat', category: 'basic' },
+    iron: { name: 'Iron', icon: 'swords', category: 'strategic' },
+    timber: { name: 'Timber', icon: 'tree-pine', category: 'basic' },
+    stone: { name: 'Stone', icon: 'mountain', category: 'basic' },
+    clay: { name: 'Clay', icon: 'container', category: 'basic' },
+    wool: { name: 'Wool', icon: 'shirt', category: 'basic' },
+    salt: { name: 'Salt', icon: 'sparkles', category: 'strategic' },
+    livestock: { name: 'Livestock', icon: 'beef', category: 'basic' },
+    wine: { name: 'Wine', icon: 'wine', category: 'luxury' },
+    olive_oil: { name: 'Olive Oil', icon: 'droplet', category: 'luxury' },
+    spices: { name: 'Spices', icon: 'flame', category: 'luxury' },
 };
 
 // === GAME BALANCE CONSTANTS ===
@@ -411,7 +411,7 @@ export const EMERGENCY_ACTIONS: EmergencyAction[] = [
     {
         id: 'emergency_tax',
         name: 'Emergency Taxation',
-        icon: '💰',
+        icon: 'coins',
         description: 'Levy emergency taxes on all citizens',
         cost: { happiness: 15 },
         effect: { denarii: 500 },
@@ -420,7 +420,7 @@ export const EMERGENCY_ACTIONS: EmergencyAction[] = [
     {
         id: 'conscription',
         name: 'Conscription',
-        icon: '⚔️',
+        icon: 'swords',
         description: 'Force citizens into military service',
         cost: { happiness: 20, population: 10 },
         effect: { troops: 30 },
@@ -429,7 +429,7 @@ export const EMERGENCY_ACTIONS: EmergencyAction[] = [
     {
         id: 'divine_intervention',
         name: 'Divine Intervention',
-        icon: '✨',
+        icon: 'sparkles',
         description: 'Call upon the gods for aid',
         cost: { piety: 50 },
         effect: { happiness: 25, morale: 20 },
@@ -438,7 +438,7 @@ export const EMERGENCY_ACTIONS: EmergencyAction[] = [
     {
         id: 'grain_requisition',
         name: 'Grain Requisition',
-        icon: '🌾',
+        icon: 'wheat',
         description: 'Requisition grain from wealthy estates',
         cost: { reputation: 10 },
         effect: { grain: 50 },
@@ -447,7 +447,7 @@ export const EMERGENCY_ACTIONS: EmergencyAction[] = [
     {
         id: 'mercenary_hire',
         name: 'Hire Mercenaries',
-        icon: '🗡️',
+        icon: 'sword',
         description: 'Hire foreign mercenaries for quick reinforcement',
         cost: { denarii: 300 },
         effect: { troops: 20 },
@@ -469,7 +469,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     {
         id: 'forge_weapons',
         name: 'Forge Weapons',
-        icon: '⚔️',
+        icon: 'swords',
         description: 'Forge superior weapons for your troops',
         inputs: [
             { resource: 'iron', amount: 10 },
@@ -480,7 +480,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     {
         id: 'host_feast',
         name: 'Host Feast',
-        icon: '🍖',
+        icon: 'beef',
         description: 'Host a grand feast for the citizens',
         inputs: [
             { resource: 'grain', amount: 20 },
@@ -491,7 +491,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     {
         id: 'build_monument',
         name: 'Build Monument',
-        icon: '🗿',
+        icon: 'landmark',
         description: 'Erect a monument to Roman glory',
         inputs: [
             { resource: 'stone', amount: 30 },
@@ -502,7 +502,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
     {
         id: 'supply_cache',
         name: 'Supply Cache',
-        icon: '📦',
+        icon: 'package',
         description: 'Stockpile military supplies',
         inputs: [
             { resource: 'grain', amount: 15 },
@@ -578,28 +578,28 @@ export const TERRITORY_FOCUS: Record<string, TerritoryFocusData> = {
     military_outpost: {
         id: 'military_outpost',
         name: 'Military Outpost',
-        icon: '⚔️',
+        icon: 'swords',
         bonus: { defense: 0.3, troopRecruit: 0.2 },
         cost: 300,
     },
     trade_hub: {
         id: 'trade_hub',
         name: 'Trade Hub',
-        icon: '💰',
+        icon: 'coins',
         bonus: { tradePrices: 0.15, tariffReduction: 0.2 },
         cost: 300,
     },
     breadbasket: {
         id: 'breadbasket',
         name: 'Breadbasket',
-        icon: '🌾',
+        icon: 'wheat',
         bonus: { grainProduction: 0.5 },
         cost: 300,
     },
     mining_district: {
         id: 'mining_district',
         name: 'Mining District',
-        icon: '⛏️',
+        icon: 'pickaxe',
         bonus: { ironProduction: 0.5, stoneProduction: 0.3 },
         cost: 300,
     },
