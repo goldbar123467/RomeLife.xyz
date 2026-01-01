@@ -3,7 +3,9 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { TAB_ICONS } from '@/components/ui/icons';
+import { Zap } from 'lucide-react';
 import type { Tab } from '@/core/types';
+import { useMemo } from 'react';
 
 const TABS: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
@@ -23,7 +25,14 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function TabNavigation() {
-    const { activeTab, setTab } = useGameStore();
+    const { activeTab, setTab, buildings } = useGameStore();
+
+    // Calculate actual progress: buildings built / total available
+    const progressPercent = useMemo(() => {
+        if (!buildings || buildings.length === 0) return 0;
+        const builtCount = buildings.filter(b => b.count > 0).length;
+        return Math.round((builtCount / buildings.length) * 100);
+    }, [buildings]);
 
     return (
         <nav className="h-full px-3 py-6">
@@ -46,7 +55,7 @@ export function TabNavigation() {
                         <motion.button
                             key={tab.id}
                             onClick={() => setTab(tab.id)}
-                            className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-xl text-base font-semibold transition-all duration-200 w-full text-left ${isActive
+                            className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-xl text-base font-semibold transition-all duration-200 w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1A2E] ${isActive
                                     ? 'bg-roman-gold/20 text-roman-gold shadow-[0_0_20px_rgba(240,193,75,0.3)] border-2 border-roman-gold/60'
                                     : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border-2 border-transparent hover:border-white/20'
                                 }`}
@@ -91,7 +100,7 @@ export function TabNavigation() {
                 <div className="mt-6 px-2">
                     <div className="p-4 rounded-xl bg-gradient-to-br from-roman-gold/15 to-roman-gold/5 border border-roman-gold/30">
                         <div className="text-sm text-roman-gold font-bold mb-2 flex items-center gap-2">
-                            <span>⚡</span> Quick Actions
+                            <Zap size={16} className="text-roman-gold" /> Quick Actions
                         </div>
                         <div className="text-xs text-gray-400 mb-2">
                             Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-gray-300">Space</kbd> to end season
@@ -100,9 +109,12 @@ export function TabNavigation() {
                             <motion.div
                                 className="h-full bg-gradient-to-r from-roman-gold to-yellow-500 rounded-full"
                                 initial={{ width: 0 }}
-                                animate={{ width: '45%' }}
+                                animate={{ width: `${progressPercent}%` }}
                                 transition={{ duration: 1, delay: 0.5 }}
                             />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 text-right">
+                            {progressPercent}% built
                         </div>
                     </div>
                 </div>

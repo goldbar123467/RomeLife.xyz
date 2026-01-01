@@ -257,13 +257,13 @@ export const SEASON_MODIFIERS: Record<Season, SeasonModifiers> = {
         tradePrices: 1.10,         // Buffed from 1.05 → +10%
     },
     winter: {
-        farmProduction: 0.75,      // Nerfed from 0.90 → -25%
-        fisheryProduction: 0.80,   // Nerfed from 0.90 → -20%
-        foodConsumption: 1.15,     // New: +15% consumption
-        happiness: 0.90,           // Nerfed from 0.95 → -10%
-        morale: 0.85,              // Nerfed from 0.90 → -15%
-        upkeep: 1.25,              // Nerfed from 1.15 → +25%
-        tradePrices: 0.95,         // New: -5% prices
+        farmProduction: 0.80,      // Softened: -20% (was -25%)
+        fisheryProduction: 0.85,   // Softened: -15% (was -20%)
+        foodConsumption: 1.10,     // Softened: +10% (was +15%)
+        happiness: 0.90,           // Unchanged: -10%
+        morale: 0.85,              // Unchanged: -15%
+        upkeep: 1.20,              // Softened: +20% (was +25%)
+        tradePrices: 0.95,         // Unchanged: -5% prices
     },
 };
 

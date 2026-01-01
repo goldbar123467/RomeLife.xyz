@@ -18,6 +18,7 @@ import {
     Users,
     Church,
     Beef,
+    Shirt,
 
     // Tabs / Navigation
     LayoutDashboard,
@@ -107,7 +108,7 @@ export const RESOURCE_ICONS: Record<ResourceType, LucideIcon> = {
     timber: TreePine,
     stone: Mountain,
     clay: Circle,
-    wool: Circle, // TODO: Custom sheep/wool icon
+    wool: Shirt,
     salt: Sparkles,
     livestock: Beef,
     wine: Wine,

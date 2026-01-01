@@ -10,7 +10,7 @@ import {
     BarChart, Bar, CartesianGrid, Legend
 } from 'recharts';
 import { CHART_COLORS, tooltipStyle, gridStyle, axisStyle } from '@/components/ui/charts/theme';
-import { Coins, TrendingUp, TrendingDown } from 'lucide-react';
+import { Coins, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 
 export function EconomyPanel() {
     const state = useGameStore();
@@ -228,6 +228,30 @@ export function EconomyPanel() {
                         </div>
                     </div>
                 </div>
+
+                {/* Tax Efficiency Warnings */}
+                {(state.population > GAME_CONSTANTS.TAX_EFFICIENCY_THRESHOLD || taxRate > 0.20) && (
+                    <div className="mt-4 space-y-2">
+                        {state.population > GAME_CONSTANTS.TAX_EFFICIENCY_THRESHOLD && (
+                            <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                                <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                                <span className="text-sm text-yellow-300">
+                                    Large population ({state.population.toLocaleString()}) reduces tax efficiency.
+                                    Efficiency drops {((state.population - GAME_CONSTANTS.TAX_EFFICIENCY_THRESHOLD) * GAME_CONSTANTS.TAX_EFFICIENCY_DECAY * 100).toFixed(1)}% above {GAME_CONSTANTS.TAX_EFFICIENCY_THRESHOLD} citizens.
+                                </span>
+                            </div>
+                        )}
+                        {taxRate > 0.20 && (
+                            <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                                <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                                <span className="text-sm text-orange-300">
+                                    High taxes ({Math.round(taxRate * 100)}%) have diminishing returns.
+                                    Revenue per citizen decreases beyond 20% tax rate.
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
             </GlassCard>
 
             {/* Expenditure Breakdown */}
