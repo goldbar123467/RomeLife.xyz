@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { FOUNDERS } from '@/core/constants';
 import { Button, GlassCard, Badge, GameImage } from '@/components/ui';
+import { Dog, Egg, Check } from 'lucide-react';
+import { gameToast } from '@/lib/toast';
 import type { FounderName } from '@/core/types';
 
 export function IntroScreen() {
@@ -15,8 +17,8 @@ export function IntroScreen() {
         const newClicks = wolfClicks + 1;
         setWolfClicks(newClicks);
 
-        if (newClicks >= 5) {
-            // Easter egg: clicking wolf 5 times (placeholder for future unlock)
+        if (newClicks === 5) {
+            gameToast.religion('The Wolf Blesses Your Journey!', 'Romulus and Remus smile upon you from the heavens.');
         }
     };
 
@@ -40,7 +42,7 @@ export function IntroScreen() {
             >
                 {/* Wolf Logo */}
                 <motion.div
-                    className="text-8xl mb-6 cursor-pointer"
+                    className="mb-6 cursor-pointer"
                     onClick={handleWolfClick}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
@@ -48,7 +50,7 @@ export function IntroScreen() {
                         filter: wolfClicks >= 5 ? 'hue-rotate(180deg)' : 'none',
                     }}
                 >
-                    🐺
+                    <Dog size={96} className="text-roman-gold" />
                 </motion.div>
 
                 {/* Title */}
@@ -102,7 +104,7 @@ export function IntroScreen() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1 }}
                 >
-                    v2.0 • Next.js Edition • {wolfClicks >= 5 && '🍳 Secret Mode Unlocked!'}
+                    v2.0 • Next.js Edition • {wolfClicks >= 5 && <span className="inline-flex items-center gap-1"><Egg size={12} className="text-yellow-400" /> Secret Mode Unlocked!</span>}
                 </motion.p>
             </motion.div>
 
@@ -251,7 +253,7 @@ export function FounderSelectScreen() {
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
                                     >
-                                        <span className="text-bg text-sm">✓</span>
+                                        <Check size={14} className="text-bg" />
                                     </motion.div>
                                 )}
                             </GlassCard>

@@ -446,6 +446,7 @@ const createInitialState = (): Omit<GameStore,
         prices: { ...BASE_PRICES },
         demandIndices: Object.fromEntries(Object.keys(BASE_PRICES).map(k => [k, 100])) as Record<ResourceType, number>,
         volatility: 1.0,
+        priceHistory: [],
     },
 
     // Trade State
@@ -510,12 +511,23 @@ export const useGameStore = create<GameStore>()(
                 const quest1 = generateQuest(state);
                 const quest2 = generateQuest(state);
 
+                // Initialize market with first price history entry
+                const initialPriceHistory = [{
+                    round: 1,
+                    season: 'spring' as const,
+                    prices: { ...state.market.prices },
+                }];
+
                 set({
                     stage: 'game',
                     founder,
                     round: 1,
                     season: 'spring',
                     quests: [quest1, quest2],
+                    market: {
+                        ...state.market,
+                        priceHistory: initialPriceHistory,
+                    },
                 });
             },
 
@@ -1497,22 +1509,22 @@ export const useGameStore = create<GameStore>()(
                 set(executeEnterInfiniteMode(get()));
             },
 
-            // === DEBUG ===
+            // === DEBUG (development only) ===
             debugAddResources: (type, amount) => {
+                if (process.env.NODE_ENV !== 'development') return;
                 const state = get();
                 set({
                     inventory: { ...state.inventory, [type]: Math.min(state.inventory[type] + amount, state.capacity[type]) },
                 });
-                // Debug: added resources
             },
 
             debugSetGold: (amount) => {
+                if (process.env.NODE_ENV !== 'development') return;
                 set({ denarii: amount });
-                // Debug: gold set
             },
 
             debugFastForward: (rounds) => {
-                // Debug: fast forwarding
+                if (process.env.NODE_ENV !== 'development') return;
                 for (let i = 0; i < rounds * 4; i++) {
                     get().endSeason();
                 }
