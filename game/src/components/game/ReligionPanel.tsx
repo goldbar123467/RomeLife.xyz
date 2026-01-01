@@ -6,7 +6,7 @@ import { useGameStore } from '@/store/gameStore';
 import { ROMAN_GODS, RELIGIOUS_BUILDINGS, WORSHIP_ACTIONS, getActiveBlessings } from '@/core/constants';
 import { GOD_ICONS } from '@/components/ui/icons';
 import { staggerContainer, fadeInUp, cardHover } from '@/lib/animations';
-import { Zap, Heart, Check, Building2, Sparkles, ScrollText, Info } from 'lucide-react';
+import { Zap, Heart, Check, Building2, Sparkles, ScrollText, Info, Landmark, Beef, Wheat, type LucideIcon } from 'lucide-react';
 import { GlassCard, Button, Badge, GameImage, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
 import { RELIGIOUS_BUILDING_ASSETS, WORSHIP_ACTION_ASSETS } from '@/lib/assets';
 import type { GodName, God } from '@/core/types';
@@ -21,10 +21,10 @@ export function ReligionPanel() {
         religiousBuildings, buildReligiousBuilding
     } = useGameStore();
 
-    const tabs = [
-        { id: 'gods' as const, label: 'Gods', icon: '⚡' },
-        { id: 'buildings' as const, label: 'Buildings', icon: 'temple' },
-        { id: 'worship' as const, label: 'Worship', icon: 'bust' },
+    const tabs: { id: ReligionTab; label: string; icon: LucideIcon | string }[] = [
+        { id: 'gods', label: 'Gods', icon: Zap },
+        { id: 'buildings', label: 'Buildings', icon: 'temple' },
+        { id: 'worship', label: 'Worship', icon: 'bust' },
     ];
 
     // Get active blessings for display
@@ -81,24 +81,28 @@ export function ReligionPanel() {
 
             {/* Tab Navigation */}
             <div className="flex gap-2 border-b border-line pb-2">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                            activeTab === tab.id
-                                ? 'bg-roman-gold/20 text-roman-gold'
-                                : 'text-muted hover:text-foreground hover:bg-white/5'
-                        }`}
-                    >
-                        {tab.icon === 'temple' || tab.icon === 'bust' ? (
-                            <GameImage src={tab.icon} size="sm" alt={tab.label} />
-                        ) : (
-                            <span>{tab.icon}</span>
-                        )}
-                        {tab.label}
-                    </button>
-                ))}
+                {tabs.map(tab => {
+                    const isLucideIcon = typeof tab.icon !== 'string';
+                    const TabIcon = isLucideIcon ? tab.icon : null;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                                activeTab === tab.id
+                                    ? 'bg-roman-gold/20 text-roman-gold'
+                                    : 'text-muted hover:text-foreground hover:bg-white/5'
+                            }`}
+                        >
+                            {isLucideIcon && TabIcon ? (
+                                <TabIcon size={16} className={activeTab === tab.id ? 'text-roman-gold' : 'text-muted'} />
+                            ) : (
+                                <GameImage src={tab.icon as string} size="sm" alt={tab.label} />
+                            )}
+                            {tab.label}
+                        </button>
+                    );
+                })}
             </div>
 
             <AnimatePresence mode="wait">
@@ -264,8 +268,12 @@ export function ReligionPanel() {
                                                 <p className="text-sm text-muted mb-3">{building.description}</p>
 
                                                 <div className="flex items-center gap-4 text-xs mb-3">
-                                                    <span className="text-religion">+{building.pietyPerSeason} ✨/season</span>
-                                                    <span className="text-roman-gold">+{building.favorPerSeason} 🏛️/season</span>
+                                                    <span className="text-religion flex items-center gap-1">
+                                                        +{building.pietyPerSeason} <Sparkles size={12} />/season
+                                                    </span>
+                                                    <span className="text-roman-gold flex items-center gap-1">
+                                                        +{building.favorPerSeason} <Landmark size={12} />/season
+                                                    </span>
                                                 </div>
 
                                                 {!isBuilt && (
@@ -308,26 +316,24 @@ export function ReligionPanel() {
                                 {Object.values(WORSHIP_ACTIONS).map(action => {
                                     // Check if player can afford the action
                                     let canAfford = true;
-                                    let costText = '';
+                                    const costItems: { amount: number; icon: LucideIcon; color: string }[] = [];
 
                                     if (action.cost.denarii) {
                                         if (denarii < action.cost.denarii) canAfford = false;
-                                        costText += `${action.cost.denarii}d `;
+                                        costItems.push({ amount: action.cost.denarii, icon: Landmark, color: 'text-roman-gold' });
                                     }
                                     if (action.cost.piety) {
                                         if (piety < action.cost.piety) canAfford = false;
-                                        costText += `${action.cost.piety}✨ `;
+                                        costItems.push({ amount: action.cost.piety, icon: Sparkles, color: 'text-purple-400' });
                                     }
                                     if (action.cost.livestock) {
                                         if ((inventory.livestock || 0) < action.cost.livestock) canAfford = false;
-                                        costText += `${action.cost.livestock}🐄 `;
+                                        costItems.push({ amount: action.cost.livestock, icon: Beef, color: 'text-amber-400' });
                                     }
                                     if (action.cost.grain) {
                                         if ((inventory.grain || 0) < action.cost.grain) canAfford = false;
-                                        costText += `${action.cost.grain}🌾 `;
+                                        costItems.push({ amount: action.cost.grain, icon: Wheat, color: 'text-amber-400' });
                                     }
-
-                                    if (!costText) costText = 'Free';
 
                                     // Effect text
                                     const effectParts: string[] = [];
@@ -352,7 +358,20 @@ export function ReligionPanel() {
                                             <div className="text-center">
                                                 <GameImage src={WORSHIP_ACTION_ASSETS[action.id] || action.icon} size="lg" alt={action.name} className="mb-2" />
                                                 <h4 className="font-bold text-roman-gold text-sm mb-1">{action.name}</h4>
-                                                <div className="text-xs text-muted mb-2">{costText.trim()}</div>
+                                                <div className="text-xs text-muted mb-2 flex items-center justify-center gap-2">
+                                                    {costItems.length > 0 ? (
+                                                        costItems.map((item, idx) => {
+                                                            const CostIcon = item.icon;
+                                                            return (
+                                                                <span key={idx} className={`flex items-center gap-0.5 ${item.color}`}>
+                                                                    {item.amount}<CostIcon size={12} />
+                                                                </span>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <span>Free</span>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-green-400">{effectText}</div>
                                                 {action.cooldown > 0 && (
                                                     <div className="text-xs text-muted mt-2">

@@ -279,10 +279,17 @@ export interface BattleState {
     casualties: { player: number; enemy: number };
 }
 
+export interface PriceHistoryEntry {
+    round: number;
+    season: Season;
+    prices: Record<ResourceType, number>;
+}
+
 export interface MarketState {
     prices: Record<ResourceType, number>;
     demandIndices: Record<ResourceType, number>;
     volatility: number;
+    priceHistory: PriceHistoryEntry[];
 }
 
 // === CARAVAN & TRADE ROUTE TYPES ===

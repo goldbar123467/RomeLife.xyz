@@ -4,10 +4,18 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, ProgressBar, SectionHeader, Badge, Button } from '@/components/ui';
 import { RESOURCE_INFO, CRAFTING_RECIPES } from '@/core/constants';
+import { RESOURCE_ICONS } from '@/components/ui/icons';
 import { calculateProductionSummary } from '@/core/math';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { Package } from 'lucide-react';
+import { Package, BarChart3, Hammer, Swords, Beef, Landmark, type LucideIcon } from 'lucide-react';
 import type { ResourceType } from '@/core/types';
+
+// Crafting recipe icons mapping
+const RECIPE_ICONS: Record<string, LucideIcon> = {
+    forge_weapons: Swords,
+    host_feast: Beef,
+    build_monument: Landmark,
+};
 
 export function ResourcesPanel() {
     const state = useGameStore();
@@ -47,7 +55,10 @@ export function ResourcesPanel() {
 
             {/* Production Summary */}
             <GlassCard variant="gold" className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-3">📊 Season Production</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2">
+                    <BarChart3 size={20} className="text-roman-gold" />
+                    Season Production
+                </h3>
                 <motion.div
                     className="grid grid-cols-2 md:grid-cols-4 gap-4"
                     variants={staggerContainer}
@@ -101,7 +112,10 @@ export function ResourcesPanel() {
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xl">{info.emoji}</span>
+                                                {(() => {
+                                                    const ResourceIcon = RESOURCE_ICONS[resource] || Package;
+                                                    return <ResourceIcon size={20} className="text-roman-gold" />;
+                                                })()}
                                                 <span className="font-medium">{info.name}</span>
                                             </div>
                                             <div className="flex items-center gap-3">
@@ -141,22 +155,28 @@ export function ResourcesPanel() {
                     initial="initial"
                     animate="animate"
                 >
-                    {resourceList.slice(0, 6).map(resource => (
-                        <motion.div
-                            key={resource}
-                            variants={fadeInUp}
-                            className="glass-dark rounded-lg p-2"
-                        >
-                            <span>{RESOURCE_INFO[resource].emoji}</span>
-                            <span className="ml-1 text-muted">{capacity[resource]}</span>
-                        </motion.div>
-                    ))}
+                    {resourceList.slice(0, 6).map(resource => {
+                        const ResourceIcon = RESOURCE_ICONS[resource] || Package;
+                        return (
+                            <motion.div
+                                key={resource}
+                                variants={fadeInUp}
+                                className="glass-dark rounded-lg p-2 flex items-center justify-center gap-1"
+                            >
+                                <ResourceIcon size={16} className="text-roman-gold" />
+                                <span className="text-muted">{capacity[resource]}</span>
+                            </motion.div>
+                        );
+                    })}
                 </motion.div>
             </GlassCard>
 
             {/* Crafting Section */}
             <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-3">⚒️ Crafting</h3>
+                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2">
+                    <Hammer size={20} className="text-roman-gold" />
+                    Crafting
+                </h3>
                 <p className="text-sm text-muted mb-4">
                     Combine resources to create powerful effects for your empire.
                 </p>
@@ -164,7 +184,7 @@ export function ResourcesPanel() {
                     {CRAFTING_RECIPES.map((recipe) => {
                         const craftable = canCraft(recipe.id);
                         const inputText = recipe.inputs
-                            .map(i => `${i.amount} ${RESOURCE_INFO[i.resource]?.emoji || ''} ${RESOURCE_INFO[i.resource]?.name || i.resource}`)
+                            .map(i => `${i.amount} ${RESOURCE_INFO[i.resource]?.name || i.resource}`)
                             .join(' + ');
                         const effectText = recipe.effect.duration
                             ? `+${(recipe.effect.value * 100).toFixed(0)}% ${recipe.effect.type} for ${recipe.effect.duration} seasons`
@@ -178,7 +198,10 @@ export function ResourcesPanel() {
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-2xl">{recipe.icon}</span>
+                                        {(() => {
+                                            const RecipeIcon = RECIPE_ICONS[recipe.id] || Hammer;
+                                            return <RecipeIcon size={24} className="text-roman-gold" />;
+                                        })()}
                                         <div>
                                             <h4 className="font-bold text-sm">{recipe.name}</h4>
                                             <p className="text-xs text-muted">{recipe.description}</p>

@@ -5,18 +5,20 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Button, Badge, SectionHeader, ProgressBar, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { Castle, Clock, Check, Lock, Hammer, Info, ScrollText, Calendar, Sparkles, Coins } from 'lucide-react';
+import { Castle, Clock, Check, Lock, Hammer, Info, ScrollText, Calendar, Sparkles, Coins, Landmark, Church, CircleDot, Droplets, Crown, type LucideIcon } from 'lucide-react';
 import type { Wonder, ResourceType } from '@/core/types';
 
-// Wonder icons mapping
-const WONDER_ICONS: Record<string, string> = {
-    colosseum: '🏛️',
-    pantheon: '⛪',
-    circus_maximus: '🏟️',
-    aqua_claudia: '🚰',
-    forum_romanum: '🏛️',
-    palatine_palace: '👑',
+// Wonder icons mapping with Lucide icons
+const WONDER_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
+    colosseum: { icon: Landmark, color: 'text-amber-400' },
+    pantheon: { icon: Church, color: 'text-purple-400' },
+    circus_maximus: { icon: CircleDot, color: 'text-green-400' },
+    aqua_claudia: { icon: Droplets, color: 'text-blue-400' },
+    forum_romanum: { icon: Landmark, color: 'text-roman-gold' },
+    palatine_palace: { icon: Crown, color: 'text-yellow-400' },
 };
+
+const DEFAULT_WONDER_ICON = { icon: Landmark, color: 'text-roman-gold' };
 
 // Status colors for visual distinction
 const STATUS_COLORS = {
@@ -72,7 +74,11 @@ export function WondersPanel() {
 
                 {/* Header */}
                 <div className="flex items-start gap-3 mb-3">
-                    <div className="text-3xl">{WONDER_ICONS[wonder.id] || '🏛️'}</div>
+                    {(() => {
+                        const iconData = WONDER_ICONS[wonder.id] || DEFAULT_WONDER_ICON;
+                        const IconComponent = iconData.icon;
+                        return <IconComponent size={32} className={iconData.color} />;
+                    })()}
                     <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-roman-gold truncate">{wonder.name}</h3>
                         <p className="text-xs text-muted italic">{wonder.latinName}</p>
@@ -227,7 +233,11 @@ export function WondersPanel() {
                             <>
                                 <SheetHeader>
                                     <div className="flex items-center gap-3">
-                                        <div className="text-4xl">{WONDER_ICONS[selectedWonder.id] || '🏛️'}</div>
+                                        {(() => {
+                                            const iconData = WONDER_ICONS[selectedWonder.id] || DEFAULT_WONDER_ICON;
+                                            const IconComponent = iconData.icon;
+                                            return <IconComponent size={40} className={iconData.color} />;
+                                        })()}
                                         <div>
                                             <SheetTitle className="flex items-center gap-2">
                                                 {selectedWonder.name}

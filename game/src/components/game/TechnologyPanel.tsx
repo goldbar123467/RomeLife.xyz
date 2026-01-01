@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Button, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
+import { ScrollText, Bird, Check } from 'lucide-react';
 
 export function TechnologyPanel() {
     const state = useGameStore();
@@ -33,7 +34,7 @@ export function TechnologyPanel() {
             <SectionHeader
                 title="Technology"
                 subtitle="Research new technologies to advance your civilization"
-                icon="📜"
+                icon={<ScrollText className="w-6 h-6 text-roman-gold" />}
             />
 
             {/* Research Progress */}
@@ -49,7 +50,7 @@ export function TechnologyPanel() {
 
                 {hasMinervaDiscount && (
                     <div className="mt-3 text-sm text-green-400 flex items-center gap-2">
-                        <span>🦉</span>
+                        <Bird size={16} className="text-green-400" />
                         <span>Minerva&apos;s Blessing: 25% research cost reduction</span>
                     </div>
                 )}
@@ -94,7 +95,7 @@ export function TechnologyPanel() {
                                             <h4 className={`font-bold ${tech.researched ? 'text-green-400' : 'text-roman-gold'}`}>
                                                 {tech.name}
                                             </h4>
-                                            {tech.researched && <span className="text-green-400">✓</span>}
+                                            {tech.researched && <Check size={16} className="text-green-400" />}
                                         </div>
 
                                         <p className="text-xs text-muted mb-2">{tech.description}</p>

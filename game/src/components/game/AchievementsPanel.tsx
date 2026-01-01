@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Badge, SectionHeader, ProgressBar } from '@/components/ui';
+import { Trophy, Lock, Star } from 'lucide-react';
 
 export function AchievementsPanel() {
     const state = useGameStore();
@@ -16,7 +17,7 @@ export function AchievementsPanel() {
             <SectionHeader
                 title="Achievements"
                 subtitle="Track your accomplishments and earn rewards"
-                icon="🏆"
+                icon={<Trophy className="w-6 h-6 text-roman-gold" />}
             />
 
             {/* Progress */}
@@ -48,7 +49,11 @@ export function AchievementsPanel() {
                         >
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-2xl">{achievement.unlocked ? '🏆' : '🔒'}</span>
+                                    {achievement.unlocked ? (
+                                        <Trophy size={24} className="text-roman-gold" />
+                                    ) : (
+                                        <Lock size={24} className="text-muted" />
+                                    )}
                                     <h4 className={`font-bold ${achievement.unlocked ? 'text-green-400' : 'text-roman-gold'}`}>
                                         {achievement.name}
                                     </h4>
@@ -73,8 +78,8 @@ export function AchievementsPanel() {
                                     </span>
                                 )}
                                 {achievement.reward.reputation && (
-                                    <span className="text-xs glass-dark px-2 py-1 rounded-full">
-                                        +{achievement.reward.reputation} ⭐
+                                    <span className="text-xs glass-dark px-2 py-1 rounded-full inline-flex items-center gap-1">
+                                        +{achievement.reward.reputation} <Star size={12} className="text-yellow-400" />
                                     </span>
                                 )}
                                 {achievement.reward.favor && (

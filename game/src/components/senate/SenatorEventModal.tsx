@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertTriangle, Check, Coins } from 'lucide-react';
+import { X, AlertTriangle, Check, Coins, Landmark } from 'lucide-react';
 import type { SenatorEvent, SenatorEventChoice, SenatorId } from '@/core/types/senate';
 import { SENATORS } from '@/core/constants/senate';
 import { GlassCard } from '@/components/ui';
@@ -86,7 +86,7 @@ export function SenatorEventModal({ event, onChoice, onDismiss }: SenatorEventMo
                             <div className="flex items-center gap-4">
                                 {/* Senator Avatar */}
                                 <div className="w-16 h-16 rounded-xl bg-roman-gold/20 border-2 border-roman-gold/40 flex items-center justify-center">
-                                    <span className="text-2xl">🏛️</span>
+                                    <Landmark size={28} className="text-roman-gold" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold text-roman-gold">{event.title}</h2>

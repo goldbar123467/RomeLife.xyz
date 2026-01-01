@@ -7,24 +7,64 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Swords,
+  Sword,
+  Shield,
+  Zap,
+  Sparkles,
+  Star,
+  Trophy,
+  Crown,
+  Award,
+  Skull,
+  Droplet,
+  Flame,
+  type LucideIcon,
+} from 'lucide-react';
 
-// Particle types with their emojis
-const PARTICLE_TYPES = {
-  sword: ['⚔️', '🗡️'],
-  shield: ['🛡️'],
-  impact: ['💥', '✨', '⭐'],
-  victory: ['🏆', '👑', '⚜️', '✨'],
-  defeat: ['💀', '☠️', '🩸'],
-  fire: ['🔥'],
-} as const;
+// Particle types with Lucide icons and colors
+const PARTICLE_ICONS: Record<string, { icon: LucideIcon; color: string }[]> = {
+  sword: [
+    { icon: Swords, color: '#C0C0C0' },
+    { icon: Sword, color: '#A0A0A0' },
+  ],
+  shield: [
+    { icon: Shield, color: '#CD7F32' },
+  ],
+  impact: [
+    { icon: Zap, color: '#FFD700' },
+    { icon: Sparkles, color: '#FFFFFF' },
+    { icon: Star, color: '#FFD700' },
+  ],
+  victory: [
+    { icon: Trophy, color: '#FFD700' },
+    { icon: Crown, color: '#FFD700' },
+    { icon: Award, color: '#C0C0C0' },
+    { icon: Sparkles, color: '#FFFFFF' },
+  ],
+  defeat: [
+    { icon: Skull, color: '#808080' },
+    { icon: Skull, color: '#606060' },
+    { icon: Droplet, color: '#DC143C' },
+  ],
+  fire: [
+    { icon: Flame, color: '#FF4500' },
+  ],
+};
 
-type ParticleType = keyof typeof PARTICLE_TYPES;
+type ParticleType = keyof typeof PARTICLE_ICONS;
+
+interface ParticleIconData {
+  icon: LucideIcon;
+  color: string;
+}
 
 interface Particle {
   id: number;
   x: number;
   y: number;
-  emoji: string;
+  iconData: ParticleIconData;
   type: ParticleType;
   scale: number;
   rotation: number;
@@ -56,17 +96,17 @@ export function BattleParticles({
     }
   }, [intensity]);
 
-  // Get particle types based on animation type
-  const getParticleEmojis = useCallback((): string[] => {
+  // Get particle icon data based on animation type
+  const getParticleIconData = useCallback((): ParticleIconData[] => {
     switch (type) {
       case 'clash':
-        return [...PARTICLE_TYPES.sword, ...PARTICLE_TYPES.shield, ...PARTICLE_TYPES.impact];
+        return [...PARTICLE_ICONS.sword, ...PARTICLE_ICONS.shield, ...PARTICLE_ICONS.impact];
       case 'victory':
-        return [...PARTICLE_TYPES.victory];
+        return [...PARTICLE_ICONS.victory];
       case 'defeat':
-        return [...PARTICLE_TYPES.defeat, ...PARTICLE_TYPES.fire];
+        return [...PARTICLE_ICONS.defeat, ...PARTICLE_ICONS.fire];
       default:
-        return [...PARTICLE_TYPES.impact];
+        return [...PARTICLE_ICONS.impact];
     }
   }, [type]);
 
@@ -75,11 +115,11 @@ export function BattleParticles({
     if (!isActive) return;
 
     const count = getParticleCount();
-    const emojis = getParticleEmojis();
+    const iconDataList = getParticleIconData();
     const newParticles: Particle[] = [];
 
     for (let i = 0; i < count; i++) {
-      const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      const iconData = iconDataList[Math.floor(Math.random() * iconDataList.length)];
 
       // Spawn position - center with some random offset
       const centerX = 50;
@@ -89,7 +129,7 @@ export function BattleParticles({
         id: nextId + i,
         x: centerX + (Math.random() - 0.5) * 30,
         y: centerY + (Math.random() - 0.5) * 20,
-        emoji,
+        iconData,
         type: type === 'clash' ? 'impact' : type === 'victory' ? 'victory' : 'defeat',
         scale: 0.5 + Math.random() * 1,
         rotation: Math.random() * 360,
@@ -105,7 +145,7 @@ export function BattleParticles({
     setTimeout(() => {
       setParticles((prev) => prev.filter((p) => !newParticles.find((np) => np.id === p.id)));
     }, 1500);
-  }, [isActive, type, nextId, getParticleCount, getParticleEmojis]);
+  }, [isActive, type, nextId, getParticleCount, getParticleIconData]);
 
   // Spawn particles when active
   useEffect(() => {
@@ -130,36 +170,45 @@ export function BattleParticles({
       style={{ zIndex: 50 }}
     >
       <AnimatePresence>
-        {particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute text-2xl"
-            initial={{
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-              scale: 0,
-              rotate: particle.rotation,
-              opacity: 1,
-            }}
-            animate={{
-              left: `${particle.x + particle.velocityX / 10}%`,
-              top: `${particle.y + particle.velocityY / 10}%`,
-              scale: particle.scale,
-              rotate: particle.rotation + 180,
-              opacity: [1, 1, 0],
-            }}
-            exit={{
-              opacity: 0,
-              scale: 0,
-            }}
-            transition={{
-              duration: 1.2,
-              ease: 'easeOut',
-            }}
-          >
-            {particle.emoji}
-          </motion.div>
-        ))}
+        {particles.map((particle) => {
+          const IconComponent = particle.iconData.icon;
+          return (
+            <motion.div
+              key={particle.id}
+              className="absolute"
+              initial={{
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+                scale: 0,
+                rotate: particle.rotation,
+                opacity: 1,
+              }}
+              animate={{
+                left: `${particle.x + particle.velocityX / 10}%`,
+                top: `${particle.y + particle.velocityY / 10}%`,
+                scale: particle.scale,
+                rotate: particle.rotation + 180,
+                opacity: [1, 1, 0],
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0,
+              }}
+              transition={{
+                duration: 1.2,
+                ease: 'easeOut',
+              }}
+            >
+              <IconComponent
+                size={24}
+                color={particle.iconData.color}
+                style={{
+                  filter: `drop-shadow(0 0 4px ${particle.iconData.color})`,
+                }}
+              />
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
     </div>
   );
