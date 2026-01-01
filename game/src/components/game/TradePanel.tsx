@@ -754,7 +754,14 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
 
             {/* Price Comparison Table */}
             <GlassCard className="p-4 overflow-x-auto">
-                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><BarChart3 size={20} /> Price Comparison</h3>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-2">
+                    <h3 className="text-lg font-bold text-roman-gold flex items-center gap-2">
+                        <BarChart3 size={20} /> Price Comparison
+                    </h3>
+                    <span className="text-xs text-amber-400/60 italic">
+                        Base prices with city bonus, tariff & negotiation skill
+                    </span>
+                </div>
                 <table className="w-full border-collapse text-sm">
                     <thead>
                         <tr className="border-b border-white/20">
@@ -794,6 +801,10 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
                         ))}
                     </tbody>
                 </table>
+                <div className="mt-3 pt-3 border-t border-white/10 text-xs text-muted">
+                    <Star size={12} className="inline text-yellow-400 mr-1" /> = City specialty (+20% bonus) |
+                    <span className="ml-2">Note: God blessings, tech bonuses & founder effects may increase actual prices</span>
+                </div>
             </GlassCard>
 
             {/* Section Divider */}
