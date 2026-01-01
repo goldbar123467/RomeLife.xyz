@@ -10,7 +10,7 @@ import { simulateCaravan } from '@/core/math/monteCarlo';
 import { DistributionBar } from '@/components/ui/BellCurve';
 import type { ResourceType, TradeCity, CaravanType, TradeState, MarketState, TradeRoute } from '@/core/types';
 import type { CaravanSimulationResult } from '@/core/types/probability';
-import { Package, ArrowRightLeft, BarChart3, Truck, Shield, TrendingUp, Briefcase, Zap, Gem, Star, AlertTriangle, PlusCircle, X, type LucideIcon } from 'lucide-react';
+import { Package, ArrowRightLeft, BarChart3, Truck, Shield, TrendingUp, Briefcase, Zap, Gem, Star, AlertTriangle, PlusCircle, X, Ship, type LucideIcon } from 'lucide-react';
 import { RESOURCE_ICONS } from '@/components/ui/icons';
 
 // Mapping caravan icon identifiers to Lucide components
@@ -21,6 +21,34 @@ const CARAVAN_ICON_MAP: Record<string, LucideIcon> = {
     gem: Gem,
 };
 import { gameToast } from '@/lib/toast';
+
+// Historical city lore for immersive trading experience
+const CITY_LORE: Record<string, { description: string; specialty: string }> = {
+    alba_longa: {
+        description: "The legendary birthplace of Romulus and Remus. Alba Longa's volcanic soil yields wines that grace patrician tables.",
+        specialty: "Fine wines and pottery from ancient Latium"
+    },
+    latin_village: {
+        description: "A humble settlement of our Latin brethren. Simple folk, honest trade, the backbone of Rome's hinterland.",
+        specialty: "Grain and livestock from fertile plains"
+    },
+    etruscan_port: {
+        description: "Gateway to mysterious Etruria. Their bronze work is unmatched, their merchants shrewd as serpents.",
+        specialty: "Bronze goods and eastern imports"
+    },
+    sabine_market: {
+        description: "Where Rome once raided for brides, now we trade for wool. The Sabines never forget - nor do they forgive a bad deal.",
+        specialty: "Mountain wool and hardy livestock"
+    },
+    ostia_docks: {
+        description: "Rome's window to the sea. Every grain of Egyptian wheat, every amphora of Greek wine passes through Ostia's busy quays.",
+        specialty: "Mediterranean imports and naval supplies"
+    },
+    greek_colony: {
+        description: "A corner of Magna Graecia on Italian soil. Philosophy debates mix with merchant haggling in melodious Greek.",
+        specialty: "Olive oil, wine, and educated slaves"
+    }
+};
 
 // === PROP TYPES FOR TAB COMPONENTS ===
 
@@ -110,13 +138,14 @@ export function TradePanel() {
 
     const handleTrade = () => {
         if (!selectedCity || !selectedResource) return;
-        const price = getTradePrice(selectedResource, selectedCity);
-        const profit = Math.floor(tradeAmount * price);
+        // getTradePrice already includes tradeAmount in calculation
+        const totalPrice = getTradePrice(selectedResource, selectedCity);
         executeTrade(selectedCity.id, selectedResource, tradeAmount);
-        gameToast.trade('Trade Complete', `Sold ${tradeAmount} ${selectedResource} for ${profit} denarii`);
+        gameToast.trade('Trade Complete', `Sold ${tradeAmount} ${selectedResource} for ${totalPrice} denarii`);
         setTradeAmount(10);
     };
 
+    // Calculate total price for the current trade amount (includes all bonuses)
     const getTradePrice = (resource: ResourceType, city: TradeCity): number => {
         const basePrice = market.prices[resource];
         const cityBonus = city.biases.includes(resource) ? 1.2 : 1.0;
@@ -300,6 +329,7 @@ function QuickTradeTab({
                     const risk = calculateTradeRisk(city.distance, city.risk, forts, hasRoads, reputation);
                     const isSelected = selectedCity?.id === city.id;
                     const cityRep = tradeState.cityReputation[city.id] || 0;
+                    const lore = CITY_LORE[city.id] || { description: 'A trading settlement.', specialty: 'Various goods' };
 
                     return (
                         <motion.div
@@ -310,15 +340,27 @@ function QuickTradeTab({
                         >
                             <GlassCard
                                 variant={isSelected ? 'gold' : 'default'}
-                                className={`p-4 cursor-pointer transition-all ${isSelected ? 'ring-2 ring-roman-gold' : ''}`}
+                                className={`p-4 cursor-pointer transition-all min-h-[44px] ${isSelected ? 'ring-2 ring-roman-gold' : ''}`}
                                 onClick={() => setSelectedCity(city)}
                                 hover={true}
                             >
-                                <div className="flex justify-between items-start mb-3">
-                                    <h4 className="font-bold text-roman-gold">{city.name}</h4>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-bold text-roman-gold flex items-center gap-2">
+                                        <Ship className="w-4 h-4" />
+                                        {city.name}
+                                    </h4>
                                     <Badge variant={risk.risk < 0.1 ? 'success' : risk.risk < 0.2 ? 'warning' : 'danger'} size="sm">
                                         {Math.round(risk.risk * 100)}% risk
                                     </Badge>
+                                </div>
+
+                                {/* Historical description */}
+                                <div className="text-xs text-amber-200/60 italic mb-3 leading-relaxed">
+                                    {lore.description}
+                                </div>
+
+                                <div className="text-[10px] text-amber-400/50 mb-3 border-l-2 border-amber-400/30 pl-2">
+                                    {lore.specialty}
                                 </div>
 
                                 <div className="space-y-2 text-sm">
