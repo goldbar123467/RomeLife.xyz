@@ -155,7 +155,7 @@ export function TradePanel() {
     };
 
     return (
-        <div className="p-6 space-y-6 fade-in">
+        <div className="p-3 md:p-6 space-y-4 md:space-y-6 fade-in">
             <SectionHeader
                 title="Trade Hub"
                 subtitle="Buy, sell, and establish trade routes across the Mediterranean"
@@ -163,7 +163,7 @@ export function TradePanel() {
             />
 
             {/* Sub-tabs */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-1 md:gap-2">
                 {(Object.entries(TAB_CONFIG) as [typeof activeTab, typeof TAB_CONFIG[typeof activeTab]][]).map(([id, config]) => {
                     const Icon = config.icon;
                     const isActive = activeTab === id;
@@ -171,15 +171,15 @@ export function TradePanel() {
                         <motion.button
                             key={id}
                             onClick={() => setTradeTab(id)}
-                            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${isActive
+                            className={`flex items-center justify-center gap-1 md:gap-2 py-2 md:py-3 px-2 md:px-4 rounded-xl font-semibold transition-all min-h-[44px] ${isActive
                                 ? 'bg-roman-gold/20 text-roman-gold border-2 border-roman-gold/60'
                                 : 'bg-white/5 text-gray-300 hover:bg-white/10 border-2 border-transparent'
                                 }`}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                         >
-                            <Icon className="w-5 h-5" />
-                            <span className="hidden md:inline">{config.label}</span>
+                            <Icon className="w-4 h-4 md:w-5 md:h-5" />
+                            <span className="hidden md:inline text-sm md:text-base">{config.label}</span>
                         </motion.button>
                     );
                 })}
@@ -188,18 +188,39 @@ export function TradePanel() {
             {/* Active Caravan Status Banner */}
             {tradeState.activeCaravan && (
                 <motion.div
-                    className="glass-gold rounded-xl p-4 flex items-center gap-4"
+                    className="relative overflow-hidden glass-gold rounded-xl p-3 md:p-4 flex items-center gap-3 md:gap-4"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <Truck size={32} className="text-roman-gold" />
-                    <div className="flex-1">
-                        <div className="font-bold text-roman-gold">Caravan in Transit</div>
-                        <div className="text-sm text-muted">
+                    {/* Animated background gradient */}
+                    <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-amber-400/20 to-amber-500/10"
+                        animate={{
+                            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                        }}
+                        transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: 'linear',
+                        }}
+                        style={{ backgroundSize: '200% 100%' }}
+                    />
+                    <div className="relative flex items-center gap-2">
+                        <Ship size={24} className="text-roman-gold" />
+                        <motion.div
+                            animate={{ y: [0, -2, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                        >
+                            <Truck size={28} className="text-roman-gold" />
+                        </motion.div>
+                    </div>
+                    <div className="relative flex-1">
+                        <div className="font-bold text-roman-gold text-sm md:text-base">Caravan in Transit</div>
+                        <div className="text-xs md:text-sm text-muted">
                             En route to {tradeState.activeCaravan.cityName}... Returns in {tradeState.activeCaravan.duration} season{tradeState.activeCaravan.duration > 1 ? 's' : ''}
                         </div>
                     </div>
-                    <Badge variant="warning">
+                    <Badge variant="warning" className="relative">
                         {Math.round(tradeState.activeCaravan.risk * 100)}% risk
                     </Badge>
                 </motion.div>
@@ -295,12 +316,21 @@ function QuickTradeTab({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
+            className="space-y-4 md:space-y-6"
         >
-            <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-2">
-                    Sell goods to cities for immediate profit. Prices vary by city specialty and your reputation.
-                </h3>
+            {/* Section Header */}
+            <GlassCard className="p-3 md:p-4 border-l-4 border-amber-500">
+                <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-lg shrink-0">
+                        <ArrowRightLeft className="w-5 h-5 text-roman-gold" />
+                    </div>
+                    <div>
+                        <h3 className="text-base md:text-lg font-bold text-roman-gold">Quick Trade</h3>
+                        <p className="text-xs md:text-sm text-muted">
+                            Sell goods to cities for immediate profit. Prices vary by city specialty and your reputation.
+                        </p>
+                    </div>
+                </div>
             </GlassCard>
 
             {/* Market Prices */}
@@ -401,6 +431,9 @@ function QuickTradeTab({
                 })}
             </div>
 
+            {/* Section Divider */}
+            <div className="border-t border-white/10 my-2 md:my-4" />
+
             {/* Trade Form */}
             <AnimatePresence>
                 {selectedCity && (
@@ -488,7 +521,7 @@ function QuickTradeTab({
 
                                             <Button
                                                 variant="roman"
-                                                className="w-full"
+                                                className="w-full min-h-[44px]"
                                                 onClick={handleTrade}
                                                 disabled={tradeAmount > (inventory[selectedResource as ResourceType] || 0)}
                                             >
@@ -525,12 +558,21 @@ function TradeRoutesTab({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
+            className="space-y-4 md:space-y-6"
         >
-            <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-2">
-                    Establish permanent trade routes for passive income. Routes require goods each season but generate steady profits.
-                </h3>
+            {/* Section Header */}
+            <GlassCard className="p-3 md:p-4 border-l-4 border-amber-500">
+                <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-lg shrink-0">
+                        <Truck className="w-5 h-5 text-roman-gold" />
+                    </div>
+                    <div>
+                        <h3 className="text-base md:text-lg font-bold text-roman-gold">Trade Routes</h3>
+                        <p className="text-xs md:text-sm text-muted">
+                            Establish permanent trade routes for passive income. Routes require goods each season but generate steady profits.
+                        </p>
+                    </div>
+                </div>
             </GlassCard>
 
             {/* Active Routes */}
@@ -577,9 +619,12 @@ function TradeRoutesTab({
                 </div>
             )}
 
+            {/* Section Divider */}
+            {tradeState.routes.length > 0 && <div className="border-t border-white/10 my-2 md:my-4" />}
+
             {/* Establish New Route */}
             <div>
-                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><PlusCircle size={20} /> Establish New Route</h3>
+                <h3 className="text-base md:text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><PlusCircle size={20} /> Establish New Route</h3>
 
                 {resourcesWithStock.length === 0 ? (
                     <GlassCard className="p-4 text-center text-yellow-400 flex items-center justify-center gap-2">
@@ -646,7 +691,14 @@ function TradeRoutesTab({
                                     <div>
                                         <span className="text-muted">Returns:</span>
                                         <span className="block font-bold text-green-400">
-                                            ~{Math.floor(market.prices[routeResource] * 3 * 0.8)}d/season
+                                            ~{(() => {
+                                                const selectedCity = tradeCities.find((c: TradeCity) => c.id === routeCity);
+                                                const basePrice = market.prices[routeResource];
+                                                const cityBonus = selectedCity?.biases.includes(routeResource) ? 1.2 : 1.0;
+                                                const negotiationBonus = 1 + (tradeState.upgrades.negotiation * 0.05);
+                                                const routeQty = 3;
+                                                return Math.floor(basePrice * routeQty * cityBonus * negotiationBonus * 0.8);
+                                            })()}d/season
                                         </span>
                                     </div>
                                     <div>
@@ -657,7 +709,7 @@ function TradeRoutesTab({
 
                                 <Button
                                     variant="roman"
-                                    className="w-full"
+                                    className="w-full min-h-[44px]"
                                     onClick={() => {
                                         establishTradeRoute(routeCity, routeResource);
                                         setRouteCity('');
@@ -683,12 +735,21 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
+            className="space-y-4 md:space-y-6"
         >
-            <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-2">
-                    Track market prices, demand trends, and commodity information across all cities.
-                </h3>
+            {/* Section Header */}
+            <GlassCard className="p-3 md:p-4 border-l-4 border-amber-500">
+                <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-lg shrink-0">
+                        <BarChart3 className="w-5 h-5 text-roman-gold" />
+                    </div>
+                    <div>
+                        <h3 className="text-base md:text-lg font-bold text-roman-gold">Market Intelligence</h3>
+                        <p className="text-xs md:text-sm text-muted">
+                            Track market prices, demand trends, and commodity information across all cities.
+                        </p>
+                    </div>
+                </div>
             </GlassCard>
 
             {/* Price Comparison Table */}
@@ -735,9 +796,12 @@ function MarketIntelTab({ tradeCities, inventory, market, tradeState }: MarketIn
                 </table>
             </GlassCard>
 
+            {/* Section Divider */}
+            <div className="border-t border-white/10 my-2 md:my-4" />
+
             {/* Inventory Overview */}
             <div>
-                <h3 className="text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><Package size={20} /> Your Inventory</h3>
+                <h3 className="text-base md:text-lg font-bold text-roman-gold mb-3 flex items-center gap-2"><Package size={20} /> Your Inventory</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {tradableResources.filter(r => inventory[r] > 0).map((resource: ResourceType) => {
                         const avgPrice = Math.floor(
@@ -819,18 +883,27 @@ function CaravansTab({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
+            className="space-y-4 md:space-y-6"
         >
-            <GlassCard className="p-4">
-                <h3 className="text-lg font-bold text-roman-gold mb-2">
-                    Send specialized caravans on trading expeditions. Higher risks mean higher rewards!
-                </h3>
-                {selectedCity && (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-amber-400/80">
-                        <TrendingUp className="w-4 h-4" />
-                        <span>Monte Carlo forecasts show expected outcomes for {selectedCity.name}</span>
+            {/* Section Header */}
+            <GlassCard className="p-3 md:p-4 border-l-4 border-amber-500">
+                <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-lg shrink-0">
+                        <Package className="w-5 h-5 text-roman-gold" />
                     </div>
-                )}
+                    <div>
+                        <h3 className="text-base md:text-lg font-bold text-roman-gold">Caravans</h3>
+                        <p className="text-xs md:text-sm text-muted">
+                            Send specialized caravans on trading expeditions. Higher risks mean higher rewards!
+                        </p>
+                        {selectedCity && (
+                            <div className="mt-2 flex items-center gap-2 text-xs text-amber-400/80">
+                                <TrendingUp className="w-3 h-3" />
+                                <span>Monte Carlo forecasts show expected outcomes for {selectedCity.name}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </GlassCard>
 
             {/* Trade Upgrades */}
@@ -878,6 +951,9 @@ function CaravansTab({
                     })}
                 </div>
             </div>
+
+            {/* Section Divider */}
+            <div className="border-t border-white/10 my-2 md:my-4" />
 
             {/* Caravan Status or Options */}
             {tradeState.activeCaravan ? (
@@ -1027,7 +1103,7 @@ function CaravansTab({
 
                                     <Button
                                         variant="roman"
-                                        className="w-full"
+                                        className="w-full min-h-[44px]"
                                         onClick={() => {
                                             if (caravanCity) {
                                                 sendCaravan(config.id, caravanCity);

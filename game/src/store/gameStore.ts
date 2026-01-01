@@ -778,6 +778,14 @@ export const useGameStore = create<GameStore>()(
                 const city = state.tradeCities.find(c => c.id === cityId);
 
                 if (!city) return;
+
+                // Prevent duplicate routes to the same city
+                const existingRoute = state.tradeState.routes.find(r => r.cityId === cityId);
+                if (existingRoute) {
+                    set({ lastEvents: ['[Error] You already have a trade route with this city!'] });
+                    return;
+                }
+
                 if (state.inventory[resourceId] < 5) {
                     set({ lastEvents: ['[Error] Need at least 5 units to establish a route!'] });
                     return;
