@@ -13,6 +13,30 @@ import {
 import { calculateBlessingBonus } from '../constants/religion';
 import { calculateBuildingEffects } from '../constants/territory';
 
+// === SAFE NUMBER UTILITIES ===
+
+/**
+ * Ensures a number is valid (not NaN, not undefined, not null)
+ * Returns fallback value if invalid
+ */
+export function safeNumber(value: number | undefined | null, fallback: number = 0): number {
+    if (value === undefined || value === null || Number.isNaN(value) || !Number.isFinite(value)) {
+        return fallback;
+    }
+    return value;
+}
+
+/**
+ * Safe division that returns fallback on division by zero or invalid result
+ */
+export function safeDivide(numerator: number, denominator: number, fallback: number = 0): number {
+    if (denominator === 0 || !Number.isFinite(denominator)) {
+        return fallback;
+    }
+    const result = numerator / denominator;
+    return Number.isFinite(result) ? result : fallback;
+}
+
 // === RNG ===
 
 let rngSeed = 1337;
@@ -46,8 +70,12 @@ export function randomFloat(min: number, max: number): number {
 /**
  * Round a number to avoid floating point precision errors
  * Used for resource/inventory calculations
+ * Returns 0 if value is NaN or undefined to prevent NaN propagation
  */
 export function roundResource(value: number, decimals: number = 0): number {
+    if (value === undefined || value === null || Number.isNaN(value)) {
+        return 0;
+    }
     const factor = Math.pow(10, decimals);
     return Math.round(value * factor) / factor;
 }
@@ -309,10 +337,11 @@ export function calculateIncome(state: GameState): number {
         }, 0);
 
     // Territory stability modifier
-    const avgStability = territories.filter(t => t.owned).length > 0
-        ? territories.filter(t => t.owned).reduce((sum, t) => sum + t.stability, 0) / territories.filter(t => t.owned).length
+    const ownedTerritories = territories.filter(t => t.owned);
+    const avgStability = ownedTerritories.length > 0
+        ? safeDivide(ownedTerritories.reduce((sum, t) => sum + safeNumber(t.stability, 50), 0), ownedTerritories.length, 100)
         : 100;
-    const stabilityMod = avgStability / 100;
+    const stabilityMod = safeDivide(avgStability, 100, 1);
 
     // Inflation penalty
     const inflationMod = 1 - (inflation * 0.01);
@@ -412,9 +441,9 @@ export function calculateMarketPrices(
     const demand: Partial<Record<ResourceType, number>> = {};
 
     for (const [resource, basePrice] of Object.entries(BASE_PRICES) as [ResourceType, number][]) {
-        const inv = inventory[resource] || 0;
-        const cap = capacity[resource] || 100;
-        const ratio = inv / cap;
+        const inv = safeNumber(inventory[resource], 0);
+        const cap = safeNumber(capacity[resource], 100);
+        const ratio = safeDivide(inv, cap, 0);
 
         // Get current demand or default
         let demandIndex = currentDemand[resource] || GAME_CONSTANTS.DEMAND_BASE;

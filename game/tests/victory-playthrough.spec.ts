@@ -623,7 +623,7 @@ function generateSenatorReport(
 
     // Find most volatile senator
     let maxSwing = 0;
-    let volatileSenator = SENATORS[0];
+    let volatileSenator: typeof SENATORS[number] = SENATORS[0];
     for (const senator of SENATORS) {
         let min = 100, max = -100;
         for (const h of history) {
