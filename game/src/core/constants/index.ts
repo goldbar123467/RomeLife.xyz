@@ -936,3 +936,4 @@ export const TERRITORY_FOCUS: Record<string, TerritoryFocusData> = {
 // === RE-EXPORTS ===
 export * from './religion';
 export * from './territory';
+export * from './diplomacy';

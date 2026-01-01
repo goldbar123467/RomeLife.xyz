@@ -340,9 +340,31 @@ export interface TradeState {
     cityReputation: Record<string, number>;
 }
 
+// === DIPLOMACY HISTORY ===
+
+export type DiplomacyHistoryCause =
+    | 'envoy_success'
+    | 'envoy_failure'
+    | 'decay'
+    | 'event'
+    | 'trade'
+    | 'military';
+
+export interface DiplomacyHistoryEntry {
+    season: number;
+    round: number;
+    factionId: string;
+    previousValue: number;
+    newValue: number;
+    delta: number;
+    cause: DiplomacyHistoryCause;
+    description: string;
+}
+
 export interface DiplomacyState {
     relations: Record<string, number>;
     activeEnvoys: number;
+    relationHistory: DiplomacyHistoryEntry[];
 }
 
 // === GAME STATE ===

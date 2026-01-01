@@ -6,7 +6,8 @@
 
 import type {
     GameState, Season, ResourceType, Territory,
-    Quest, Achievement, TreasuryHistoryEntry, TradeState, GameEvent
+    Quest, Achievement, TreasuryHistoryEntry, TradeState, GameEvent,
+    DiplomacyHistoryEntry
 } from '@/core/types';
 import {
     SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS, GAME_CONSTANTS
@@ -1017,9 +1018,25 @@ export function executeSendEnvoy(state: GameState, factionId: string): EnvoyResu
     const succeeded = random() < successChance;
     const relationChange = calculateEnvoyEffect(succeeded, state.reputation);
 
+    const newRelationValue = Math.max(0, Math.min(100, currentRelation + relationChange));
+
     const newRelations = {
         ...state.diplomacy.relations,
-        [factionId]: Math.max(0, Math.min(100, currentRelation + relationChange)),
+        [factionId]: newRelationValue,
+    };
+
+    // Create history entry for tracking
+    const historyEntry: DiplomacyHistoryEntry = {
+        season: state.round, // Using round as a proxy for time
+        round: state.round,
+        factionId: factionId,
+        previousValue: currentRelation,
+        newValue: newRelationValue,
+        delta: relationChange,
+        cause: succeeded ? 'envoy_success' : 'envoy_failure',
+        description: succeeded
+            ? `Envoy improved relations (+${relationChange})`
+            : `Envoy failed to improve relations (${relationChange})`,
     };
 
     return {
@@ -1031,6 +1048,7 @@ export function executeSendEnvoy(state: GameState, factionId: string): EnvoyResu
                 ...state.diplomacy,
                 relations: newRelations,
                 activeEnvoys: state.diplomacy.activeEnvoys + 1,
+                relationHistory: [...(state.diplomacy.relationHistory || []), historyEntry],
             },
         },
         message: succeeded

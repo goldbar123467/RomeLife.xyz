@@ -456,6 +456,7 @@ const createInitialState = (): Omit<GameStore,
     diplomacy: {
         relations: { alba_longa: 50, sabines: 30, etruscans: 20, latins: 60, greeks: 15 },
         activeEnvoys: 0,
+        relationHistory: [],
     },
 
     // Senate (V2 Political System)
