@@ -7,21 +7,21 @@ import { Zap } from 'lucide-react';
 import type { Tab } from '@/core/types';
 import { useMemo } from 'react';
 
-const TABS: { id: Tab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'resources', label: 'Resources' },
-    { id: 'economy', label: 'Economy' },
-    { id: 'trade', label: 'Trade' },
-    { id: 'military', label: 'Military' },
-    { id: 'map', label: 'Map' },
-    { id: 'settlement', label: 'Settlement' },
-    { id: 'diplomacy', label: 'Diplomacy' },
-    { id: 'senate', label: 'Senate' },
-    { id: 'technology', label: 'Tech' },
-    { id: 'religion', label: 'Religion' },
-    { id: 'wonders', label: 'Wonders' },
-    { id: 'quests', label: 'Quests' },
-    { id: 'achievements', label: 'Achievements' },
+const TABS: { id: Tab; label: string; description: string }[] = [
+    { id: 'overview', label: 'Overview', description: 'Empire overview and key statistics' },
+    { id: 'resources', label: 'Resources', description: 'Manage grain, iron, timber, and other resources' },
+    { id: 'economy', label: 'Economy', description: 'View economic charts and treasury' },
+    { id: 'trade', label: 'Trade', description: 'Trade goods with other regions' },
+    { id: 'military', label: 'Military', description: 'Recruit troops and manage armies' },
+    { id: 'map', label: 'Map', description: 'View the Roman Empire map' },
+    { id: 'settlement', label: 'Settlement', description: 'Build and upgrade city structures' },
+    { id: 'diplomacy', label: 'Diplomacy', description: 'Manage relations with other nations' },
+    { id: 'senate', label: 'Senate', description: 'Engage with senators and politics' },
+    { id: 'technology', label: 'Tech', description: 'Research new technologies' },
+    { id: 'religion', label: 'Religion', description: 'Temples, priests, and divine favor' },
+    { id: 'wonders', label: 'Wonders', description: 'Construct monumental wonders' },
+    { id: 'quests', label: 'Quests', description: 'Active missions and objectives' },
+    { id: 'achievements', label: 'Achievements', description: 'View earned achievements' },
 ];
 
 export function TabNavigation() {
@@ -35,9 +35,11 @@ export function TabNavigation() {
     }, [buildings]);
 
     return (
-        <nav className="h-full px-3 py-6">
+        <nav className="h-full px-3 py-6" role="navigation" aria-label="Main game navigation">
             <motion.div
                 className="flex flex-col gap-1.5"
+                role="tablist"
+                aria-label="Game sections"
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.1 }}
@@ -55,6 +57,11 @@ export function TabNavigation() {
                         <motion.button
                             key={tab.id}
                             onClick={() => setTab(tab.id)}
+                            role="tab"
+                            aria-selected={isActive}
+                            aria-controls={`${tab.id}-panel`}
+                            aria-label={tab.description}
+                            tabIndex={isActive ? 0 : -1}
                             className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-xl text-base font-semibold transition-all duration-200 w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1A2E] ${isActive
                                     ? 'bg-roman-gold/20 text-roman-gold shadow-[0_0_20px_rgba(240,193,75,0.3)] border-2 border-roman-gold/60'
                                     : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border-2 border-transparent hover:border-white/20'

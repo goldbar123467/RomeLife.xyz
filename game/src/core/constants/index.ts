@@ -300,83 +300,411 @@ export const RESOURCE_INFO: Record<ResourceType, { name: string; icon: string; c
     spices: { name: 'Spices', icon: 'flame', category: 'luxury' },
 };
 
-// === GAME BALANCE CONSTANTS ===
+// ============================================
+// GAME BALANCE CONSTANTS
+// ============================================
+// These constants control core gameplay mechanics and difficulty.
+// Modify carefully - small changes can significantly impact player experience.
+// All percentages are expressed as decimals (0.15 = 15%) unless noted.
+
 export const GAME_CONSTANTS = {
-    // Population
+    // ----------------------------------------
+    // POPULATION & FOOD CONSUMPTION
+    // ----------------------------------------
+
+    /**
+     * Food consumed per civilian per season.
+     * Lower values = easier early game, but reduces strategic importance of farms.
+     * Historical: Romans consumed ~400-500kg grain/year (1.1-1.4kg/day).
+     * @balance Difficulty: Medium | Affects: Early game survival, farm value
+     */
     FOOD_PER_POP: 0.42,
+
+    /**
+     * Food consumed per soldier per season.
+     * Soldiers eat more than civilians due to training/marching.
+     * Set higher than civilians to make large armies logistically challenging.
+     * @balance Difficulty: Medium | Affects: Military scaling, army size limits
+     */
     FOOD_PER_TROOP: 0.55,
-    TAX_PER_POP: 7,                           // Reduced from 10 → 7
 
-    // Tax Efficiency (diminishing returns at high population)
-    TAX_EFFICIENCY_THRESHOLD: 150,            // Pop above which efficiency drops
-    TAX_EFFICIENCY_DECAY: 0.002,              // 0.2% efficiency loss per pop above threshold
+    /**
+     * Base tax revenue per population point.
+     * Reduced from 10 to 7 to slow early game gold accumulation.
+     * Encourages trade and building development over pure population growth.
+     * @balance Difficulty: Medium | Affects: Gold economy, building pace
+     */
+    TAX_PER_POP: 7,
 
-    // Upkeep
+    // ----------------------------------------
+    // TAX EFFICIENCY (Diminishing Returns)
+    // ----------------------------------------
+
+    /**
+     * Population threshold where tax efficiency begins declining.
+     * Above this, each additional citizen yields less tax revenue.
+     * Prevents runaway economies in late game.
+     * @balance Difficulty: Low | Affects: Late game gold scaling
+     */
+    TAX_EFFICIENCY_THRESHOLD: 150,
+
+    /**
+     * Tax efficiency decay rate per population above threshold.
+     * 0.002 = 0.2% efficiency loss per citizen above threshold.
+     * At 250 pop: (250-150) * 0.002 = 20% reduction in tax efficiency.
+     * @balance Difficulty: Low | Affects: Late game economy ceiling
+     */
+    TAX_EFFICIENCY_DECAY: 0.002,
+
+    // ----------------------------------------
+    // UPKEEP COSTS
+    // ----------------------------------------
+
+    /**
+     * Denarii cost per soldier per season.
+     * Main constraint on army size alongside food.
+     * Higher values punish large standing armies.
+     * @balance Difficulty: Medium | Affects: Military sustainability
+     */
     TROOP_UPKEEP: 2,
+
+    /**
+     * Divisor for housing upkeep calculation.
+     * Upkeep = housing / HOUSING_UPKEEP_DIVISOR.
+     * Higher divisor = cheaper housing maintenance.
+     * @balance Difficulty: Low | Affects: Housing investment value
+     */
     HOUSING_UPKEEP_DIVISOR: 15,
+
+    /**
+     * Fixed upkeep cost per fort per season.
+     * Forts are expensive to maintain, limiting defensive spam.
+     * @balance Difficulty: Medium | Affects: Defensive strategy cost
+     */
     FORT_UPKEEP: 4,
+
+    /**
+     * Divisor for sanitation upkeep calculation.
+     * Upkeep = sanitation / SANITATION_UPKEEP_DIVISOR.
+     * @balance Difficulty: Low | Affects: Sanitation investment value
+     */
     SANITATION_UPKEEP_DIVISOR: 8,
-    UPKEEP_SCALING_THRESHOLD: 5000,           // Denarii threshold for upkeep scaling
-    UPKEEP_SCALING_RATE: 0.0001,              // 0.01% per denarii above threshold
 
-    // Trade Balance
-    TRADE_RISK_MIN: 0.01,                     // 1% min risk (was 5%)
-    TRADE_RISK_MAX: 0.25,                     // 25% max risk (was 50%)
-    TRADE_PRICE_BONUS: 1.25,                  // +25% to make trade competitive
+    /**
+     * Treasury threshold above which upkeep costs begin scaling.
+     * Prevents hoarding gold by increasing costs for wealthy empires.
+     * @balance Difficulty: Low | Affects: Late game gold management
+     */
+    UPKEEP_SCALING_THRESHOLD: 5000,
 
-    // Happiness Impact
-    HAPPINESS_PENALTY_THRESHOLD: 50,          // Below this, production suffers
-    HAPPINESS_PRODUCTION_PENALTY: 0.01,       // 1% per point below 50
-    HAPPINESS_STABILITY_PENALTY: 0.5,         // 0.5 stability loss per point below 50
+    /**
+     * Upkeep scaling rate per denarii above threshold.
+     * 0.0001 = 0.01% additional upkeep per denarii above 5000.
+     * At 10000 gold: (10000-5000) * 0.0001 = 50% upkeep increase.
+     * @balance Difficulty: Low | Affects: Gold hoarding penalty
+     */
+    UPKEEP_SCALING_RATE: 0.0001,
 
-    // Starvation Consequences
-    STARVATION_POP_LOSS: 0.15,                // 15% pop loss on starvation
-    STARVATION_MORALE_LOSS: 15,               // -15 morale on starvation
+    // ----------------------------------------
+    // TRADE SYSTEM
+    // ----------------------------------------
 
-    // Grace Period (early game) - extended and smoothed to prevent consumption cliff
+    /**
+     * Minimum trade risk percentage.
+     * Even the safest routes have some risk of failure.
+     * Reduced from 5% to 1% to make trade more reliable.
+     * @balance Difficulty: Easy | Affects: Trade viability
+     */
+    TRADE_RISK_MIN: 0.01,
+
+    /**
+     * Maximum trade risk percentage.
+     * Caps risk for dangerous routes at 25% (was 50%).
+     * High risk routes are still dangerous but not suicidal.
+     * @balance Difficulty: Medium | Affects: Long-distance trade
+     */
+    TRADE_RISK_MAX: 0.25,
+
+    /**
+     * Bonus multiplier applied to trade prices.
+     * 1.25 = +25% to all trade prices to make trade competitive with farming.
+     * Without this bonus, farming dominates as the safer option.
+     * @balance Difficulty: Easy | Affects: Trade vs farming balance
+     */
+    TRADE_PRICE_BONUS: 1.25,
+
+    // ----------------------------------------
+    // HAPPINESS SYSTEM
+    // ----------------------------------------
+
+    /**
+     * Happiness level below which production penalties apply.
+     * Citizens with low happiness work less efficiently.
+     * Set at 50 as the "neutral" happiness point.
+     * @balance Difficulty: Medium | Affects: Unhappiness consequences
+     */
+    HAPPINESS_PENALTY_THRESHOLD: 50,
+
+    /**
+     * Production penalty per happiness point below threshold.
+     * 0.01 = 1% production loss per point below 50.
+     * At 30 happiness: (50-30) * 0.01 = 20% production penalty.
+     * @balance Difficulty: Medium | Affects: Low happiness punishment
+     */
+    HAPPINESS_PRODUCTION_PENALTY: 0.01,
+
+    /**
+     * Stability loss per happiness point below threshold.
+     * Low happiness causes instability and potential unrest events.
+     * @balance Difficulty: Medium | Affects: Event triggers, revolt risk
+     */
+    HAPPINESS_STABILITY_PENALTY: 0.5,
+
+    // ----------------------------------------
+    // STARVATION CONSEQUENCES
+    // ----------------------------------------
+
+    /**
+     * Population percentage lost when starvation occurs.
+     * 0.15 = 15% of population dies from starvation.
+     * Severe enough to matter, not so harsh as to be unrecoverable.
+     * @balance Difficulty: Hard | Affects: Food crisis recovery
+     */
+    STARVATION_POP_LOSS: 0.15,
+
+    /**
+     * Morale loss when starvation occurs.
+     * Starving armies lose fighting spirit.
+     * @balance Difficulty: Medium | Affects: Military during famine
+     */
+    STARVATION_MORALE_LOSS: 15,
+
+    // ----------------------------------------
+    // GRACE PERIOD (Early Game Protection)
+    // ----------------------------------------
+
+    /**
+     * Consumption multipliers by round to ease new players in.
+     * Extended and smoothed curve prevents "consumption cliff" deaths.
+     * Rounds 1-8: 50% consumption (learning phase)
+     * Rounds 9-14: 65% consumption (early expansion)
+     * Rounds 15-18: 75% consumption (mid game transition)
+     * Rounds 19-22: 85% consumption (late early game)
+     * Rounds 23-26: 92% consumption (near full)
+     * Rounds 27+: 100% consumption (full difficulty)
+     * @balance Difficulty: Easy->Normal | Affects: New player survival
+     */
     GRACE_MULTIPLIERS: [
-        { maxRound: 8, multiplier: 0.5 },   // Rounds 1-8: 50% consumption
-        { maxRound: 14, multiplier: 0.65 }, // Rounds 9-14: 65% consumption
-        { maxRound: 18, multiplier: 0.75 }, // Rounds 15-18: 75% consumption
-        { maxRound: 22, multiplier: 0.85 }, // Rounds 19-22: 85% consumption
-        { maxRound: 26, multiplier: 0.92 }, // Rounds 23-26: 92% consumption
-        { maxRound: Infinity, multiplier: 1.0 }, // Round 27+: Full consumption
+        { maxRound: 8, multiplier: 0.5 },
+        { maxRound: 14, multiplier: 0.65 },
+        { maxRound: 18, multiplier: 0.75 },
+        { maxRound: 22, multiplier: 0.85 },
+        { maxRound: 26, multiplier: 0.92 },
+        { maxRound: Infinity, multiplier: 1.0 },
     ],
 
-    // Infinite Mode (Progressive scaling)
-    INFINITE_UPKEEP_MULTIPLIER: 1.4,
-    INFINITE_VOLATILITY_MULTIPLIER: 2.5,
-    INFINITE_TERRITORY_INTERVAL: 7,
-    INFINITE_BUILDING_INTERVAL: 10,
-    INFINITE_TECH_INTERVAL: 15,
-    INFINITE_CITY_INTERVAL: 20,
-    INFINITE_ENEMY_SCALE_BASE: 1.03,          // 3% exponential scaling per round past 25
-    INFINITE_UPKEEP_SCALE: 0.01,              // +1% upkeep per round past 25
-    INFINITE_FOOD_CONSUMPTION_SCALE: 0.005,   // +0.5% food consumption per round past 25
+    // ----------------------------------------
+    // INFINITE MODE (Post-Victory Scaling)
+    // ----------------------------------------
 
-    // Victory Conditions
+    /**
+     * Upkeep multiplier applied in infinite mode.
+     * 1.4 = 40% increased upkeep costs to challenge late-game empires.
+     * @balance Difficulty: Hard | Affects: Infinite mode sustainability
+     */
+    INFINITE_UPKEEP_MULTIPLIER: 1.4,
+
+    /**
+     * Market volatility multiplier in infinite mode.
+     * 2.5 = Prices swing 2.5x more dramatically.
+     * Creates economic uncertainty requiring trade adaptability.
+     * @balance Difficulty: Hard | Affects: Infinite mode trade strategy
+     */
+    INFINITE_VOLATILITY_MULTIPLIER: 2.5,
+
+    /**
+     * Rounds between new territory unlocks in infinite mode.
+     * @balance Difficulty: Medium | Affects: Expansion pacing
+     */
+    INFINITE_TERRITORY_INTERVAL: 7,
+
+    /**
+     * Rounds between new building unlocks in infinite mode.
+     * @balance Difficulty: Medium | Affects: Build variety
+     */
+    INFINITE_BUILDING_INTERVAL: 10,
+
+    /**
+     * Rounds between new technology unlocks in infinite mode.
+     * @balance Difficulty: Medium | Affects: Tech progression
+     */
+    INFINITE_TECH_INTERVAL: 15,
+
+    /**
+     * Rounds between new city unlocks in infinite mode.
+     * @balance Difficulty: Medium | Affects: City expansion
+     */
+    INFINITE_CITY_INTERVAL: 20,
+
+    /**
+     * Exponential enemy scaling base per round past 25.
+     * 1.03 = 3% stronger enemies each round.
+     * After 10 rounds: 1.03^10 = 34% stronger enemies.
+     * @balance Difficulty: Hard | Affects: Infinite mode combat difficulty
+     */
+    INFINITE_ENEMY_SCALE_BASE: 1.03,
+
+    /**
+     * Additional upkeep percentage per round past 25.
+     * 0.01 = +1% upkeep each round in infinite mode.
+     * @balance Difficulty: Medium | Affects: Infinite mode economy
+     */
+    INFINITE_UPKEEP_SCALE: 0.01,
+
+    /**
+     * Additional food consumption per round past 25.
+     * 0.005 = +0.5% food consumption each round.
+     * @balance Difficulty: Medium | Affects: Infinite mode food pressure
+     */
+    INFINITE_FOOD_CONSUMPTION_SCALE: 0.005,
+
+    // ----------------------------------------
+    // VICTORY CONDITIONS
+    // ----------------------------------------
+
+    /**
+     * Eternal City victory requirements.
+     * The balanced "empire builder" victory for generalist play.
+     * @balance Difficulty: Medium | Path: Expansion + Population + Happiness
+     */
     VICTORY_ETERNAL_CITY: { territories: 10, population: 500, happiness: 75 },
+
+    /**
+     * Commerce victory requirements.
+     * The trade-focused victory for economic players.
+     * @balance Difficulty: Medium | Path: Trade + Reputation
+     */
     VICTORY_COMMERCE: { denarii: 15000, reputation: 35 },
+
+    /**
+     * Conqueror victory requirements.
+     * The military victory for aggressive expansion.
+     * @balance Difficulty: Medium-Hard | Path: Military + Expansion
+     */
     VICTORY_CONQUEROR: { territories: 8, troops: 180 },
-    VICTORY_GLORY: { population: 350, happiness: 90 },  // Lowered from 600 for achievability
+
+    /**
+     * Glory of Rome victory requirements.
+     * The happiness-focused victory for benevolent rulers.
+     * Lowered from 600 population to 350 for achievability.
+     * @balance Difficulty: Medium | Path: Population + Happiness
+     */
+    VICTORY_GLORY: { population: 350, happiness: 90 },
+
+    /**
+     * Industrial victory requirements.
+     * The builder-focused victory for infrastructure players.
+     * @balance Difficulty: Medium | Path: Buildings + Economy
+     */
     VICTORY_INDUSTRIAL: { buildings: 15, denarii: 10000 },
 
-    // Failure Conditions
-    FAILURE_STARVATION_LIMIT: 3,              // 3 consecutive starvations = game over
-    FAILURE_MIN_POPULATION: 30,               // Lowered to 30 for easier early game
-    FAILURE_MIN_HAPPINESS: 25,                // Below 25% = unrest failure
+    // ----------------------------------------
+    // FAILURE CONDITIONS
+    // ----------------------------------------
 
-    // Market
+    /**
+     * Consecutive starvation events before game over.
+     * 3 starvations in a row = terminal food crisis.
+     * Gives players 2 chances to recover before failure.
+     * @balance Difficulty: Medium | Affects: Starvation forgiveness
+     */
+    FAILURE_STARVATION_LIMIT: 3,
+
+    /**
+     * Minimum population before collapse.
+     * Lowered to 30 (from higher values) for easier early game.
+     * Represents the point where Rome is no longer viable.
+     * @balance Difficulty: Easy | Affects: Early game death spiral prevention
+     */
+    FAILURE_MIN_POPULATION: 30,
+
+    /**
+     * Minimum happiness percentage before unrest failure.
+     * Lowered to 20% (from 25%) to give new players more recovery time.
+     * Below this threshold, civil unrest destroys the empire.
+     * Values below 15% would make the game too forgiving.
+     * @balance Difficulty: Easy | Affects: Happiness spiral recovery window
+     */
+    FAILURE_MIN_HAPPINESS: 20,
+
+    // ----------------------------------------
+    // MARKET DEMAND SYSTEM
+    // ----------------------------------------
+
+    /**
+     * Minimum demand percentage for any resource.
+     * 50 = 50% of base demand at lowest.
+     * Prevents resources from becoming worthless.
+     * @balance Difficulty: Low | Affects: Trade floor
+     */
     DEMAND_MIN: 50,
+
+    /**
+     * Maximum demand percentage for any resource.
+     * 200 = 200% of base demand at peak.
+     * Creates profitable trade opportunities.
+     * @balance Difficulty: Low | Affects: Trade ceiling
+     */
     DEMAND_MAX: 200,
+
+    /**
+     * Base demand level for all resources.
+     * 100 = 100% (normal) demand as starting point.
+     * @balance Difficulty: Neutral | Affects: Market baseline
+     */
     DEMAND_BASE: 100,
 
-    // Combat
+    // ----------------------------------------
+    // COMBAT SYSTEM
+    // ----------------------------------------
+
+    /**
+     * Base enemy strength for combat encounters.
+     * Starting point before round and territory scaling.
+     * @balance Difficulty: Medium | Affects: Early combat difficulty
+     */
     BASE_ENEMY_STRENGTH: 30,
+
+    /**
+     * Enemy strength added per game round.
+     * 2 = +2 enemy strength each round.
+     * Ensures combat stays challenging as game progresses.
+     * @balance Difficulty: Medium | Affects: Combat scaling over time
+     */
     ENEMY_ROUND_SCALING: 2,
+
+    /**
+     * Enemy strength added per controlled territory.
+     * 3 = +3 enemy strength per territory owned.
+     * Larger empires face tougher opposition.
+     * @balance Difficulty: Medium | Affects: Expansion difficulty curve
+     */
     ENEMY_TERRITORY_SCALING: 3,
+
+    /**
+     * Troop count threshold for "large army" mechanics.
+     * Armies above 500 troops may trigger special events/costs.
+     * @balance Difficulty: Low | Affects: Army size penalties
+     */
     LARGE_ARMY_THRESHOLD: 500,
-    MAX_TECH_MULTIPLIER: 1.5,                 // Cap tech combat multipliers at 50%
+
+    /**
+     * Maximum combat multiplier from technology bonuses.
+     * 1.5 = Tech bonuses capped at +50% combat effectiveness.
+     * Prevents late-game tech stacking from trivializing combat.
+     * @balance Difficulty: Medium | Affects: Tech power ceiling
+     */
+    MAX_TECH_MULTIPLIER: 1.5,
 };
 
 // === STARTING VALUES ===
