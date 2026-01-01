@@ -355,7 +355,31 @@ export function processSenateSeasonEnd(
     // === 6. DECAY COOLDOWNS ===
     senators = decayCooldowns(senators);
 
-    // === 7. BUILD FINAL STATE ===
+    // === 7. VALIDATE SENATOR PRESERVATION (BUG-001 FIX) ===
+    // Ensure senator relations are not accidentally reset to initial values
+    // This guards against any corruption that might occur during processing
+    for (const id of Object.keys(senators) as SenatorId[]) {
+        const original = gameState.senate.senators[id];
+        const processed = senators[id];
+
+        // If senator somehow lost their relation history, restore from original
+        if (original && processed &&
+            original.relation !== processed.relation &&
+            Math.abs(processed.relation - 0) < 0.001 && // Suspiciously reset to 0
+            Math.abs(original.relation) > 5) { // Original had meaningful relation
+
+            // Log warning and preserve original relation
+            if (typeof window !== 'undefined') {
+                console.warn(`[Senate] BUG-001 GUARD: Prevented ${id} relation reset from ${original.relation} to ${processed.relation}`);
+            }
+            senators[id] = {
+                ...processed,
+                relation: original.relation,
+            };
+        }
+    }
+
+    // === 8. BUILD FINAL STATE ===
     result.newSenateState = {
         ...gameState.senate,
         senators,

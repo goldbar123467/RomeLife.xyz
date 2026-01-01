@@ -1535,6 +1535,15 @@ export const useGameStore = create<GameStore>()(
 
             // === SENATE ===
             initializeSenate: () => {
+                const state = get();
+
+                // BUG-001 FIX: Prevent senate reinitialization during active play
+                // Only allow initialization on round 1 or if senate truly doesn't exist
+                if (state.round > 1 && state.senate?.initialized && state.senate?.senators) {
+                    console.warn('[Senate] BUG-001 GUARD: Blocked senate reinitialization at round', state.round);
+                    return;
+                }
+
                 set({
                     senate: {
                         initialized: true,

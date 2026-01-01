@@ -74,9 +74,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const isStarving = grainAvailable < foodConsumed && foodConsumed > 0 && !ceresFamineImmune;
     if (grainAvailable < foodConsumed && foodConsumed > 0) {
         if (ceresFamineImmune) {
-            events.push('🌾 Ceres protects your people from famine!');
+            events.push('[Ceres] Ceres protects your people from famine!');
         } else {
-            events.push('🍞 Starvation! Your people are hungry.');
+            events.push('[Food] Starvation! Your people are hungry.');
         }
     }
 
@@ -86,8 +86,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const popGrowth = calculatePopulationGrowth(state);
     const starvationLoss = isStarving ? Math.floor(state.population * GAME_CONSTANTS.STARVATION_POP_LOSS) : 0;
     const newPopulation = Math.max(0, state.population + popGrowth - starvationLoss);
-    if (popGrowth > 0) events.push(`👥 Population grew by ${popGrowth}`);
-    if (starvationLoss > 0) events.push(`💀 Lost ${starvationLoss} to starvation`);
+    if (popGrowth > 0) events.push(`[Population] Population grew by ${popGrowth}`);
+    if (starvationLoss > 0) events.push(`[Crisis] Lost ${starvationLoss} to starvation`);
 
     // Update denarii with tiered deficit protection (extended to round 24)
     let effectiveNetIncome = summary.netIncome;
@@ -109,9 +109,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     }
     let newDenarii = Math.max(0, state.denarii + effectiveNetIncome);
     if (effectiveNetIncome > 0) {
-        events.push(`🪙 Income: +${effectiveNetIncome} denarii`);
+        events.push(`[Treasury] Income: +${effectiveNetIncome} denarii`);
     } else if (effectiveNetIncome < 0) {
-        events.push(`🪙 Deficit: ${effectiveNetIncome} denarii`);
+        events.push(`[Treasury] Deficit: ${effectiveNetIncome} denarii`);
     }
 
     // Update market prices
@@ -169,7 +169,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
                     }
                 };
 
-                events.push(`🐫 Caravan returns from ${caravan.cityName}! Earned ${totalRevenue} denarii (+3 reputation)`);
+                events.push(`[Trade] Caravan returns from ${caravan.cityName}! Earned ${totalRevenue} denarii (+3 reputation)`);
             } else {
                 // Caravan failed - goods lost
                 newTradeState = {
@@ -180,7 +180,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
                     }
                 };
                 caravanHappinessPenalty = 8; // Applied later when happiness is calculated
-                events.push(`💀 Caravan to ${caravan.cityName} was lost to bandits! Goods lost, reputation -2`);
+                events.push(`[Trade] Caravan to ${caravan.cityName} was lost to bandits! Goods lost, reputation -2`);
             }
 
             // Clear active caravan
@@ -205,12 +205,12 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
                 processedRoutes.push({ ...route, duration: newDuration });
             } else {
                 // Route cancelled due to lack of goods
-                events.push(`📦 Trade route cancelled: Not enough ${route.resourceId} to fulfill shipment`);
+                events.push(`[Trade] Trade route cancelled: Not enough ${route.resourceId} to fulfill shipment`);
             }
         } else {
             // Route expired
             const city = state.tradeCities.find(c => c.id === route.cityId);
-            events.push(`📦 Trade route with ${city?.name || 'unknown'} has expired`);
+            events.push(`[Trade] Trade route with ${city?.name || 'unknown'} has expired`);
         }
     }
     newTradeState = { ...newTradeState, routes: processedRoutes };
@@ -218,7 +218,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Add caravan and route income
     if (caravanIncome > 0 || tradeRouteIncome > 0) {
         if (tradeRouteIncome > 0) {
-            events.push(`📦 Trade route income: +${tradeRouteIncome} denarii`);
+            events.push(`[Trade] Trade route income: +${tradeRouteIncome} denarii`);
         }
     }
 
@@ -283,7 +283,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
 
         if (event) {
-            events.push(`📜 ${t.name}: ${event.type.replace('_', ' ')}`);
+            events.push(`[Territory] ${t.name}: ${event.type.replace('_', ' ')}`);
             // Collect prosperity income from events
             if (event.effect.income) {
                 prosperityIncome += event.effect.income;
@@ -312,7 +312,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
     if (wonderRecurringIncome > 0) {
-        events.push(`🏛️ Wonder income: +${wonderRecurringIncome} denarii`);
+        events.push(`[Wonder] Wonder income: +${wonderRecurringIncome} denarii`);
     }
 
     // === WONDER PROGRESSION ===
@@ -325,7 +325,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
         // Check if completed
         if (newTurnsRemaining <= 0) {
-            events.push(`🏛️ ${w.name} completed! Glory to Rome!`);
+            events.push(`[Wonder] ${w.name} completed! Glory to Rome!`);
 
             // Apply wonder effects
             for (const effect of w.effects) {
@@ -338,7 +338,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             return { ...w, built: true, turnsRemaining: undefined };
         }
 
-        events.push(`🔨 ${w.name} construction: ${w.cost.turns - newTurnsRemaining}/${w.cost.turns} complete`);
+        events.push(`[Build] ${w.name} construction: ${w.cost.turns - newTurnsRemaining}/${w.cost.turns} complete`);
         return { ...w, turnsRemaining: newTurnsRemaining };
     });
 
@@ -522,7 +522,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         if (achievement.reward.supplies) newSupplies += achievement.reward.supplies;
         if (achievement.reward.piety) newPiety += achievement.reward.piety;
         if (achievement.reward.housing) newHousing += achievement.reward.housing;
-        events.push(`🏆 Achievement unlocked: ${achievement.name}!`);
+        events.push(`[Achievement] Achievement unlocked: ${achievement.name}!`);
     }
 
     // Update quest progress and apply rewards
@@ -531,7 +531,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         const progress = checkQuestProgress(state, q);
         const completed = progress >= q.target;
         if (completed) {
-            events.push(`🎯 Quest completed: ${q.title}`);
+            events.push(`[Quest] Quest completed: ${q.title}`);
             // Apply quest rewards
             if (q.reward.denarii) newDenarii += q.reward.denarii;
             if (q.reward.reputation) newReputation += q.reward.reputation;
@@ -555,7 +555,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
                 newTechnologies = newTechnologies.map(t =>
                     t.id === randomTech.id ? { ...t, researched: true } : t
                 );
-                events.push(`🦉 Minerva grants wisdom! Free technology: ${randomTech.name}`);
+                events.push(`[Minerva] Minerva grants wisdom! Free technology: ${randomTech.name}`);
             }
         }
     }
@@ -570,13 +570,13 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         for (const god of godNames) {
             newGodFavor[god] = Math.min(100, (newGodFavor[god] || 0) + venusAllFavorBonus);
         }
-        events.push(`💕 Venus blesses all gods! +${venusAllFavorBonus} favor with each god`);
+        events.push(`[Venus] Venus blesses all gods! +${venusAllFavorBonus} favor with each god`);
     }
 
     const minervaFavorBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'favor');
     if (minervaFavorBonus > 0 && state.patronGod) {
         newGodFavor[state.patronGod] = Math.min(100, (newGodFavor[state.patronGod] || 0) + minervaFavorBonus);
-        events.push(`🦉 Minerva's wisdom strengthens your devotion! +${minervaFavorBonus} favor`);
+        events.push(`[Minerva] Minerva's wisdom strengthens your devotion! +${minervaFavorBonus} favor`);
     }
 
     // Apply religious event godFavor bonus to patron god
@@ -606,7 +606,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
                 id: `proc_territory_${Date.now()}`,
             };
             proceduralAdditions.territories = [...newTerritories, fullTerritory];
-            events.push(`🗺️ New territory discovered: ${fullTerritory.name}`);
+            events.push(`[Map] New territory discovered: ${fullTerritory.name}`);
         }
     }
 
@@ -625,13 +625,13 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
         // Add senate messages to events
         for (const msg of senateResult.messages) {
-            events.push(`🏛️ ${msg}`);
+            events.push(`[Senate] ${msg}`);
         }
 
         // Check for assassination
         if (senateResult.assassination?.triggered && !senateResult.assassination.savedBySertorius) {
             isAssassinated = true;
-            events.push(`⚔️ ASSASSINATION: ${senateResult.assassination.method}`);
+            events.push(`[Combat] ASSASSINATION: ${senateResult.assassination.method}`);
         }
     }
 
@@ -688,6 +688,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             ...state.market,
             prices,
             demandIndices: demand,
+            // Track price history for market charts (keep last 10 entries)
+            priceHistory: [
+                ...(state.market.priceHistory || []),
+                { round: newRound, season: nextSeason, prices: { ...prices } }
+            ].slice(-10),
         },
         tradeState: newTradeState,
         diplomacy: {
@@ -698,8 +703,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         eventCooldowns: newEventCooldowns,
         history: [...state.history, historyEntry],
         treasuryHistory: [...(state.treasuryHistory || []), treasuryEntry].slice(-50), // Keep last 50 entries
-        // Add senate state if processing occurred
-        ...(senateResult ? { senate: senateResult.newSenateState } : {}),
+        // BUG-001 FIX: Always preserve senate state to prevent accidental resets
+        // If senate processing occurred, use the new state; otherwise preserve existing
+        senate: senateResult ? senateResult.newSenateState : state.senate,
     };
 
     // Check end conditions
@@ -719,11 +725,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
     if (victoryResult) {
         newState.stage = 'results';
-        events.push(`🏆 Victory: ${victoryResult.title}`);
+        events.push(`[Victory] Victory: ${victoryResult.title}`);
     }
     if (failureResult) {
         newState.stage = 'results';
-        events.push(`💀 Defeat: ${failureResult.title}`);
+        events.push(`[Defeat] Defeat: ${failureResult.title}`);
     }
 
     return {
