@@ -275,7 +275,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             }
             // Piety bonus (Servius +30%)
             if (t.governor.bonus.piety) {
-                totalGovernorPiety += t.governor.bonus.piety * 10 / 4; // Per season
+                totalGovernorPiety += t.governor.bonus.piety * 100 / 4; // Convert to % per season (consistent with happiness/morale)
             }
             // Morale bonus (Titus +15%)
             if (t.governor.bonus.morale) {
@@ -515,6 +515,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
     let newPiety = state.piety + totalBuildingPiety + totalGovernorPiety; // Building + governor piety
     let newHousing = state.housing;
+    const newCapacity = { ...state.capacity };
     for (const achievement of achievementsUnlocked) {
         if (achievement.reward.denarii) newDenarii += achievement.reward.denarii;
         if (achievement.reward.happiness) newHappiness = Math.min(100, newHappiness + achievement.reward.happiness);
@@ -523,6 +524,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         if (achievement.reward.supplies) newSupplies += achievement.reward.supplies;
         if (achievement.reward.piety) newPiety += achievement.reward.piety;
         if (achievement.reward.housing) newHousing += achievement.reward.housing;
+        if (achievement.reward.capacity) {
+            for (const res of Object.keys(newCapacity) as Array<keyof typeof newCapacity>) {
+                newCapacity[res] += achievement.reward.capacity;
+            }
+        }
         events.push(`[Achievement] Achievement unlocked: ${achievement.name}!`);
     }
 
@@ -564,6 +570,15 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Venus tier 100: +50 favor with all gods per season
     // Minerva tier 100: +20 favor with patron god per season
     const newGodFavor = { ...state.godFavor };
+
+    // Apply achievement favor rewards (e.g. undefeated: +25, infinite_founder: +50)
+    if (state.patronGod) {
+        for (const achievement of achievementsUnlocked) {
+            if (achievement.reward.favor) {
+                newGodFavor[state.patronGod] = Math.min(100, (newGodFavor[state.patronGod] || 0) + achievement.reward.favor);
+            }
+        }
+    }
     const venusAllFavorBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'allFavor');
     if (venusAllFavorBonus > 0) {
         const godNames: Array<'jupiter' | 'mars' | 'venus' | 'ceres' | 'mercury' | 'minerva'> =
@@ -685,6 +700,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         piety: Math.max(0, newPiety + wonderEffects.piety + eventPiety),
         sanitation: state.sanitation + wonderEffects.sanitation,
         housing: newHousing,
+        capacity: newCapacity,
         market: {
             ...state.market,
             prices,
