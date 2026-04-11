@@ -482,7 +482,8 @@ export function calculateBattleOdds(
     // Weather variance
     playerStrength *= randomFloat(0.9, 1.1);
 
-    const odds = playerStrength / (playerStrength + enemyStrength);
+    const rawOdds = playerStrength / (playerStrength + enemyStrength);
+    const odds = Math.min(0.99, Math.max(0.01, rawOdds));
 
     return {
         playerStrength: Math.floor(playerStrength),
@@ -572,8 +573,8 @@ export function calculateStabilityChange(
 ): number {
     let change = 0;
 
-    // Garrison effect
-    if (territory.garrison > 20) {
+    // Garrison effect (>= 20 stabilizes, < 20 destabilizes)
+    if (territory.garrison >= 20) {
         change += 1;
     } else {
         change -= 2;
