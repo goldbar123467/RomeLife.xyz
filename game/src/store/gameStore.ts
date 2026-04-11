@@ -971,7 +971,7 @@ export const useGameStore = create<GameStore>()(
                         newHappiness = Math.min(100, newHappiness + effect.value);
                     }
                     if (effect.type === 'piety') {
-                        newPiety += effect.value;
+                        newPiety = Math.min(100, newPiety + effect.value);
                     }
                 }
 
@@ -1110,6 +1110,15 @@ export const useGameStore = create<GameStore>()(
                 if (!worshipAction) return;
                 if (worshipAction.requiresPatron && !state.patronGod) return;
 
+                // Check cooldown
+                if (worshipAction.cooldown > 0) {
+                    const remaining = (state.worshipCooldowns || {})[actionId];
+                    if (remaining && remaining > 0) {
+                        set({ lastEvents: [`[Worship] ${worshipAction.name} is on cooldown for ${remaining} more season(s).`] });
+                        return;
+                    }
+                }
+
                 // Check costs
                 const cost = worshipAction.cost;
                 if (cost.denarii && state.denarii < cost.denarii) return;
@@ -1129,7 +1138,7 @@ export const useGameStore = create<GameStore>()(
 
                 // Apply effects
                 const effect = worshipAction.effect;
-                if (effect.piety) newPiety += effect.piety;
+                if (effect.piety) newPiety = Math.min(100, newPiety + effect.piety);
 
                 const newGodFavor = { ...state.godFavor };
                 if (effect.godFavor && state.patronGod) {
@@ -1210,7 +1219,7 @@ export const useGameStore = create<GameStore>()(
                             eventMessages.push(`[Mercury] Mercury brings fortune! +400 denarii`);
                             break;
                         case 'minerva':
-                            newPiety += 25;
+                            newPiety = Math.min(100, newPiety + 25);
                             newReputation += 10;
                             eventMessages.push(`[Minerva] Minerva grants wisdom! +25 piety, +10 reputation`);
                             break;
@@ -1229,6 +1238,12 @@ export const useGameStore = create<GameStore>()(
                     ...eventMessages
                 ];
 
+                // Update worship cooldowns
+                const newWorshipCooldowns = { ...(state.worshipCooldowns || {}) };
+                if (worshipAction.cooldown > 0) {
+                    newWorshipCooldowns[actionId] = worshipAction.cooldown;
+                }
+
                 set({
                     inventory: newInventory,
                     denarii: newDenarii,
@@ -1241,6 +1256,7 @@ export const useGameStore = create<GameStore>()(
                     troops: newTroops,
                     supplies: newSupplies,
                     consecratedTerritories: newConsecratedTerritories,
+                    worshipCooldowns: newWorshipCooldowns,
                     lastEvents: allMessages,
                 });
             },
