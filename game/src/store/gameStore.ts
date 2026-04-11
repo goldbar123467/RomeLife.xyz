@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
     GameState, GameStage, Tab, Founder, GodName,
-    Territory, Building, TradeCity,
+    Territory, Building, TradeCity, NPC,
     ResourceType, CaravanConfig, CaravanType, TradeState,
     AttentionAllocation, SenatorId
 } from '@/core/types';
@@ -199,6 +199,50 @@ const INITIAL_TERRITORIES: Territory[] = [
         cons: ['Historically rebellious', 'Exposed position', 'Etruscan influence'],
         history: 'Fidenae\'s strategic position made it a flashpoint between Rome and Veii. The town rebelled repeatedly, once massacring Roman ambassadors. Rome finally razed it around 426 BC after the dictator Mamercus Aemilius defeated Veii\'s Lars Tolumnius in single combat. A tragic amphitheater collapse here in 27 AD killed 20,000.'
     },
+    {
+        id: 'whispering_woods',
+        name: 'Whispering Woods',
+        latinName: 'Silva Susurrans',
+        owned: false,
+        rarity: 'uncommon',
+        level: 1,
+        stability: 80,
+        focus: 'none',
+        governor: null,
+        resources: [
+            { type: 'timber', baseAmount: 4 },
+            { type: 'livestock', baseAmount: 1 },
+        ],
+        buildings: [],
+        population: 15,
+        garrison: 0,
+        requirements: [],
+        difficulty: 0,
+        description: 'An ancient forest draped in mist, where the wind carries strange whispers through the canopy. The locals say the trees themselves remember the old gods.',
+        pros: ['Abundant timber', 'Mystical atmosphere (+piety)', 'No hostile resistance'],
+        cons: ['Remote and isolated', 'Superstitious locals', 'Dense terrain'],
+        history: 'The Whispering Woods have stood since before the founding of Rome. Shepherds and woodsmen speak of hearing voices among the oaks—some say it is Diana\'s nymphs, others the spirits of ancient Latins. Robin the Woodsman has made his home at the forest\'s edge, guiding travelers safely through its shadowed paths.',
+        biome: 'whispering_woods',
+        enterable: true,
+    },
+];
+
+// === INITIAL NPCS ===
+const INITIAL_NPCS: NPC[] = [
+    {
+        id: 'robin_woodsman',
+        name: 'Robin',
+        title: 'The Woodsman',
+        dialogue: {
+            greeting: 'Hail, traveler! I am Robin, keeper of the forest\'s edge. The Whispering Woods hold many secrets for those brave enough to enter.',
+            questOffer: 'The Whispering Woods call to you, Roman. Ancient timber and forgotten paths await within. Travel there through the World Map and see what the forest reveals. Will you accept this journey?',
+            questAccepted: 'Brave soul! Make your way to the Whispering Woods via the World Map. The forest awaits your footsteps. I shall watch for your return.',
+            afterQuest: 'You have walked among the whispering oaks! The forest remembers your passage. There is more to discover in these lands, friend.',
+        },
+        location: 'palatine',
+        questId: 'story_ch1_whispering_woods',
+        interacted: false,
+    },
 ];
 
 // === INITIAL TRADE CITIES ===
@@ -344,6 +388,10 @@ interface GameStore extends GameState {
     // Emergency Cooldowns
     emergencyCooldowns: Record<string, number>;
 
+    // Actions - NPCs & Story Quests
+    talkToNPC: (npcId: string) => void;
+    enterTerritory: (territoryId: string) => void;
+
     // Actions - Infinite Mode
     enterInfiniteMode: () => void;
 
@@ -380,6 +428,7 @@ const createInitialState = (): Omit<GameStore,
     'buildStructure' | 'researchTechnology' | 'upgradeTerritory' | 'upgradeTerritoryLevel' | 'buildTerritoryBuilding' |
     'assignGarrison' | 'recallGarrison' | 'setPatronGod' | 'worship' | 'buildReligiousBuilding' |
     'sendEnvoy' | 'startWonder' | 'executeEmergency' | 'executeCraft' | 'assignGovernor' | 'setTerritoryFocus' |
+    'talkToNPC' | 'enterTerritory' |
     'enterInfiniteMode' | 'debugAddResources' | 'debugSetGold' | 'debugFastForward' | 'resetGame' | 'setBattleSpeed' |
     'setTradeTab' | 'sendCaravan' | 'establishTradeRoute' | 'cancelTradeRoute' | 'upgradeTradeSkill' |
     'initializeSenate' | 'allocateAttention' | 'resolveSenatorEvent' | 'dismissSenatorEvent' | 'setSenatorRelation'
@@ -494,6 +543,10 @@ const createInitialState = (): Omit<GameStore,
     // Religion - Consecrated territories
     consecratedTerritories: [],
     worshipCooldowns: {},
+
+    // NPCs and story quest state
+    npcs: INITIAL_NPCS.map(n => ({ ...n })),
+    visitedTerritories: [],
 
     // Battle Animation Settings
     battleSpeed: 'normal' as const,
@@ -1502,6 +1555,131 @@ export const useGameStore = create<GameStore>()(
                     denarii: state.denarii - focusData.cost,
                     territories: newTerritories,
                     lastEvents: [`${state.territories[territoryIdx].name} focus set to ${focusData.name}!`],
+                });
+            },
+
+            // === NPCs & STORY QUESTS ===
+            talkToNPC: (npcId) => {
+                const state = get();
+                const npcIdx = state.npcs.findIndex(n => n.id === npcId);
+                if (npcIdx === -1) return;
+                const npc = state.npcs[npcIdx];
+
+                // If already interacted and quest given, show after-quest dialogue
+                if (npc.interacted) {
+                    set({ lastEvents: [`[${npc.name}] "${npc.dialogue.afterQuest}"`] });
+                    return;
+                }
+
+                // Mark NPC as interacted
+                const updatedNpcs = state.npcs.map((n, i) =>
+                    i === npcIdx ? { ...n, interacted: true } : n
+                );
+
+                // If NPC offers a quest, add it
+                if (npc.questId === 'story_ch1_whispering_woods') {
+                    const storyQuest = {
+                        id: 'story_ch1_whispering_woods',
+                        title: 'Ch.1: Enter Whispering Woods',
+                        description: 'Robin the Woodsman has told you of the ancient Whispering Woods. Journey there to discover its secrets.',
+                        type: 'story' as const,
+                        target: 1,
+                        progress: 0,
+                        reward: { denarii: 150, reputation: 5 },
+                        active: true,
+                        completed: false,
+                        chapter: 'Chapter 1',
+                        steps: [
+                            {
+                                id: 'travel_to_woods',
+                                description: 'Travel to the Whispering Woods via the World Map',
+                                completed: false,
+                            },
+                        ],
+                    };
+
+                    // Only add if not already in quests
+                    const alreadyHas = state.quests.some(q => q.id === storyQuest.id);
+                    if (!alreadyHas) {
+                        set({
+                            npcs: updatedNpcs,
+                            quests: [...state.quests, storyQuest],
+                            lastEvents: [
+                                `[${npc.name}] "${npc.dialogue.questOffer}"`,
+                                `[Quest Accepted] Ch.1: Enter Whispering Woods`,
+                            ],
+                        });
+                        return;
+                    }
+                }
+
+                set({
+                    npcs: updatedNpcs,
+                    lastEvents: [`[${npc.name}] "${npc.dialogue.greeting}"`],
+                });
+            },
+
+            enterTerritory: (territoryId) => {
+                const state = get();
+                const territory = state.territories.find(t => t.id === territoryId);
+                if (!territory || territory.owned || !territory.enterable) return;
+
+                // Mark territory as owned (entered)
+                const newTerritories = state.territories.map(t =>
+                    t.id === territoryId ? { ...t, owned: true } : t
+                );
+
+                // Track visited territory
+                const newVisited = [...state.visitedTerritories, territoryId];
+
+                // Check if this completes a story quest step
+                const updatedQuests = state.quests.map(q => {
+                    if (q.type !== 'story' || !q.steps || q.completed) return q;
+
+                    // Check for the Whispering Woods quest
+                    if (q.id === 'story_ch1_whispering_woods' && territoryId === 'whispering_woods') {
+                        const updatedSteps = q.steps.map(s =>
+                            s.id === 'travel_to_woods' ? { ...s, completed: true } : s
+                        );
+                        const allDone = updatedSteps.every(s => s.completed);
+                        return {
+                            ...q,
+                            steps: updatedSteps,
+                            progress: allDone ? q.target : 0,
+                            completed: allDone,
+                        };
+                    }
+                    return q;
+                });
+
+                // Check if quest was just completed for rewards
+                const justCompleted = updatedQuests.find(
+                    q => q.id === 'story_ch1_whispering_woods' && q.completed && !state.quests.find(oq => oq.id === q.id)?.completed
+                );
+
+                const events = [`You enter the ${territory.name}. The ancient trees whisper around you...`];
+                let newDenarii = state.denarii;
+                let newReputation = state.reputation;
+
+                if (justCompleted) {
+                    events.push(`[Quest Complete] Ch.1: Enter Whispering Woods`);
+                    if (justCompleted.reward.denarii) {
+                        newDenarii += justCompleted.reward.denarii;
+                        events.push(`Reward: +${justCompleted.reward.denarii} denarii`);
+                    }
+                    if (justCompleted.reward.reputation) {
+                        newReputation += justCompleted.reward.reputation;
+                        events.push(`Reward: +${justCompleted.reward.reputation} reputation`);
+                    }
+                }
+
+                set({
+                    territories: newTerritories,
+                    visitedTerritories: newVisited,
+                    quests: updatedQuests,
+                    denarii: newDenarii,
+                    reputation: newReputation,
+                    lastEvents: events,
                 });
             },
 

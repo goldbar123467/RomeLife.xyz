@@ -7,7 +7,7 @@ import { staggerContainer, fadeInUp } from '@/lib/animations';
 import {
     Map, Landmark, Swords, X, User, Target, Shield, Building2, TrendingUp,
     Eye, ChevronUp, ChevronDown, Check, ScrollText, Crown, Wheat,
-    Sparkles, ChevronRight, Coins
+    Sparkles, ChevronRight, Coins, TreePine, MessageCircle
 } from 'lucide-react';
 import {
     GOVERNORS, TERRITORY_FOCUS,
@@ -33,15 +33,23 @@ export function MapPanel() {
     const {
         territories, startBattle, denarii, troops,
         assignGovernor, setTerritoryFocus,
-        upgradeTerritoryLevel, buildTerritoryBuilding, assignGarrison, recallGarrison
+        upgradeTerritoryLevel, buildTerritoryBuilding, assignGarrison, recallGarrison,
+        npcs, talkToNPC, enterTerritory
     } = useGameStore();
     const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
     const [activeTab, setActiveTab] = useState<TerritoryTab>('overview');
     const [garrisonAmount, setGarrisonAmount] = useState(10);
 
-    // Separate owned vs conquerable
+    // Separate owned vs conquerable vs enterable
     const ownedTerritories = useMemo(() => territories.filter(t => t.owned), [territories]);
-    const conquerableTerritories = useMemo(() => territories.filter(t => !t.owned), [territories]);
+    const conquerableTerritories = useMemo(() => territories.filter(t => !t.owned && !t.enterable), [territories]);
+    const enterableTerritories = useMemo(() => territories.filter(t => !t.owned && t.enterable), [territories]);
+
+    // NPCs on owned territories
+    const localNpcs = useMemo(() => {
+        const ownedIds = new Set(ownedTerritories.map(t => t.id));
+        return npcs.filter(n => ownedIds.has(n.location));
+    }, [npcs, ownedTerritories]);
 
     // Empire stats
     const empireStats = useMemo(() => {
@@ -146,24 +154,39 @@ export function MapPanel() {
                     </>
                 ) : (
                     <>
-                        {/* Conquest info */}
-                        <div className="mt-3 pt-3 border-t border-white/10">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-muted">Required Troops</span>
-                                <span className={`text-sm font-bold ${troops >= territory.difficulty * 1.5 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {Math.ceil(territory.difficulty * 1.5)}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Swords className="w-4 h-4 text-roman-red" />
-                                    <span className="text-xs text-roman-red font-medium">Difficulty {territory.difficulty}</span>
+                        {territory.enterable ? (
+                            /* Enterable territory info */
+                            <div className="mt-3 pt-3 border-t border-white/10">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <TreePine className="w-4 h-4 text-green-400" />
+                                        <span className="text-xs text-green-400 font-medium">Peaceful Region</span>
+                                    </div>
+                                    <Button variant="roman" size="sm" className="text-xs px-3">
+                                        Enter
+                                    </Button>
                                 </div>
-                                <Button variant="roman" size="sm" className="text-xs px-3">
-                                    Conquer
-                                </Button>
                             </div>
-                        </div>
+                        ) : (
+                            /* Conquest info */
+                            <div className="mt-3 pt-3 border-t border-white/10">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs text-muted">Required Troops</span>
+                                    <span className={`text-sm font-bold ${troops >= territory.difficulty * 1.5 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {Math.ceil(territory.difficulty * 1.5)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Swords className="w-4 h-4 text-roman-red" />
+                                        <span className="text-xs text-roman-red font-medium">Difficulty {territory.difficulty}</span>
+                                    </div>
+                                    <Button variant="roman" size="sm" className="text-xs px-3">
+                                        Conquer
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
             </motion.div>
@@ -275,6 +298,89 @@ export function MapPanel() {
                                 onClick={() => startBattle(territory.id)}
                             />
                         ))}
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Locations to Explore */}
+            {enterableTerritories.length > 0 && (
+                <div>
+                    <h3 className="text-lg font-bold text-green-400 mb-4 flex items-center gap-2">
+                        <TreePine className="w-5 h-5" /> Locations to Explore
+                        <Badge variant="success" size="sm">{enterableTerritories.length}</Badge>
+                    </h3>
+                    <motion.div
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        variants={staggerContainer}
+                        initial="initial"
+                        animate="animate"
+                    >
+                        {enterableTerritories.map((territory) => (
+                            <TerritoryCard
+                                key={territory.id}
+                                territory={territory}
+                                onClick={() => enterTerritory(territory.id)}
+                            />
+                        ))}
+                    </motion.div>
+                </div>
+            )}
+
+            {/* NPCs */}
+            {localNpcs.length > 0 && (
+                <div>
+                    <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5" /> People Nearby
+                    </h3>
+                    <motion.div
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        variants={staggerContainer}
+                        initial="initial"
+                        animate="animate"
+                    >
+                        {localNpcs.map((npc) => {
+                            const npcTerritory = territories.find(t => t.id === npc.location);
+                            return (
+                                <motion.div key={npc.id} variants={fadeInUp}>
+                                    <GlassCard className="p-4 border border-amber-500/30 bg-amber-500/5">
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                                                <User className="w-6 h-6 text-amber-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-amber-400">{npc.name}</h4>
+                                                <p className="text-xs text-muted italic">{npc.title}</p>
+                                                {npcTerritory && (
+                                                    <p className="text-xs text-muted mt-1">Location: {npcTerritory.name}</p>
+                                                )}
+                                                <p className="text-sm text-gray-300 mt-2">
+                                                    {npc.interacted ? npc.dialogue.afterQuest : npc.dialogue.greeting}
+                                                </p>
+                                                {!npc.interacted && npc.questId && (
+                                                    <Button
+                                                        variant="roman"
+                                                        size="sm"
+                                                        className="mt-3 text-xs"
+                                                        onClick={() => talkToNPC(npc.id)}
+                                                    >
+                                                        <MessageCircle className="w-3 h-3 mr-1" />
+                                                        Talk
+                                                    </Button>
+                                                )}
+                                                {npc.interacted && !npc.questId && (
+                                                    <Badge variant="default" size="sm" className="mt-2">Already spoken</Badge>
+                                                )}
+                                                {npc.interacted && npc.questId && (
+                                                    <Badge variant="success" size="sm" className="mt-2">
+                                                        <Check className="w-3 h-3 mr-1" /> Quest Given
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </GlassCard>
+                                </motion.div>
+                            );
+                        })}
                     </motion.div>
                 </div>
             )}
