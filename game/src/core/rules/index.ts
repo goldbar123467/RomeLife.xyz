@@ -293,6 +293,10 @@ export function checkQuestProgress(state: GameState, quest: Quest): number {
             if (quest.description.includes('troops')) return state.troops;
             if (quest.description.includes('happiness')) return state.happiness;
             return 0;
+        case 'story':
+            // Story quests track progress via steps; return current progress as-is
+            // (steps are completed by actions like enterTerritory, not by season checks)
+            return quest.progress;
         default:
             return 0;
     }

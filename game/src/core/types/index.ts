@@ -81,6 +81,8 @@ export interface Territory {
     pros: string[];
     cons: string[];
     history: string;
+    biome?: string;
+    enterable?: boolean;
 }
 
 export interface TerritoryRequirement {
@@ -184,16 +186,39 @@ export interface Blessing {
     effect: string;
 }
 
+export interface QuestStep {
+    id: string;
+    description: string;
+    completed: boolean;
+}
+
 export interface Quest {
     id: string;
     title: string;
     description: string;
-    type: 'build' | 'conquer' | 'trade' | 'research' | 'threshold';
+    type: 'build' | 'conquer' | 'trade' | 'research' | 'threshold' | 'story';
     target: number;
     progress: number;
     reward: QuestReward;
     active: boolean;
     completed: boolean;
+    chapter?: string;
+    steps?: QuestStep[];
+}
+
+export interface NPC {
+    id: string;
+    name: string;
+    title: string;
+    dialogue: {
+        greeting: string;
+        questOffer: string;
+        questAccepted: string;
+        afterQuest: string;
+    };
+    location: string;
+    questId?: string;
+    interacted: boolean;
 }
 
 export interface QuestReward {
@@ -452,6 +477,10 @@ export interface GameState {
 
     // Worship action cooldowns
     worshipCooldowns?: Record<string, number>;
+
+    // NPCs and story quest state
+    npcs: NPC[];
+    visitedTerritories: string[];
 }
 
 export interface GameHistoryEntry {

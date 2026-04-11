@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Badge, SectionHeader, ProgressBar, GameImage } from '@/components/ui';
 import { staggerContainer, fadeInUp } from '@/lib/animations';
-import { ScrollText, Target, Coins, Trophy, Star, Check, Sparkles, TrendingUp, Lightbulb } from 'lucide-react';
+import { ScrollText, Target, Coins, Trophy, Star, Check, Sparkles, TrendingUp, Lightbulb, BookOpen, Circle, CheckCircle2 } from 'lucide-react';
 import type { Quest } from '@/core/types';
 
 // Quest type icons
@@ -14,13 +14,16 @@ const QUEST_ICONS: Record<string, React.ReactNode> = {
     trade: <GameImage src="coin-gold" size="sm" alt="Trade" />,
     research: <GameImage src="scroll" size="sm" alt="Research" />,
     threshold: <GameImage src="laurels" size="sm" alt="Threshold" />,
+    story: <BookOpen className="w-6 h-6 text-amber-400" />,
 };
 
 function QuestCard({ quest }: { quest: Quest }) {
+    const isStory = quest.type === 'story';
+
     return (
         <motion.div variants={fadeInUp}>
             <GlassCard
-                className={`p-5 h-full ${quest.completed ? 'border-2 border-green-500/60 bg-green-500/10' : ''} ${!quest.active ? 'opacity-50' : ''}`}
+                className={`p-5 h-full ${quest.completed ? 'border-2 border-green-500/60 bg-green-500/10' : ''} ${isStory && !quest.completed ? 'border border-amber-500/30' : ''} ${!quest.active ? 'opacity-50' : ''}`}
             >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -28,7 +31,9 @@ function QuestCard({ quest }: { quest: Quest }) {
                         {QUEST_ICONS[quest.type] || <Target className="w-6 h-6" />}
                         <div>
                             <h3 className="font-bold text-roman-gold text-lg">{quest.title}</h3>
-                            <p className="text-sm text-muted capitalize">{quest.type} Quest</p>
+                            <p className="text-sm text-muted capitalize">
+                                {isStory && quest.chapter ? quest.chapter : `${quest.type} Quest`}
+                            </p>
                         </div>
                     </div>
                     {quest.completed ? (
@@ -36,7 +41,9 @@ function QuestCard({ quest }: { quest: Quest }) {
                             <Check className="w-3 h-3 mr-1" /> Complete
                         </Badge>
                     ) : quest.active ? (
-                        <Badge variant="gold" size="sm">Active</Badge>
+                        <Badge variant={isStory ? 'gold' : 'gold'} size="sm">
+                            {isStory ? 'Story Quest' : 'Active'}
+                        </Badge>
                     ) : (
                         <Badge variant="default" size="sm">Inactive</Badge>
                     )}
@@ -45,21 +52,46 @@ function QuestCard({ quest }: { quest: Quest }) {
                 {/* Description */}
                 <p className="text-sm text-gray-300 mb-4">{quest.description}</p>
 
-                {/* Progress */}
-                <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                        <span className="text-muted">Progress</span>
-                        <span className={quest.completed ? 'text-green-400' : 'text-roman-gold'}>
-                            {quest.progress} / {quest.target}
-                        </span>
+                {/* Story Quest Steps */}
+                {isStory && quest.steps && quest.steps.length > 0 && (
+                    <div className="mb-4 p-3 rounded-lg bg-white/5">
+                        <h4 className="text-xs font-semibold text-amber-400 uppercase mb-2 flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" /> Objectives
+                        </h4>
+                        <div className="space-y-2">
+                            {quest.steps.map((step) => (
+                                <div key={step.id} className="flex items-start gap-2">
+                                    {step.completed ? (
+                                        <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                    ) : (
+                                        <Circle className="w-4 h-4 text-muted mt-0.5 flex-shrink-0" />
+                                    )}
+                                    <span className={`text-sm ${step.completed ? 'text-green-400 line-through' : 'text-gray-300'}`}>
+                                        {step.description}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <ProgressBar
-                        value={quest.progress}
-                        max={quest.target}
-                        variant={quest.completed ? 'green' : 'gold'}
-                        height="md"
-                    />
-                </div>
+                )}
+
+                {/* Progress (non-story quests) */}
+                {!isStory && (
+                    <div className="mb-4">
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted">Progress</span>
+                            <span className={quest.completed ? 'text-green-400' : 'text-roman-gold'}>
+                                {quest.progress} / {quest.target}
+                            </span>
+                        </div>
+                        <ProgressBar
+                            value={quest.progress}
+                            max={quest.target}
+                            variant={quest.completed ? 'green' : 'gold'}
+                            height="md"
+                        />
+                    </div>
+                )}
 
                 {/* Rewards */}
                 <div>
