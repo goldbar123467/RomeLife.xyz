@@ -22,7 +22,6 @@ import {
     calculateEnvoySuccess, calculateEnvoyEffect, calculateRelationDecay,
     calculateTradeRisk, resolveTradeRisk, calculateStabilityChange, rollTerritoryEvent,
     shouldGenerateContent, generateProceduralTerritory, randomInt, random, roundResource,
-    getGodBlessingBonus
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import {
@@ -476,7 +475,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
     // Morale adjustments - additive like happiness, including governor bonus (Titus +15%)
     const moraleAdjust = Math.round((seasonMod.morale - 1) * 100);
-    const godMoraleBonus = Math.round(getGodBlessingBonus(state.patronGod, state.godFavor, 'morale') * 100);
+    // Jupiter tier 75: +15 morale (additive value from BLESSING_EFFECTS)
+    const godMoraleBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'morale');
     const starvationMoraleLoss = isStarving ? GAME_CONSTANTS.STARVATION_MORALE_LOSS : 0;
     let newMorale = Math.floor(state.morale + moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss);
     newMorale = Math.max(0, Math.min(100, newMorale));
@@ -1040,8 +1040,9 @@ export function executeSendEnvoy(state: GameState, factionId: string): EnvoyResu
     }
 
     // Calculate success
-    const godDiplomacyBonus = getGodBlessingBonus(state.patronGod, state.godFavor, 'diplomacy');
-    const successChance = calculateEnvoySuccess(state.reputation, currentRelation) + godDiplomacyBonus;
+    // No canonical diplomacy blessing exists in BLESSING_EFFECTS - envoy success
+    // is based on reputation and current relation only
+    const successChance = calculateEnvoySuccess(state.reputation, currentRelation);
     const succeeded = random() < successChance;
     const relationChange = calculateEnvoyEffect(succeeded, state.reputation);
 
