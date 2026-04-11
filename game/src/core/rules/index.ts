@@ -106,7 +106,7 @@ export function checkFailureConditions(state: GameState): FailureResult | null {
         };
     }
 
-    // Collapse: Population < 40
+    // Collapse: Population < FAILURE_MIN_POPULATION (30)
     if (population < GAME_CONSTANTS.FAILURE_MIN_POPULATION) {
         return {
             type: 'collapse',
@@ -115,7 +115,7 @@ export function checkFailureConditions(state: GameState): FailureResult | null {
         };
     }
 
-    // Unrest: Happiness ≤ 25% (FAILURE_MIN_HAPPINESS = 25)
+    // Unrest: Happiness ≤ FAILURE_MIN_HAPPINESS (20%)
     if (happiness <= GAME_CONSTANTS.FAILURE_MIN_HAPPINESS) {
         return {
             type: 'unrest',

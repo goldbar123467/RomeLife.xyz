@@ -459,7 +459,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     let newHappiness = state.happiness;
     const venusHappinessBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'happiness');
     if (venusHappinessBonus > 0) newHappiness += venusHappinessBonus; // Venus tier 25: +10 happiness
-    if (totalBuildingHappiness > 0) newHappiness += totalBuildingHappiness; // Arena, Temple bonuses
+    newHappiness += totalBuildingHappiness; // Arena, Temple bonuses (apply even if net-negative)
     newHappiness += totalGovernorHappiness; // Servius +10%, Gaius -5%
     if (isStarving) newHappiness -= 10;
     if (state.taxRate > 0.20) newHappiness -= Math.floor((state.taxRate - 0.20) * 50);
@@ -674,18 +674,18 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         events,
     };
 
-    // Record treasury history for charts
+    // Build total additional income BEFORE treasury history so chart data is accurate
+    const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + wonderRecurringIncome + eventDenarii;
+
+    // Record treasury history for charts (uses final denarii including all income sources)
     const treasuryEntry: TreasuryHistoryEntry = {
         round: newRound,
         season: nextSeason,
-        denarii: newDenarii + prosperityIncome,
+        denarii: Math.max(0, newDenarii + totalAdditionalIncome),
         income: summary.income,
         upkeep: summary.upkeep,
         netIncome: summary.netIncome,
     };
-
-    // Build new state
-    const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + wonderRecurringIncome + eventDenarii;
     const newState: Partial<GameState> = {
         season: nextSeason,
         round: newRound,
@@ -705,7 +705,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         technologies: newTechnologies,
         godFavor: newGodFavor,
         // Apply achievement rewards + wonder effects + event effects
-        reputation: Math.max(0, newReputation + eventReputation),
+        reputation: Math.max(0, Math.min(100, newReputation + eventReputation)),
         supplies: newSupplies,
         piety: Math.max(0, Math.min(100, newPiety + wonderEffects.piety + eventPiety)),
         sanitation: Math.max(0, Math.min(100, state.sanitation + wonderEffects.sanitation)),
