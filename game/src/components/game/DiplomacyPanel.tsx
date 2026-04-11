@@ -15,7 +15,6 @@ import {
     OPPORTUNITY_THRESHOLD,
     DIPLOMATIC_EFFECTS,
 } from '@/core/constants/diplomacy';
-import { getGodBlessingBonus } from '@/core/math';
 import {
     TrendingUp,
     TrendingDown,
@@ -40,7 +39,7 @@ const STATUS_ICONS: Record<string, LucideIcon> = {
 
 export function DiplomacyPanel() {
     const state = useGameStore();
-    const { diplomacy, reputation, denarii, sendEnvoy, lastEvents, patronGod, godFavor, round } = state;
+    const { diplomacy, reputation, denarii, sendEnvoy, lastEvents, round } = state;
     const factionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     // State for envoy confirmation dialog
@@ -70,9 +69,6 @@ export function DiplomacyPanel() {
 
     // Get factions as array
     const factions = Object.values(FACTIONS);
-
-    // Calculate god diplomacy bonus
-    const godDiplomacyBonus = getGodBlessingBonus(patronGod, godFavor, 'diplomacy');
 
     // Identify crises and opportunities
     const crisisFactions = factions.filter(
@@ -345,7 +341,7 @@ export function DiplomacyPanel() {
                 faction={selectedFaction}
                 currentRelation={selectedFaction ? (diplomacy.relations[selectedFaction.id] || 50) : 50}
                 reputation={reputation}
-                godDiplomacyBonus={godDiplomacyBonus}
+                godDiplomacyBonus={0}
                 denarii={denarii}
                 onConfirm={handleConfirmEnvoy}
             />

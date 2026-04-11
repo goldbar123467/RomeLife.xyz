@@ -116,45 +116,6 @@ export function getRarityColor(rarity: Rarity): string {
     return colors[rarity];
 }
 
-// === GOD BLESSING SYSTEM ===
-
-import type { GodName } from '../types';
-
-/**
- * Get cumulative bonus from god blessings based on favor level
- * Each god grants different bonuses at tier 25/50/75
- * Returns multiplier (e.g., 0.15 for +15%)
- */
-export function getGodBlessingBonus(
-    patronGod: GodName | null,
-    godFavor: Record<GodName, number>,
-    bonusType: 'attack' | 'morale' | 'stability' | 'fertility' | 'diplomacy' | 'grain' | 'trade' | 'income'
-): number {
-    if (!patronGod) return 0;
-    const favor = godFavor[patronGod];
-
-    // Each god grants different bonuses at different tiers
-    const blessingBonuses: Record<GodName, Record<string, number[]>> = {
-        jupiter: { attack: [0.10, 0, 0], morale: [0, 0.15, 0], stability: [0, 0, 0.20] },
-        mars: { attack: [0.15, 0, 0.25], morale: [0, 0, 0] },
-        venus: { diplomacy: [0.10, 0, 0], fertility: [0, 0.25, 0] },
-        ceres: { grain: [0.15, 0.20, 0] },
-        mercury: { trade: [0.10, 0, 0], income: [0, 0, 0.25] },
-        minerva: { attack: [0, 0, 0.30] }, // Strategic Mind bonus
-    };
-
-    const godBonuses = blessingBonuses[patronGod];
-    if (!godBonuses || !godBonuses[bonusType]) return 0;
-
-    const tiers = godBonuses[bonusType];
-    let bonus = 0;
-    if (favor >= 25) bonus += tiers[0] || 0;
-    if (favor >= 50) bonus += tiers[1] || 0;
-    if (favor >= 75) bonus += tiers[2] || 0;
-
-    return bonus;
-}
-
 // === PRODUCTION MATH ===
 
 /**
@@ -346,8 +307,8 @@ export function calculateIncome(state: GameState): number {
     // Inflation penalty
     const inflationMod = 1 - (inflation * 0.01);
 
-    // God blessing income bonus (Mercury Tier 75: +25% income)
-    const godIncomeBonus = getGodBlessingBonus(state.patronGod, state.godFavor, 'income');
+    // God blessing income bonus via trade prices (Mercury/Venus tier 25: +10%)
+    const godIncomeBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tradePrices');
     const totalIncomeMod = (1 + godIncomeBonus) * territoryBuildingIncomeMultiplier * governorIncomeMultiplier;
 
     return Math.floor((baseTax + territoryIncome + buildingIncome) * stabilityMod * inflationMod * totalIncomeMod);
@@ -606,15 +567,10 @@ export function resolveBattle(
 export function calculateStabilityChange(
     territory: Territory,
     buildings: Building[],
-    state: GameState
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _state: GameState
 ): number {
-    const godStabilityBonus = getGodBlessingBonus(state.patronGod, state.godFavor, 'stability');
     let change = 0;
-
-    // Stability bonus from god blessing (+20%)
-    if (godStabilityBonus > 0) {
-        change += Math.floor(territory.stability * godStabilityBonus);
-    }
 
     // Garrison effect
     if (territory.garrison > 20) {
@@ -748,8 +704,8 @@ export function calculatePopulationGrowth(state: GameState): number {
     // Base growth rate: 3.5% per season (buffed from 2%)
     let growthRate = 0.035;
 
-    // Venus blessing (Fertility Tier 50: +25% growth)
-    const fertilityBonus = getGodBlessingBonus(state.patronGod, state.godFavor, 'fertility');
+    // Venus blessing (popGrowth Tier 50: +15% growth)
+    const fertilityBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'popGrowth');
     growthRate *= (1 + fertilityBonus);
 
     // Happiness modifier: 50% = 1x, 100% = 1.5x, 0% = 0.5x
