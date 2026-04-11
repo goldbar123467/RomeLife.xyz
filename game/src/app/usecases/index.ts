@@ -497,6 +497,16 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // Worship cooldowns decay
+    const newWorshipCooldowns: Record<string, number> = {};
+    if (state.worshipCooldowns) {
+        for (const [actionId, cooldown] of Object.entries(state.worshipCooldowns)) {
+            if (cooldown > 1) {
+                newWorshipCooldowns[actionId] = cooldown - 1;
+            }
+        }
+    }
+
     // Check achievements
     const achievementsUnlocked = checkAchievements(
         { ...state, round: newRound, denarii: newDenarii, population: newPopulation },
@@ -697,8 +707,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         // Apply achievement rewards + wonder effects + event effects
         reputation: Math.max(0, newReputation + eventReputation),
         supplies: newSupplies,
-        piety: Math.max(0, newPiety + wonderEffects.piety + eventPiety),
-        sanitation: state.sanitation + wonderEffects.sanitation,
+        piety: Math.max(0, Math.min(100, newPiety + wonderEffects.piety + eventPiety)),
+        sanitation: Math.max(0, Math.min(100, state.sanitation + wonderEffects.sanitation)),
         housing: newHousing,
         capacity: newCapacity,
         market: {
@@ -717,6 +727,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             relations: newRelations,
         },
         emergencyCooldowns: newEmergencyCooldowns,
+        worshipCooldowns: newWorshipCooldowns,
         eventCooldowns: newEventCooldowns,
         history: [...state.history, historyEntry],
         treasuryHistory: [...(state.treasuryHistory || []), treasuryEntry].slice(-50), // Keep last 50 entries

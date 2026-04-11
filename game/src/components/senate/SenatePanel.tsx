@@ -46,12 +46,13 @@ export function SenatePanel() {
 
     // Count danger levels
     const dangerCount = SENATOR_ORDER.filter(id => {
-        const senator = senate.senators[id];
-        return senator.assassination.windowOpen ||
+        const senator = senate.senators?.[id];
+        if (!senator) return false;
+        return senator.assassination?.windowOpen ||
             senator.relation <= -50 ||
-            senator.currentState.includes('hostile') ||
-            senator.currentState.includes('rival') ||
-            senator.currentState.includes('condemned');
+            senator.currentState?.includes('hostile') ||
+            senator.currentState?.includes('rival') ||
+            senator.currentState?.includes('condemned');
     }).length;
 
     const isGracePeriod = round <= SENATE_GRACE_PERIOD_ROUNDS;
@@ -119,7 +120,7 @@ export function SenatePanel() {
                         <span className="text-sm text-muted">Friendly</span>
                     </div>
                     <span className="text-2xl font-black text-green-400">
-                        {SENATOR_ORDER.filter(id => senate.senators[id].relation >= 30).length}
+                        {SENATOR_ORDER.filter(id => senate.senators?.[id]?.relation >= 30).length}
                     </span>
                 </GlassCard>
                 <GlassCard className="p-4">
@@ -128,7 +129,7 @@ export function SenatePanel() {
                         <span className="text-sm text-muted">Hostile</span>
                     </div>
                     <span className="text-2xl font-black text-red-400">
-                        {SENATOR_ORDER.filter(id => senate.senators[id].relation <= -30).length}
+                        {SENATOR_ORDER.filter(id => senate.senators?.[id]?.relation <= -30).length}
                     </span>
                 </GlassCard>
             </div>
@@ -150,15 +151,19 @@ export function SenatePanel() {
                 animate="animate"
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4"
             >
-                {SENATOR_ORDER.map(id => (
-                    <motion.div key={id} variants={fadeInUp}>
-                        <SenatorCard
-                            senator={senate.senators[id]}
-                            attention={attention[id]}
-                            onClick={() => setSelectedSenator(id)}
-                        />
-                    </motion.div>
-                ))}
+                {SENATOR_ORDER.map(id => {
+                    const senator = senate.senators?.[id];
+                    if (!senator) return null;
+                    return (
+                        <motion.div key={id} variants={fadeInUp}>
+                            <SenatorCard
+                                senator={senator}
+                                attention={attention[id]}
+                                onClick={() => setSelectedSenator(id)}
+                            />
+                        </motion.div>
+                    );
+                })}
             </motion.div>
 
             {/* Event Log */}
