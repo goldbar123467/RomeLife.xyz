@@ -291,7 +291,7 @@ export const BLESSING_EFFECTS: BlessingEffect[] = [
 
   // Minerva - Wisdom
   { god: 'minerva', tier: 25, effectType: 'techCost', value: -0.15, description: '-15% tech costs' },
-  { god: 'minerva', tier: 50, effectType: 'freeTech', value: 5, description: '+1 free tech every 5 rounds' },
+  { god: 'minerva', tier: 50, effectType: 'freeTech', value: 5, description: '+1 free tech every 3 rounds' },
   { god: 'minerva', tier: 75, effectType: 'buildingEfficiency', value: 0.25, description: '+25% building efficiency' },
   { god: 'minerva', tier: 100, effectType: 'favor', value: 20, description: '+20 favor' },
 ];

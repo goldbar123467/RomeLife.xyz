@@ -586,19 +586,26 @@ export const useGameStore = create<GameStore>()(
             },
 
             endSeason: () => {
-                let state = get();
+                const state = get();
 
-                // Clear any pending senate events before season processing
-                // This prevents permanent game lockout if events can't be resolved
-                if (state.senate?.currentEvent || (state.senate?.pendingEvents?.length ?? 0) > 0) {
+                // Guard: Block season advance while senate events need player resolution
+                // SenatorEventModal renders globally in GameLayout, so player can always resolve
+                if (state.senate?.currentEvent) {
+                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
+                    return;
+                }
+                // Promote next pending event to currentEvent so player can resolve it
+                if ((state.senate?.pendingEvents?.length ?? 0) > 0) {
+                    const [nextEvent, ...remaining] = state.senate!.pendingEvents;
                     set({
                         senate: {
-                            ...state.senate,
-                            currentEvent: null,
-                            pendingEvents: [],
+                            ...state.senate!,
+                            currentEvent: nextEvent,
+                            pendingEvents: remaining,
                         },
+                        lastEvents: ['A senator demands your attention! Resolve the event first.'],
                     });
-                    state = get();
+                    return;
                 }
 
                 const result = executeEndSeason(state);
