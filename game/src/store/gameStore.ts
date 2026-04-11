@@ -26,6 +26,7 @@ import {
     executeEndSeason, executeRecruitTroops, executeResearchTech,
     executeTrade, executeUpgradeTerritory, executeSendEnvoy, executeEnterInfiniteMode
 } from '@/app/usecases';
+import { syncToDatabase, clearDbGameId } from '@/lib/dbSync';
 
 // === INITIAL TERRITORIES ===
 const INITIAL_TERRITORIES: Territory[] = [
@@ -560,6 +561,9 @@ export const useGameStore = create<GameStore>()(
 
             // === GAME FLOW ===
             startGame: (founder) => {
+                // Clear previous DB game ID for fresh tracking
+                clearDbGameId();
+
                 // Generate initial quests
                 const state = get();
                 const quest1 = generateQuest(state);
@@ -616,6 +620,13 @@ export const useGameStore = create<GameStore>()(
                     _endSeasonBlockedAttempts: 0,
                     lastEvents: result.events,
                 } as Partial<GameStore>);
+
+                // Sync to PostgreSQL (non-blocking)
+                const updatedState = get();
+                syncToDatabase(
+                    JSON.parse(JSON.stringify(updatedState)),
+                    result.events,
+                ).catch(() => { /* DB sync is best-effort */ });
             },
 
             setStage: (stage) => set({ stage }),
