@@ -725,6 +725,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         diplomacy: {
             ...state.diplomacy,
             relations: newRelations,
+            activeEnvoys: Math.max(0, state.diplomacy.activeEnvoys - 1),
         },
         emergencyCooldowns: newEmergencyCooldowns,
         worshipCooldowns: newWorshipCooldowns,
