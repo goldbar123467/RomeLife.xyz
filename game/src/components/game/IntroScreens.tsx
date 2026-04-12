@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { FOUNDERS } from '@/core/constants';
-import { Button, GlassCard, Badge, GameImage } from '@/components/ui';
+import { GameImage } from '@/components/ui';
 import { Egg, Check } from 'lucide-react';
 import { gameToast } from '@/lib/toast';
 import type { FounderName } from '@/core/types';
@@ -307,156 +307,245 @@ export function FounderSelectScreen() {
         }
     };
 
-    const getFounderIcon = (id: FounderName): React.ReactNode => {
-        switch (id) {
-            case 'romulus': return <GameImage src="centurion-helmet" size="2xl" alt="Romulus" />;
-            case 'remus': return <GameImage src="laurels" size="2xl" alt="Remus" />;
-            default: return <GameImage src="roman" size="2xl" alt="Founder" />;
-        }
+    const founderMeta: Record<string, { icon: React.ReactNode; accent: string; borderColor: string; glowColor: string }> = {
+        romulus: {
+            icon: <GameImage src="centurion-helmet" width={80} height={80} alt="Romulus" />,
+            accent: 'from-roman-red/20 to-red-950/10',
+            borderColor: 'border-roman-red/40',
+            glowColor: 'rgba(196, 30, 58, 0.4)',
+        },
+        remus: {
+            icon: <GameImage src="laurels" width={80} height={80} alt="Remus" />,
+            accent: 'from-emerald-900/20 to-green-950/10',
+            borderColor: 'border-emerald-700/40',
+            glowColor: 'rgba(16, 185, 129, 0.4)',
+        },
+    };
+
+    const renderModifier = (label: string, value: number) => {
+        if (value === 0) return null;
+        const isPositive = value > 0;
+        return (
+            <div className="flex items-center justify-between text-xs py-1 border-b border-white/[0.04] last:border-0">
+                <span className="text-white/40 font-medium">{label}</span>
+                <span className={`font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isPositive ? '+' : ''}{Math.round(value * 100)}%
+                </span>
+            </div>
+        );
     };
 
     return (
         <motion.div
-            className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a0a12] via-[#050508] to-[#0a0a0a] p-8"
+            className="fixed inset-0 flex flex-col overflow-hidden bg-black"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
         >
-            {/* Header */}
-            <motion.div
-                className="text-center mb-12"
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-            >
-                <h1 className="text-4xl font-black text-roman-gold mb-2">Choose Your Founder</h1>
-                <p className="text-muted">Your choice will shape the destiny of Rome</p>
-            </motion.div>
-
-            {/* Founder Cards */}
-            <div className="flex-1 flex items-center justify-center">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
-                    {founders.map((founder, index) => (
-                        <motion.div
-                            key={founder.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.15 }}
-                        >
-                            <GlassCard
-                                variant={selectedFounder === founder.id ? 'gold' : 'default'}
-                                className={`relative cursor-pointer transition-all duration-300 ${selectedFounder === founder.id
-                                    ? 'ring-2 ring-roman-gold glow-gold'
-                                    : 'hover:border-white/30'
-                                    }`}
-                                onClick={() => setSelectedFounder(founder.id)}
-                                hover={true}
-                            >
-                                {/* Icon */}
-                                <motion.div
-                                    className="text-6xl text-center mb-4"
-                                    animate={selectedFounder === founder.id ? { scale: [1, 1.1, 1] } : {}}
-                                    transition={{ duration: 0.5 }}
-                                >
-                                    {getFounderIcon(founder.id)}
-                                </motion.div>
-
-                                {/* Name & Archetype */}
-                                <h3 className="text-2xl font-bold text-center text-roman-gold mb-1">
-                                    {founder.name}
-                                </h3>
-                                <div className="text-center mb-4">
-                                    <Badge variant="gold">
-                                        {founder.archetype}
-                                    </Badge>
-                                </div>
-
-                                {/* Description */}
-                                <p className="text-sm text-muted text-center mb-4">
-                                    {founder.description}
-                                </p>
-
-                                {/* Modifiers Preview */}
-                                <div className="space-y-1.5">
-                                    {founder.modifiers.attackBonus !== 0 && (
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-muted">Attack</span>
-                                            <span className={founder.modifiers.attackBonus > 0 ? 'text-green-400' : 'text-red-400'}>
-                                                {founder.modifiers.attackBonus > 0 ? '+' : ''}{Math.round(founder.modifiers.attackBonus * 100)}%
-                                            </span>
-                                        </div>
-                                    )}
-                                    {founder.modifiers.tradePriceMod !== 0 && (
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-muted">Trade Prices</span>
-                                            <span className={founder.modifiers.tradePriceMod > 0 ? 'text-green-400' : 'text-red-400'}>
-                                                {founder.modifiers.tradePriceMod > 0 ? '+' : ''}{Math.round(founder.modifiers.tradePriceMod * 100)}%
-                                            </span>
-                                        </div>
-                                    )}
-                                    {founder.modifiers.relationshipBonus !== 0 && (
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-muted">Relationships</span>
-                                            <span className="text-green-400">
-                                                +{Math.round(founder.modifiers.relationshipBonus * 100)}%
-                                            </span>
-                                        </div>
-                                    )}
-                                    {founder.modifiers.recruitCostMod !== 0 && (
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-muted">Recruit Cost</span>
-                                            <span className="text-green-400">
-                                                {Math.round(founder.modifiers.recruitCostMod * 100)}%
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Selected indicator */}
-                                {selectedFounder === founder.id && (
-                                    <motion.div
-                                        className="absolute top-3 right-3 w-6 h-6 rounded-full bg-roman-gold flex items-center justify-center"
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                    >
-                                        <Check size={14} className="text-bg" />
-                                    </motion.div>
-                                )}
-                            </GlassCard>
-                        </motion.div>
-                    ))}
-                </div>
+            {/* === Background layers (same as intro for visual continuity) === */}
+            <div className="absolute inset-0 z-0">
+                <div
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110"
+                    style={{ backgroundImage: "url('/colosseum-night.jpg')" }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/70 to-black/90" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.7)_60%,rgba(0,0,0,0.95)_100%)]" />
             </div>
 
-            {/* Start Button */}
+            {/* === Lightning (lower intensity for readability) === */}
             <motion.div
-                className="text-center mt-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
+                className="absolute inset-0 z-[1] mix-blend-screen opacity-0 pointer-events-none"
+                animate={{ opacity: 0.25 }}
+                transition={{ delay: 0.3, duration: 1.5 }}
             >
-                <AnimatePresence>
-                    {selectedFounder && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                        >
-                            <Button
-                                variant="roman"
-                                size="lg"
-                                onClick={handleStart}
-                                icon={<GameImage src="temple" size="xs" alt="Temple" />}
-                            >
-                                Found Rome as {FOUNDERS[selectedFounder].name}
-                            </Button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {!selectedFounder && (
-                    <p className="text-muted text-sm">Select a founder to begin</p>
-                )}
+                <Lightning hue={42} speed={0.4} intensity={0.5} size={1} xOffset={0} />
             </motion.div>
+
+            {/* === Content === */}
+            <div className="relative z-10 flex flex-col min-h-screen p-4 md:p-8">
+
+                {/* Header */}
+                <motion.div
+                    className="text-center pt-6 md:pt-10 mb-6 md:mb-10"
+                    initial={{ y: -30, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
+                >
+                    <h1 className="font-cinzel-decorative font-bold text-3xl md:text-5xl tracking-wide mb-3 intro-title-glow">
+                        <ShinyText
+                            text="Choose Your Founder"
+                            color="#8B6914"
+                            shineColor="#FFD700"
+                            speed={4}
+                            spread={110}
+                            className="font-cinzel-decorative"
+                        />
+                    </h1>
+                    <motion.p
+                        className="font-cinzel text-xs md:text-sm tracking-[0.2em] uppercase text-white/30"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                    >
+                        Your choice will shape the destiny of Rome
+                    </motion.p>
+                </motion.div>
+
+                {/* Founder Cards */}
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8 max-w-3xl w-full">
+                        {founders.map((founder, index) => {
+                            const meta = founderMeta[founder.id] ?? founderMeta.romulus;
+                            const isSelected = selectedFounder === founder.id;
+
+                            return (
+                                <motion.div
+                                    key={founder.id}
+                                    initial={{ opacity: 0, y: 40 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4 + index * 0.15, duration: 0.5 }}
+                                    onClick={() => setSelectedFounder(founder.id)}
+                                    className="cursor-pointer"
+                                >
+                                    <motion.div
+                                        className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${isSelected ? 'imperial-border-glow' : ''}`}
+                                        whileHover={{ scale: 1.02, y: -4 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        animate={isSelected ? {
+                                            boxShadow: `0 0 30px ${meta.glowColor}, 0 0 60px ${meta.glowColor.replace('0.4', '0.15')}`,
+                                        } : {
+                                            boxShadow: '0 0 0px transparent',
+                                        }}
+                                    >
+                                        {/* Card border */}
+                                        <div className={`absolute inset-0 rounded-2xl border-2 ${isSelected ? 'border-roman-gold/60' : meta.borderColor} transition-colors duration-300`} />
+                                        {/* Inner gold border on select */}
+                                        {isSelected && <div className="absolute inset-[5px] rounded-xl border border-roman-gold/20" />}
+                                        {/* Background */}
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${meta.accent} backdrop-blur-md`} />
+                                        <div className="absolute inset-0 bg-black/60" />
+
+                                        {/* Content */}
+                                        <div className="relative z-10 p-5 md:p-7">
+                                            {/* Top row: Icon + Name */}
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <motion.div
+                                                    className="flex-shrink-0"
+                                                    animate={isSelected ? { scale: [1, 1.08, 1] } : {}}
+                                                    transition={{ duration: 0.6 }}
+                                                >
+                                                    {meta.icon}
+                                                </motion.div>
+                                                <div>
+                                                    <h3 className="font-cinzel font-bold text-xl md:text-2xl text-roman-gold tracking-wide">
+                                                        {founder.name}
+                                                    </h3>
+                                                    <span className={`inline-block mt-1 px-3 py-0.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider ${
+                                                        founder.archetype === 'Warrior'
+                                                            ? 'bg-roman-red/20 text-red-400 border border-roman-red/30'
+                                                            : 'bg-emerald-900/20 text-emerald-400 border border-emerald-700/30'
+                                                    }`}>
+                                                        {founder.archetype}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            <p className="text-sm text-white/35 leading-relaxed mb-4">
+                                                {founder.description}
+                                            </p>
+
+                                            {/* Divider */}
+                                            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-3" />
+
+                                            {/* Modifiers */}
+                                            <div className="space-y-0">
+                                                {renderModifier('Attack', founder.modifiers.attackBonus)}
+                                                {renderModifier('Troop Bonus', founder.modifiers.troopBonus)}
+                                                {renderModifier('Recruit Cost', founder.modifiers.recruitCostMod)}
+                                                {renderModifier('Risk', founder.modifiers.riskMod)}
+                                                {renderModifier('Trade Prices', founder.modifiers.tradePriceMod)}
+                                                {renderModifier('Relationships', founder.modifiers.relationshipBonus)}
+                                                {renderModifier('Favor Gain', founder.modifiers.favorGainMod)}
+                                            </div>
+
+                                            {/* Selected indicator */}
+                                            {isSelected && (
+                                                <motion.div
+                                                    className="absolute top-4 right-4 w-7 h-7 rounded-full bg-roman-gold flex items-center justify-center"
+                                                    initial={{ scale: 0, rotate: -90 }}
+                                                    animate={{ scale: 1, rotate: 0 }}
+                                                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                                                >
+                                                    <Check size={16} className="text-black" />
+                                                </motion.div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Bottom CTA */}
+                <motion.div
+                    className="text-center py-6 md:py-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                >
+                    <AnimatePresence mode="wait">
+                        {selectedFounder ? (
+                            <motion.div
+                                key="button"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 20 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <motion.button
+                                    onClick={handleStart}
+                                    className="px-8 md:px-12 py-3.5 md:py-4 rounded-xl font-cinzel font-bold text-sm md:text-base tracking-wider uppercase cursor-pointer transition-all duration-300 active:scale-[0.97]"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(196,30,58,0.8) 0%, rgba(139,0,0,0.9) 100%)',
+                                        border: '2px solid rgba(240,193,75,0.4)',
+                                        color: '#F0C14B',
+                                    }}
+                                    whileHover={{
+                                        borderColor: 'rgba(240,193,75,0.7)',
+                                        boxShadow: '0 0 30px rgba(196,30,58,0.5), 0 0 60px rgba(240,193,75,0.2)',
+                                    }}
+                                    animate={{
+                                        boxShadow: [
+                                            '0 0 15px rgba(196,30,58,0.3), 0 0 30px rgba(240,193,75,0.1)',
+                                            '0 0 25px rgba(196,30,58,0.5), 0 0 50px rgba(240,193,75,0.2)',
+                                            '0 0 15px rgba(196,30,58,0.3), 0 0 30px rgba(240,193,75,0.1)',
+                                        ],
+                                    }}
+                                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                                >
+                                    <span className="flex items-center gap-2 md:gap-3">
+                                        <GameImage src="laurels-gold" size="sm" alt="Laurels" />
+                                        Found Rome as {FOUNDERS[selectedFounder].name}
+                                    </span>
+                                </motion.button>
+                            </motion.div>
+                        ) : (
+                            <motion.p
+                                key="hint"
+                                className="font-cinzel text-xs md:text-sm text-white/20 tracking-wider"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            >
+                                Select a founder to begin
+                            </motion.p>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+            </div>
         </motion.div>
     );
 }
