@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { ASSET_REGISTRY, isAssetKey, type AssetKey } from '@/lib/assets';
 import type { LucideIcon } from 'lucide-react';
 import { Package } from 'lucide-react';
@@ -46,34 +44,24 @@ export function GameImage({
     size = 'md',
     width,
     height,
-    alt = 'Game image',
     className = '',
     fallbackIcon,
     animated = false,
     onClick,
 }: GameImageProps) {
-    const [hasError, setHasError] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-
     // Determine dimensions
     const sizeConfig = SIZE_VARIANTS[size];
     const finalWidth = width ?? sizeConfig.width;
     const finalHeight = height ?? sizeConfig.height;
     const iconSize = sizeConfig.iconSize;
 
-    // Resolve asset path and fallbacks
-    let imagePath: string;
-    let FallbackIcon: LucideIcon = fallbackIcon ?? Package;
+    // Resolve the Lucide icon to render
+    let Icon: LucideIcon = fallbackIcon ?? Package;
 
     if (isAssetKey(src)) {
-        const assetInfo = ASSET_REGISTRY[src];
-        imagePath = assetInfo.path;
-        FallbackIcon = fallbackIcon ?? assetInfo.fallbackIcon;
-    } else if (src.startsWith('/')) {
-        // Direct path
-        imagePath = src;
-    } else {
-        // Treat as emoji - show fallback immediately
+        Icon = fallbackIcon ?? ASSET_REGISTRY[src].fallbackIcon;
+    } else if (!src.startsWith('/')) {
+        // Treat as emoji text
         return (
             <motion.span
                 className={`inline-flex items-center justify-center ${className}`}
@@ -86,37 +74,7 @@ export function GameImage({
         );
     }
 
-    // Handle error - show Lucide icon fallback
-    if (hasError) {
-        return (
-            <motion.span
-                className={`inline-flex items-center justify-center ${className}`}
-                style={{ width: finalWidth, height: finalHeight }}
-                whileHover={animated ? { scale: 1.1 } : undefined}
-                onClick={onClick}
-            >
-                <FallbackIcon
-                    size={iconSize}
-                    className="text-roman-gold"
-                />
-            </motion.span>
-        );
-    }
-
-    const imageElement = (
-        <Image
-            src={imagePath}
-            alt={alt}
-            width={finalWidth}
-            height={finalHeight}
-            className={`object-contain ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
-            onLoad={() => setIsLoading(false)}
-            onError={() => setHasError(true)}
-            priority={size === 'xl' || size === '2xl'}
-            unoptimized
-        />
-    );
-
+    // Always render the Lucide icon
     if (animated || onClick) {
         return (
             <motion.span
@@ -126,7 +84,7 @@ export function GameImage({
                 whileTap={onClick ? { scale: 0.95 } : undefined}
                 onClick={onClick}
             >
-                {imageElement}
+                <Icon size={iconSize} className="text-roman-gold" />
             </motion.span>
         );
     }
@@ -136,7 +94,7 @@ export function GameImage({
             className={`inline-flex items-center justify-center ${className}`}
             style={{ width: finalWidth, height: finalHeight }}
         >
-            {imageElement}
+            <Icon size={iconSize} className="text-roman-gold" />
         </span>
     );
 }
