@@ -93,6 +93,18 @@ const config: Config = {
   				'Outfit',
   				'system-ui',
   				'sans-serif'
+  			],
+  			cinzel: [
+  				'Cinzel',
+  				'Georgia',
+  				'Times New Roman',
+  				'serif'
+  			],
+  			'cinzel-decorative': [
+  				'Cinzel Decorative',
+  				'Cinzel',
+  				'Georgia',
+  				'serif'
   			]
   		},
   		borderRadius: {
