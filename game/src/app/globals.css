@@ -292,10 +292,27 @@ body {
 
 /* === INTRO SCREEN TITLE GLOW === */
 .intro-title-glow {
-  text-shadow:
-    0 0 40px rgba(240, 193, 75, 0.3),
-    0 0 80px rgba(240, 193, 75, 0.15),
-    0 2px 4px rgba(0, 0, 0, 0.8);
+  filter: drop-shadow(0 0 30px rgba(240, 193, 75, 0.25)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+}
+
+/* === IMPERIAL BORDER GLOW === */
+.imperial-border-glow {
+  animation: imperial-border-pulse 4s ease-in-out infinite;
+}
+
+@keyframes imperial-border-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 15px rgba(196, 30, 58, 0.3),
+      0 0 30px rgba(196, 30, 58, 0.1),
+      inset 0 0 15px rgba(240, 193, 75, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(196, 30, 58, 0.5),
+      0 0 50px rgba(196, 30, 58, 0.2),
+      inset 0 0 25px rgba(240, 193, 75, 0.1);
+  }
 }
 
 @layer base {
