@@ -323,13 +323,13 @@ export function FounderSelectScreen() {
     };
 
     const renderModifier = (label: string, value: number) => {
-        if (value === 0) return null;
         const isPositive = value > 0;
+        const isNegative = value < 0;
         return (
             <div className="flex items-center justify-between text-xs py-1 border-b border-white/[0.04] last:border-0">
                 <span className="text-white/40 font-medium">{label}</span>
-                <span className={`font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}{Math.round(value * 100)}%
+                <span className={`font-bold ${isPositive ? 'text-emerald-400' : isNegative ? 'text-red-400' : 'text-white/15'}`}>
+                    {value === 0 ? '—' : `${isPositive ? '+' : ''}${Math.round(value * 100)}%`}
                 </span>
             </div>
         );
