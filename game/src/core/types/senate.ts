@@ -287,6 +287,11 @@ export interface SenateState {
     // Global flags
     anyAssassinationAttempted: boolean;
     senatoriusSavedPlayer: boolean;
+
+    // BL-20: Track which round processSenateSeasonEnd last ran for to guarantee
+    // idempotency. If endSeason somehow triggers twice in the same round, the
+    // senate processor will short-circuit and return the existing state.
+    lastProcessedRound: number;
 }
 
 // === SENATOR DEFINITION (STATIC DATA) ===

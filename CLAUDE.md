@@ -277,7 +277,7 @@ bun dev         # Test in browser
 - Unrest: Happiness <= 25% (FAILURE_MIN_HAPPINESS = 25)
 
 ### Starting State
-- 500 denarii, 100 population, 70% happiness
+- 5000 denarii, 100 population, 70% happiness
 - 120 grain, 150 grain capacity (survives first winter with Farm Complex)
 - 25 troops, 80% morale
 - 150 housing, 50 sanitation, 1 fort, 50 supplies

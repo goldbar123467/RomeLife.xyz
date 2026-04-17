@@ -574,17 +574,34 @@ export function calculateStabilityChange(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _state: GameState
 ): number {
-    let change = 0;
-
-    // Garrison effect (>= 20 stabilizes, < 20 destabilizes)
-    if (territory.garrison >= 20) {
-        change += 1;
+    // Smooth garrison scaling: 0 garrison = -2, 25 = +1, 50+ = +2
+    // base = (garrison / 25) - 1 clamped to [-2, +2]
+    // (0/25)-1 = -1, actually we want 0=-2. Use (garrison/25)-2 clamped to [-2,+2]?
+    // Spec: garrison 0 => -2, garrison 25 => +1, garrison 50+ => +2
+    // Interp: slope ~3 from 0 to 25 (→ +1), then +1 more up to 50. Use piecewise linear.
+    let change: number;
+    if (territory.garrison <= 25) {
+        // 0 -> -2, 25 -> +1  (slope 3/25 = 0.12)
+        change = -2 + (territory.garrison / 25) * 3;
     } else {
-        change -= 2;
+        // 25 -> +1, 50 -> +2 (slope 1/25 = 0.04), cap at +2
+        change = 1 + Math.min(1, (territory.garrison - 25) / 25);
+    }
+    // Clamp base garrison effect to [-2, +2]
+    change = Math.max(-2, Math.min(2, change));
+
+    // Fort / defensive building bonus: +0.5 if any defensive building present in this territory
+    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
+    const hasFort = territoryBuildings.some(b =>
+        b.id === 'fort' ||
+        b.id.includes('fort') ||
+        b.effects.some(e => e.type === 'defense')
+    );
+    if (hasFort) {
+        change += 0.5;
     }
 
-    // Building bonuses (multiply by count for stacking)
-    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
+    // Preserve happiness-building stability bonus loop
     for (const building of territoryBuildings) {
         for (const effect of building.effects) {
             if (effect.type === 'happiness') {
@@ -593,7 +610,13 @@ export function calculateStabilityChange(
         }
     }
 
-    return change;
+    // Governor stability scaling: multiply by (1 + bonus)
+    if (territory.governor?.bonus?.stability) {
+        change *= (1 + territory.governor.bonus.stability);
+    }
+
+    // Cap final change to [-5, +5]
+    return Math.max(-5, Math.min(5, change));
 }
 
 /**
