@@ -495,6 +495,12 @@ export interface GameState {
     // BL-36: One-shot flag so the patron-god worship nudge fires exactly once
     patronTutorialShown?: boolean;
 
+    // BL-44: One-shot flag so the housing-cap / expansion nudge fires exactly once
+    housingCapNudgeShown?: boolean;
+
+    // BL-40: Round of last auto-triggered Emergency Grain Import (cooldown = 4 rounds)
+    lastEmergencyImportRound?: number;
+
     // NPCs and story quest state
     npcs: NPC[];
     visitedTerritories: string[];

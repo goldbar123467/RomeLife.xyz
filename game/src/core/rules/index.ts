@@ -128,11 +128,15 @@ export function checkFailureConditions(state: GameState): FailureResult | null {
     // - Late game (round >= 11): apply min(2, FAILURE_STARVATION_LIMIT) so the
     //   player can no longer stall indefinitely on grain.
     const famineThreshold = round <= 10
-        ? 3
+        ? GAME_CONSTANTS.FAILURE_STARVATION_LIMIT
         : Math.min(2, GAME_CONSTANTS.FAILURE_STARVATION_LIMIT);
     if (consecutiveStarvation >= famineThreshold) {
         // eslint-disable-next-line no-console
-        console.warn('[BL-40][famine-trigger]', { round, consecutiveStarvation, threshold: famineThreshold });
+        console.warn('[BL-40][famine-trigger]', {
+            round,
+            consecutiveStarvations: consecutiveStarvation,
+            branch: round <= 10 ? 'early' : 'late',
+        });
         return {
             type: 'famine',
             title: 'Famine',

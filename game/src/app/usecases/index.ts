@@ -77,9 +77,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const _preConsumeGrain = newInventory.grain;
     const _preConsumeFoodNeed = summary.foodConsumption;
     const _preConsumeDeficit = Math.max(0, _preConsumeFoodNeed - _preConsumeGrain);
-    const _stateExt = state as unknown as { lastEmergencyImportRound?: number };
-    const _lastEmergencyImport = _stateExt.lastEmergencyImportRound ?? -99;
-    let newLastEmergencyImportRound: number | undefined = _stateExt.lastEmergencyImportRound;
+    const _lastEmergencyImport = state.lastEmergencyImportRound ?? -99;
+    let newLastEmergencyImportRound: number | undefined = state.lastEmergencyImportRound;
     if (
         state.denarii >= 2000 &&
         _preConsumeDeficit > 0 &&
@@ -210,6 +209,19 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
                 '[tutorial] Build a Farm Complex in Palatine Hill to secure your grain supply (Settlement → Build).'
             );
             newFarmTutorialShown = true;
+        }
+    }
+
+    // BL-44: One-shot housing-cap progression nudge — when pop is pinned at housing
+    // and the player hasn't expanded territorially, tell them where to go next.
+    let newHousingCapNudgeShown = state.housingCapNudgeShown ?? false;
+    if (!newHousingCapNudgeShown && newRound >= 3) {
+        const ownedTerritories = state.territories.filter(t => t.owned).length;
+        if (newPopulation >= state.housing * 0.95 && ownedTerritories <= 1) {
+            events.push(
+                '[progression] Your population has outgrown your housing — build Insulae in Settlement, or conquer territory on the Map.'
+            );
+            newHousingCapNudgeShown = true;
         }
     }
 
@@ -869,7 +881,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         round: newRound,
         inventory: newInventory,
         denarii: Math.max(0, newDenarii + totalAdditionalIncome),
-        population: Math.max(0, newPopulation + eventPopulation),
+        // BL-42: apply final housing-cap clamp AFTER events so event pop cannot
+        // push us past housing (eliminates the 150→159 oscillation).
+        population: Math.max(0, Math.min(newPopulation + eventPopulation, newHousing)),
         troops: Math.max(0, state.troops + eventTroops),
         happiness: newHappiness,
         morale: newMorale,
@@ -910,8 +924,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         rallyTroopsCooldown: newRallyTroopsCooldown,
         eventCooldowns: newEventCooldowns,
         farmTutorialShown: newFarmTutorialShown,
+        housingCapNudgeShown: newHousingCapNudgeShown,
         // BL-40: Preserve emergency-import cooldown so it respects the 4-round cadence.
-        ...(newLastEmergencyImportRound !== undefined ? ({ lastEmergencyImportRound: newLastEmergencyImportRound } as Partial<GameState>) : {}),
+        ...(newLastEmergencyImportRound !== undefined ? { lastEmergencyImportRound: newLastEmergencyImportRound } : {}),
         // BL-33: Itemized breakdown for Treasury deficit tooltip
         lastSeasonIncome: calculateIncomeBreakdown(state),
         lastSeasonExpense: calculateExpenseBreakdown(state),

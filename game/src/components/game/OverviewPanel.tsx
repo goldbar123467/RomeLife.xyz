@@ -86,8 +86,7 @@ export function OverviewPanel() {
         happiness < 55 ||
         morale < 40 ||
         (grainDeficit > 0 && (grainDeficit / Math.max(1, production.foodConsumption)) > 0.25) ||
-        (round >= 10 && troops < 10) ||
-        (state.consecutiveStarvation ?? 0) >= 1;
+        (round >= 10 && troops < 10);
     // BL-39 preserved: Rally Troops surfaces its own panel via `showRally`.
     const isInCrisis = isCrisisMode;
 
