@@ -523,6 +523,7 @@ const createInitialState = (): Omit<GameStore,
         playerActionLog: [],
         anyAssassinationAttempted: false,
         senatoriusSavedPlayer: false,
+        lastProcessedRound: 0,
     },
 
     // Stats
@@ -592,14 +593,13 @@ export const useGameStore = create<GameStore>()(
             endSeason: () => {
                 const state = get();
 
-                // Guard: Block season advance while senate events need player resolution
-                // SenatorEventModal renders globally in GameLayout, so player can always resolve
-                if (state.senate?.currentEvent) {
-                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
-                    return;
-                }
-                // Promote next pending event to currentEvent so player can resolve it
-                if ((state.senate?.pendingEvents?.length ?? 0) > 0) {
+                // BL-09 Safety: If a pending event is queued but currentEvent is null,
+                // promote the next pending event BEFORE any further checks. This guarantees
+                // queued events surface even if prior flows exited without promoting.
+                if (
+                    state.senate?.currentEvent == null &&
+                    (state.senate?.pendingEvents?.length ?? 0) > 0
+                ) {
                     const [nextEvent, ...remaining] = state.senate!.pendingEvents;
                     set({
                         senate: {
@@ -609,6 +609,20 @@ export const useGameStore = create<GameStore>()(
                         },
                         lastEvents: ['A senator demands your attention! Resolve the event first.'],
                     });
+                    return;
+                }
+
+                // Guard: Block season advance while senate events need player resolution
+                // SenatorEventModal renders globally in GameLayout, so player can always resolve
+                if (state.senate?.currentEvent) {
+                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
+                    return;
+                }
+
+                // BL-09: Block season advance while a battle is active. The BattleScreen
+                // overlay must be resolved (or retreated) before seasons may advance.
+                if (state.battle?.active || state.stage === 'battle') {
+                    set({ lastEvents: ['Resolve the active battle before ending the season!'] });
                     return;
                 }
 
@@ -764,21 +778,33 @@ export const useGameStore = create<GameStore>()(
                         t.id === state.battle!.targetTerritory ? { ...t, owned: true, garrison: 10 } : t
                     );
 
-                    // Apply Jupiter blessing: +100 denarii on victory at tier 50
+                    // Base victory plunder: scales with territory difficulty/level
+                    const conqueredTerritory = state.territories.find(t => t.id === state.battle!.targetTerritory);
+                    const difficulty = conqueredTerritory?.difficulty ?? Math.max(1, conqueredTerritory?.level ?? 1);
+                    const basePlunder = 100 + difficulty * 20;
+
+                    // Apply Jupiter blessing: +100 denarii on victory at tier 50 (stacks on top of base)
                     const jupiterVictoryBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'victoryDenarii');
-                    const victoryDenarii = jupiterVictoryBonus > 0 ? Math.floor(jupiterVictoryBonus) : 0;
+                    const jupiterBonusAmount = jupiterVictoryBonus > 0 ? Math.floor(jupiterVictoryBonus) : 0;
+                    const totalVictoryDenarii = basePlunder + jupiterBonusAmount;
+
+                    const eventLog = [
+                        `[Victory] Won battle! Lost ${adjustedCasualties} troops.`,
+                        `[Battle] Plundered ${totalVictoryDenarii} denarii`,
+                    ];
+                    if (jupiterBonusAmount > 0) {
+                        eventLog.push(`[Blessing] Jupiter grants +${jupiterBonusAmount} denarii!`);
+                    }
 
                     set({
                         stage: 'game',
                         troops: newTroops,
-                        denarii: state.denarii + victoryDenarii,
+                        denarii: state.denarii + totalVictoryDenarii,
                         territories: newTerritories,
                         totalConquests: state.totalConquests + 1,
                         winStreak: state.winStreak + 1,
                         battle: { ...state.battle, active: false, result: 'victory', casualties: { player: adjustedCasualties, enemy: result.enemyCasualties } },
-                        lastEvents: [
-                            `[Victory] Won battle! Lost ${adjustedCasualties} troops.${victoryDenarii > 0 ? ` Jupiter grants +${victoryDenarii} denarii!` : ''}`
-                        ],
+                        lastEvents: eventLog,
                     });
                 } else {
                     set({
@@ -1784,6 +1810,7 @@ export const useGameStore = create<GameStore>()(
                         playerActionLog: [],
                         anyAssassinationAttempted: false,
                         senatoriusSavedPlayer: false,
+                        lastProcessedRound: 0,
                     },
                 });
             },

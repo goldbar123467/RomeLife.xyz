@@ -1,10 +1,34 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17
+Generated: 2026-04-17 (last cycle: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit of `game/bugs.md` + systems-balance-critic.
 
-## Current Cycle (5 items — FIXED this pass)
+## Current Cycle (5 items — FIXED this pass: BL-08, BL-09, BL-16, BL-17, BL-20)
+
+### [x] BL-08 — Stability system binary
+Severity: HIGH — `game/src/core/math/index.ts:571-620`
+Fix applied: Piecewise linear garrison scaling (0→−2, 25→+1, 50+→+2) clamped [−2,+2]; fort/defensive building adds +0.5; governor.bonus.stability multiplies `(1 + bonus)`; final clamp [−5,+5].
+
+### [x] BL-09 — Stagnation edge cases
+Severity: HIGH — `game/src/store/gameStore.ts:596-627`, `game/src/app/usecases/senate.ts:393-425`
+Fix applied: At start of `endSeason()`, promote next `pendingEvents` to `currentEvent` before guards. Added battle-active guard (`state.battle?.active || state.stage === 'battle'`). Senate processor preserves existing `currentEvent` so new events queue instead of clobbering displayed one.
+
+### [x] BL-16 — Starting denarii docs mismatch
+Severity: MEDIUM — `CLAUDE.md:280`
+Fix applied: Updated docs from "500 denarii" to "5000 denarii" to match code `STARTING_STATE.denarii = 5000`.
+
+### [x] BL-17 — Battle victory has no base denarii reward
+Severity: MEDIUM — `game/src/store/gameStore.ts:781-806`
+Fix applied: `basePlunder = 100 + difficulty * 20` using `territory.difficulty` (with `Math.max(1, level)` fallback). Jupiter tier 50 bonus now stacks on top of base. Event log shows plunder amount explicitly.
+
+### [x] BL-20 — Senator relation reset edge case at round 19
+Severity: HIGH — `game/src/app/usecases/senate.ts:92-103`, `game/src/core/types/senate.ts:287-293`
+Fix applied: Added `lastProcessedRound: number` to SenateState. Idempotency guard in `processSenateSeasonEnd` short-circuits duplicate same-round calls. Initial/reset senate states seed `lastProcessedRound: 0`.
+
+---
+
+## Previously Fixed (prior cycle)
 
 ### [x] BL-01 — Trade hub focus stacking can invert tariff
 Severity: HIGH
