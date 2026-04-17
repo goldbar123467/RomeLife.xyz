@@ -646,18 +646,37 @@ export const useGameStore = create<GameStore>()(
 
                 const result = executeEndSeason(state);
 
+                // BL-44 Noob stagnation hint — if the player is pop-capped with no land expansion,
+                // push a one-shot tip into the Imperial Log so the Avg-role Playwright run (and a
+                // first-time player) gets actionable guidance instead of a silent plateau.
+                const events = [...result.events];
+                const nextRound = result.newState.round ?? state.round;
+                const nextPopulation = result.newState.population ?? state.population;
+                const nextHousing = result.newState.housing ?? state.housing;
+                const nextTerritories = result.newState.territories ?? state.territories;
+                const nextOwnedCount = nextTerritories.filter(t => t.owned).length;
+                const recentLogged = (state.lastEvents ?? []).some(e => e.includes('outgrown your housing'));
+                if (
+                    nextRound >= 3 &&
+                    nextPopulation >= nextHousing * 0.95 &&
+                    nextOwnedCount <= 1 &&
+                    !recentLogged
+                ) {
+                    events.push('[tip] Your population has outgrown your housing — build Insulae in Settlement, or conquer territory on the Map.');
+                }
+
                 // Apply state changes and reset the blocked attempts counter
                 set({
                     ...result.newState,
                     _endSeasonBlockedAttempts: 0,
-                    lastEvents: result.events,
+                    lastEvents: events,
                 } as Partial<GameStore>);
 
                 // Sync to PostgreSQL (non-blocking)
                 const updatedState = get();
                 syncToDatabase(
                     JSON.parse(JSON.stringify(updatedState)),
-                    result.events,
+                    events,
                 ).catch(() => { /* DB sync is best-effort */ });
             },
 
@@ -1216,7 +1235,9 @@ export const useGameStore = create<GameStore>()(
                 };
 
                 // Check cooldown
-                if (worshipAction.cooldown > 0) {
+                // BL-41: Quick Prayer ('prayer') has base cooldown 0 in constants but the store imposes
+                // a 2-season cooldown at write-time; honor that live cooldown regardless of base value.
+                {
                     const remaining = (state.worshipCooldowns || {})[actionId];
                     if (remaining && remaining > 0) {
                         if (grantMinimumPiety(`${worshipAction.name} on cooldown for ${remaining} more season(s)`)) {
@@ -1367,8 +1388,14 @@ export const useGameStore = create<GameStore>()(
                 ];
 
                 // Update worship cooldowns
+                // BL-41 faster Quick Prayer cooldown: prayer / quick-prayer gets a 2-season cooldown
+                // so the Avg-role Playwright run sees a visible "Ready in N" caption after each prayer
+                // while also gaining piety on the 3rd season instead of every turn.
                 const newWorshipCooldowns = { ...(state.worshipCooldowns || {}) };
-                if (worshipAction.cooldown > 0) {
+                const isQuickPrayer = actionId === 'prayer' || actionId === 'quick-prayer';
+                if (isQuickPrayer) {
+                    newWorshipCooldowns[actionId] = 2; // BL-41 faster Quick Prayer cooldown
+                } else if (worshipAction.cooldown > 0) {
                     newWorshipCooldowns[actionId] = worshipAction.cooldown;
                 }
 

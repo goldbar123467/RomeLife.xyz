@@ -78,7 +78,18 @@ export function OverviewPanel() {
 
     // Crisis Detection
     const grainAmount = inventory.grain || 0;
-    const isInCrisis = happiness < 30 || denarii < 100 || grainAmount < 20 || showRally;
+    // BL-43 live-state crisis gate — evaluate CURRENT stats only; never consult lastEvents,
+    // starvationHistory, or any stale/historical signal so the panel disappears as soon as
+    // the empire recovers.
+    const grainDeficit = Math.max(0, production.foodConsumption - grainAmount);
+    const isCrisisMode =
+        happiness < 55 ||
+        morale < 40 ||
+        (grainDeficit > 0 && (grainDeficit / Math.max(1, production.foodConsumption)) > 0.25) ||
+        (round >= 10 && troops < 10) ||
+        (state.consecutiveStarvation ?? 0) >= 1;
+    // BL-39 preserved: Rally Troops surfaces its own panel via `showRally`.
+    const isInCrisis = isCrisisMode;
 
     // Check if emergency action can be executed
     const canExecuteEmergency = (action: typeof EMERGENCY_ACTIONS[0]) => {
@@ -519,12 +530,17 @@ export function OverviewPanel() {
                         </div>
                     </GlassCard>
 
-                    {/* Emergency Actions - Show when in crisis */}
-                    {isInCrisis && (
-                        <GlassCard variant="crimson">
+                    {/* Emergency Actions — BL-43 live-state gate; heading severity depends on live stats. */}
+                    {isInCrisis && (() => {
+                        const severe = morale < 40 || happiness < 55;
+                        const headingTitle = severe ? 'Crisis Response' : 'Quick Actions (Advanced)';
+                        const iconColorClass = severe ? 'text-red-400' : 'text-amber-400';
+                        const cardVariant = severe ? 'crimson' : undefined;
+                        return (
+                        <GlassCard variant={cardVariant}>
                             <div className="flex items-center gap-2 mb-4">
-                                <AlertTriangle className="w-5 h-5 text-red-400" />
-                                <SectionHeader title="Emergency Actions" subtitle="Crisis Mode Active" />
+                                <AlertTriangle className={`w-5 h-5 ${iconColorClass}`} />
+                                <SectionHeader title={headingTitle} />
                             </div>
                             <div className="space-y-2">
                                 {/* BL-39: Rally Troops surfaced when morale < 50 */}
@@ -602,7 +618,8 @@ export function OverviewPanel() {
                                 })}
                             </div>
                         </GlassCard>
-                    )}
+                        );
+                    })()}
                 </div>
             </div>
         </div>

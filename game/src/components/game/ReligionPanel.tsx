@@ -83,19 +83,33 @@ export function ReligionPanel() {
                 Always triggers the 'prayer' worship action (cost: none, cooldown: 0).
                 Exposed with an explicit button role + aria-label="Pray" so the QA
                 spec can find it with getByRole('button', { name: /Pray/i }). */}
-            {patronGod && (
-                <div>
-                    <button
-                        type="button"
-                        aria-label="Pray"
-                        data-testid="worship-action-quick-prayer"
-                        onClick={() => worship('prayer')}
-                        className="btn-gold inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-200 px-5 py-3 text-base min-h-[48px]"
-                    >
-                        Pray
-                    </button>
-                </div>
-            )}
+            {patronGod && (() => {
+                // BL-41: Quick Prayer cooldown + "Ready in N seasons" caption
+                const quickPrayerCd = (worshipCooldowns ?? {})['prayer'] ?? 0;
+                const onQuickPrayerCd = quickPrayerCd > 0;
+                return (
+                    <div>
+                        <button
+                            type="button"
+                            aria-label="Pray"
+                            data-testid="worship-action-quick-prayer"
+                            onClick={() => worship('prayer')}
+                            disabled={onQuickPrayerCd}
+                            className={`inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-200 px-5 py-3 text-base min-h-[48px] ${onQuickPrayerCd ? 'bg-white/5 border border-white/10 text-muted cursor-not-allowed opacity-60' : 'btn-gold'}`}
+                        >
+                            Pray
+                        </button>
+                        {onQuickPrayerCd && (
+                            <div
+                                className="mt-1 text-xs text-muted"
+                                data-testid="worship-quick-prayer-cooldown"
+                            >
+                                Ready in {quickPrayerCd} season{quickPrayerCd !== 1 ? 's' : ''}
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* Tab Navigation */}
             <div className="flex gap-2 border-b border-line pb-2">
@@ -397,12 +411,15 @@ export function ReligionPanel() {
                                                     )}
                                                 </div>
                                                 <div className="text-xs text-green-400">{effectText}</div>
-                                                {/* BL-22: show live countdown badge when on cooldown, else base cooldown info */}
+                                                {/* BL-22 + BL-41: live cooldown badge + "Ready in N seasons" caption */}
                                                 {onCooldown ? (
-                                                    <div className="mt-2 flex justify-center">
+                                                    <div className="mt-2 flex flex-col items-center gap-1">
                                                         <Badge variant="default" size="sm" className="bg-red-500/20 text-red-400 border border-red-500/30">
                                                             Cooldown: {actionCooldown} season{actionCooldown !== 1 ? 's' : ''}
                                                         </Badge>
+                                                        <span className="text-[11px] text-muted">
+                                                            Ready in {actionCooldown} season{actionCooldown !== 1 ? 's' : ''}
+                                                        </span>
                                                     </div>
                                                 ) : action.cooldown > 0 ? (
                                                     <div className="text-xs text-muted mt-2">
