@@ -1,8 +1,14 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17 (cycle 5: 2026-04-17)
+Generated: 2026-04-17 (cycle 6: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance-critic.
+
+## Cycle 6 QA Findings (2026-04-17)
+- Noob (Romulus, 15 presses): pop 150 at round 3, stays capped through round 4 winter. Morale 88, happiness 90, piety 0. Healthy but completely stagnant — passive play stalls at housing cap with no progression signal.
+- Avg (Romulus+Jupiter, 25 presses): reached round 7 summer. **Piety gained only 2→4 across 25 worship clicks** (BL-29/BL-37 floor works but cooldown gates too aggressively). Pop oscillates 150→159→136→137 in 2 rounds. Starvation+Crisis Mode Active despite happiness 88% and 137 pop (BL-34 not fixed).
+- Goat (Remus aggressive-tax, 35 presses): **FAILED at round 7 autumn** (stage="results", Famine). Pop cascade 168→143→129, morale 92→89→94→86 (morale stable!), happiness 100→90→85→80, 7085 denarii unspent. BL-30/BL-38 starvation recovery grace insufficient — death spiral still triggers on aggressive tax.
+- Targeting this cycle (fix 5): **BL-40, BL-41, BL-42, BL-43, BL-44**.
 
 ## Cycle 5 QA Findings (2026-04-17)
 - Noob (Romulus, 15 presses): healthy. Reaches round 4 winter, pop 159, morale 72, happiness 90. No crises. Piety 0 (no worship interaction).
@@ -16,7 +22,53 @@ Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance
 - Goat (Remus + aggressive tax, 35 presses): **FAMINE failure at round 7 autumn**. Pop 150→128→115→104 over 3 seasons. Morale collapse 90→15. Happiness 78%. Confirms that BL-28 grain buff insufficient for aggressive/tax-heavy play.
 - Targeting this cycle (fix 5): **BL-10, BL-22, BL-29, BL-30, BL-32**.
 
-## Current Cycle — TARGETING: BL-37, BL-38, BL-39, BL-33, BL-36
+## Current Cycle — TARGETING: BL-40, BL-41, BL-42, BL-43, BL-44
+
+### [~] BL-40 — Goat still FAILS at round 7 autumn (BL-38 regression)
+Severity: HIGH — NEW (cycle 6) — BL-38 regression
+Location: `game/src/store/gameStore.ts` (endSeason, failure gate), `game/src/app/usecases/index.ts` (executeEndSeason), `game/src/core/math/index.ts:calculateFoodConsumption`
+Symptom: Remus + max-tax + 35 Space presses → stage="results" at round 7 autumn (Famine screen shown). Pop cascade 168→143→129 over 2 rounds while holding 7085 denarii and 28 troops. Morale is stable (86-94), so the BL-39 rally action is not the missing piece — the core issue is the grain deficit compounds under aggressive tax because happiness stays high and pop keeps growing toward housing cap. The 2-round recovery grace added in cycle 5 either is not firing or is too thin.
+Fix target: (a) When grain deficit ≤ 30% AND denarii ≥ 2000, auto-trigger an "Emergency Grain Import" for 400 denarii → 200 grain at season start (once per 4 rounds). (b) `checkFailureConditions` should only trigger Famine when consecutive starvations ≥ 3 (not 2) in rounds 1-10, upgrading to ≥ 2 from round 11+. (c) Add a console.warn telemetry `[BL-40][famine-trigger]` logging which branch fired for easier future audit.
+
+### [~] BL-41 — Avg piety gains only 4 over 25 worship clicks
+Severity: MEDIUM — NEW (cycle 6) — BL-37 partial regression
+Location: `game/src/store/gameStore.ts:worship()`, `game/src/components/game/ReligionPanel.tsx` (cooldown gating)
+Symptom: Avg Playwright role clicks the worship action every season for 25 seasons, but piety rises from 2 → 4 only. BL-37 set a +2 floor; that part works but worship cooldown (3 seasons?) gates most of the 25 clicks, so the +2 floor only fires ~2-3 times across the whole run. Piety-based blessings are effectively unreachable for passive/average players.
+Fix target: (a) When a patron god is set, add passive +1 piety/season regardless of worship clicks. (b) Reduce default worship cooldown from 3 seasons to 2 seasons for the Quick Prayer action. (c) Ensure the Religion panel shows a clear "Next prayer available: round N" caption (BL-22 follow-up).
+
+### [~] BL-42 — Pop oscillates 150→159→136 within 2 seasons (Avg round 6→7)
+Severity: MEDIUM — NEW (cycle 6) — BL-35 regression
+Location: `game/src/app/usecases/index.ts:executeEndSeason`, `game/src/core/math/index.ts` (pop growth + starvation loss)
+Symptom: Avg log: round 6 summer pop=150, round 6 autumn 150, round 6 winter 159, round 7 spring 136. The +9 jump then −23 drop in 2 seasons points to growth firing on stale (pre-starvation-loss) state, or starvation loss rounding on post-growth state. Either way the order of ops ping-pongs.
+Fix target: In `executeEndSeason`, explicitly sequence once per season as: (1) compute consumption, (2) apply starvation loss if deficit, (3) compute growth on post-starvation pop, (4) clamp to housing cap exactly once at the end. Add a unit-ish invariant: `pop_after - pop_before <= housing * 0.15` (no >15% swings per season).
+
+### [~] BL-43 — Crisis Mode / Emergency Actions panel shows at 88% happiness, 137 pop (BL-34 regression)
+Severity: MEDIUM — NEW (cycle 6) — BL-34 regression  
+Location: `game/src/components/game/OverviewPanel.tsx` (isCrisisMode gate), `game/src/store/gameStore.ts`
+Symptom: Avg final screenshot shows "Emergency Actions / Crisis Mode Active" panel with full action list (Emergency Taxation, Conscription, Divine Intervention, Grain Requisition, Hire Mercenaries) while happiness=88%, pop=137, morale=94. This is a healthy mid-game state. Panel is surfacing because `lastEvents` contains a stale starvation message, not a live crisis.
+Fix target: Gate `isCrisisMode` on **live state only**: `happiness < 55 || morale < 40 || grainDeficitPct > 25 || (round >= 10 && troops < 10)`. Do not use `lastEvents` or historical starvation counters. Rename the panel heading to "Crisis Response" when active, "Quick Actions (Advanced)" when proactive (so it is less alarming).
+
+### [~] BL-44 — Noob game stagnates at pop 150 after round 3 with no progression hint
+Severity: LOW — NEW (cycle 6)
+Location: `game/src/components/game/OverviewPanel.tsx`, `game/src/store/gameStore.ts` (lastEvents push)
+Symptom: Noob (Romulus, 15 Space presses) reaches pop 150 (housing cap) at round 3 summer and stays there through round 4 winter with zero forward motion. Denarii grows 5k→6.4k, happiness oscillates 85→100→90, morale 82→96→88. No event pushed to `lastEvents` nudging the player toward housing expansion or territory conquest. Passive players see no "why is nothing happening" cue.
+Fix target: When `round >= 3 && population >= housing * 0.95 && ownedTerritories <= 1`, push a one-time event: "Your population has outgrown your housing — build Insulae in Settlement, or conquer territory on the Map." Also show a pulsing yellow dot on the Settlement sidebar tab in this state.
+
+---
+
+## Previously Fixed — Cycle 5 (verified by git log bcb57f3)
+
+### [x] BL-37 — Avg Gamer piety stays 0 for 25 seasons despite Jupiter patron + worship
+Severity: HIGH — PARTIAL FIX (cycle 5) — cycle 6 shows piety now reaches 4, cooldown gating tracked in BL-41.
+Location: `game/src/components/game/ReligionPanel.tsx`, `game/src/store/gameStore.ts:worship()`, `game/src/app/usecases/senate.ts`
+Fix applied: `worship-action-quick-prayer` data-testid + +2 piety floor per cycle-5 commit. Follow-up BL-41 addresses remaining cooldown gating.
+
+### [x] BL-38 — Goat Gamer still hits "results" stage at round 7 autumn
+Severity: HIGH — PARTIAL FIX (cycle 5) — cycle 6 shows the Famine failure still triggers. Follow-up BL-40.
+Location: `game/src/store/gameStore.ts` (endSeason, failure check), `game/src/app/usecases/index.ts`
+Fix applied: 2-round recovery grace. Did not cover aggressive-tax Remus path; BL-40 extends with auto-import + consecutive-3 gate.
+
+### [x] BL-39 — Morale decay 90→15 unrecoverable in Goat/Avg playthroughs
 
 ### [x] BL-37 — Avg Gamer piety stays 0 for 25 seasons despite Jupiter patron + worship
 Severity: HIGH — NEW (cycle 5) — BL-29 regression
@@ -31,22 +83,19 @@ Symptom: Remus + max tax + 35 Space presses → stage="results" at round 7 autum
 Fix target: After first starvation event, add a 2-round "recovery grace" where subsequent starvations apply -5% population loss instead of -15%, and morale decay caps at -5/season. This lets players course-correct instead of death-spiraling. Also ensure `checkFailureConditions()` requires *consecutive* starvations (not just "starvation count >= 2 in any 3-round window").
 
 ### [x] BL-39 — Morale decay 90→15 unrecoverable in Goat/Avg playthroughs
-Severity: MEDIUM — NEW (cycle 5)
+Severity: MEDIUM — VERIFIED FIXED (cycle 6) — Goat morale held 92-94 through failure state.
 Location: `game/src/components/game/MilitaryPanel.tsx` (Rally Troops visibility), `game/src/store/gameStore.ts:rallyTroops`
-Symptom: Cycle 4 added a Rally Troops action but QA spec never triggered it (test only clicks worship + end season). Morale decays -15 per winter and slides steadily for Goat from 85 → 15. Either the Rally Troops button is invisible, gated by cost (300 denarii + 50 grain) that fails silently, or not on the default tab. Players relying on default-play will never recover morale.
-Fix target: (a) Add passive morale recovery of +3/season when population ≥ housing×0.8 and happiness ≥ 60 (rewards stable empires), capped at 80. (b) Surface Rally Troops button on the Overview dashboard "Emergency Actions" panel when morale < 50, not just Military tab.
+Fix applied: Passive morale recovery + Overview surface on morale<50.
 
 ### [x] BL-33 — Deficit hits Avg at round 7 despite no active overspend
-Severity: MEDIUM (existing, now in-progress)
+Severity: MEDIUM — FIXED cycle 5
 Location: `game/src/store/gameStore.ts`, `game/src/app/usecases/index.ts`, `game/src/components/game/OverviewPanel.tsx`
-Symptom: Avg QA shows net denarii flat-lining ~5200-5700 over 25 seasons with `DEFICIT -10%` badge at round 7. Net Income tile reports `-1% (season)` with no breakdown.
-Fix target: Add deficit tooltip that itemizes the line: `{garrison_upkeep, trade_income, tax_income, building_upkeep, wonder_upkeep}`. Also investigate garrison upkeep at round 7 — if 25 troops cost > 20 denarii/season with zero income that's a tuning issue.
+Fix applied: Deficit tooltip itemises garrison/trade/tax/building/wonder upkeep.
 
 ### [x] BL-36 — Patron god piety gain not tutorialized
-Severity: LOW (existing, now in-progress)
+Severity: LOW — FIXED cycle 5
 Location: `game/src/store/gameStore.ts` (setPatronGod), `game/src/components/game/OverviewPanel.tsx`
-Symptom: With patron set, piety remains 0 unless the player actively visits Worship sub-tab and clicks an action.
-Fix target: Push event to `lastEvents` the first round after patron selection: `"Your patron god {name} awaits offerings — visit the Religion tab."` Also show a red dot badge on the Religion sidebar tab when patron is set but piety === 0.
+Fix applied: lastEvents nudge + Religion red-dot badge when patron set but piety = 0.
 
 ---
 
@@ -101,16 +150,14 @@ Severity: LOW — UI/state desync; investigate `territories` derivation and roun
 ### BL-19 — xorshift32 PRNG dead code; non-deterministic games
 Severity: LOW — PRNG defined but `random()` uses `Math.random()`. Fix: remove dead code or wire `random()` to seed.
 
-### BL-25 — 3-role spec round counter reads −1 (store not on window)
-Severity: LOW (tooling) — `tests/three-roles-qa.spec.ts` can't read round; `window.__gameStore` not exposed. Fix: expose zustand store on window in dev OR scrape DOM TerminalHeader.
+### [x] BL-25 — 3-role spec round counter reads −1 (store not on window)
+Severity: LOW (tooling) — FIXED; cycle-6 run confirms `window.__gameStore` returns populated state with round/season/denarii/pop/etc. in every Playwright `readState`.
 
-### BL-34 — Emergency Actions panel appears even when happiness ≥ 80% (Avg)
-Severity: LOW — NEW (2026-04-17) — Avg screenshot shows "Crisis Mode Active" panel opened at round 7 summer when happiness = 90%, pop = 115. Emergency actions (Grain Requisition, Conscription) surface despite non-crisis state.
-Fix target: Tighten `isCrisisMode` gate — require `happiness < 60 OR grainDeficit > 20 OR morale < 30` (not just "has starvation warning in last 3 seasons").
+### [x] BL-34 — Emergency Actions panel appears even when happiness ≥ 80% (Avg)
+Severity: LOW — SUPERSEDED by BL-43 (cycle 6); same root cause, new fix plan. Keep closed here, track under BL-43.
 
-### BL-35 — Population oscillates 150 → 142 → 150 in one round (Avg round 5)
-Severity: LOW — NEW (2026-04-17) — Avg log shows pop 150 (spring) → 142 (summer) → 150 (autumn) within a single round. Suggests housing-cap check runs before migration/growth, or growth+cap clamp ping-pongs.
-Fix target: Order of ops in `endSeason` — apply growth, then migration, then housing-cap clamp exactly once per season.
+### [x] BL-35 — Population oscillates 150 → 142 → 150 in one round (Avg round 5)
+Severity: LOW — SUPERSEDED by BL-42 (cycle 6); reappeared at round 6→7 (150→159→136). Track under BL-42.
 
 ---
 
