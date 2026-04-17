@@ -18,31 +18,31 @@ Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance
 
 ## Current Cycle — TARGETING: BL-37, BL-38, BL-39, BL-33, BL-36
 
-### [~] BL-37 — Avg Gamer piety stays 0 for 25 seasons despite Jupiter patron + worship
+### [x] BL-37 — Avg Gamer piety stays 0 for 25 seasons despite Jupiter patron + worship
 Severity: HIGH — NEW (cycle 5) — BL-29 regression
 Location: `game/src/components/game/ReligionPanel.tsx`, `game/src/store/gameStore.ts:worship()`, `game/src/app/usecases/senate.ts`
 Symptom: Playwright Avg role (Romulus → Jupiter patron → Worship tab → click action → press Space) produces `piety: 0` in every snapshot from round 1 summer through round 7 summer. BL-29 claimed data-testid and +2 piety floor were added, but Avg still shows 0. Either (a) test selector doesn't find buttons, (b) worship cooldown prevents subsequent calls, or (c) worship action requires resources (grain/denarii) that early-game state lacks.
 Fix target: Ensure `worship()` ALWAYS grants at least +2 piety regardless of resources (resource check should only BLOCK optional bonus effects, never piety). Add a dev-mode fallback: if the Avg test calls worship via `page.getByRole('button', {name: /Pray/i})`, make sure a visible "Pray" / "Worship" button exists on the Religion panel main tab (not hidden behind a sub-tab that needs additional clicks).
 
-### [~] BL-38 — Goat Gamer still hits "results" stage at round 7 autumn
+### [x] BL-38 — Goat Gamer still hits "results" stage at round 7 autumn
 Severity: HIGH — NEW (cycle 5) — BL-30 regression
 Location: `game/src/store/gameStore.ts` (endSeason, failure check), `game/src/app/usecases/index.ts`
 Symptom: Remus + max tax + 35 Space presses → stage="results" at round 7 autumn. Population cascade 150→128→107→95→104, morale 62→52→47→32→15, despite having 5515 denarii and stable 25-28 troops. Previous BL-30 fix targeted starvation gate and starting grain but did not address the compounding morale+pop cascade once the first starvation fires.
 Fix target: After first starvation event, add a 2-round "recovery grace" where subsequent starvations apply -5% population loss instead of -15%, and morale decay caps at -5/season. This lets players course-correct instead of death-spiraling. Also ensure `checkFailureConditions()` requires *consecutive* starvations (not just "starvation count >= 2 in any 3-round window").
 
-### [~] BL-39 — Morale decay 90→15 unrecoverable in Goat/Avg playthroughs
+### [x] BL-39 — Morale decay 90→15 unrecoverable in Goat/Avg playthroughs
 Severity: MEDIUM — NEW (cycle 5)
 Location: `game/src/components/game/MilitaryPanel.tsx` (Rally Troops visibility), `game/src/store/gameStore.ts:rallyTroops`
 Symptom: Cycle 4 added a Rally Troops action but QA spec never triggered it (test only clicks worship + end season). Morale decays -15 per winter and slides steadily for Goat from 85 → 15. Either the Rally Troops button is invisible, gated by cost (300 denarii + 50 grain) that fails silently, or not on the default tab. Players relying on default-play will never recover morale.
 Fix target: (a) Add passive morale recovery of +3/season when population ≥ housing×0.8 and happiness ≥ 60 (rewards stable empires), capped at 80. (b) Surface Rally Troops button on the Overview dashboard "Emergency Actions" panel when morale < 50, not just Military tab.
 
-### [~] BL-33 — Deficit hits Avg at round 7 despite no active overspend
+### [x] BL-33 — Deficit hits Avg at round 7 despite no active overspend
 Severity: MEDIUM (existing, now in-progress)
 Location: `game/src/store/gameStore.ts`, `game/src/app/usecases/index.ts`, `game/src/components/game/OverviewPanel.tsx`
 Symptom: Avg QA shows net denarii flat-lining ~5200-5700 over 25 seasons with `DEFICIT -10%` badge at round 7. Net Income tile reports `-1% (season)` with no breakdown.
 Fix target: Add deficit tooltip that itemizes the line: `{garrison_upkeep, trade_income, tax_income, building_upkeep, wonder_upkeep}`. Also investigate garrison upkeep at round 7 — if 25 troops cost > 20 denarii/season with zero income that's a tuning issue.
 
-### [~] BL-36 — Patron god piety gain not tutorialized
+### [x] BL-36 — Patron god piety gain not tutorialized
 Severity: LOW (existing, now in-progress)
 Location: `game/src/store/gameStore.ts` (setPatronGod), `game/src/components/game/OverviewPanel.tsx`
 Symptom: With patron set, piety remains 0 unless the player actively visits Worship sub-tab and clicks an action.
