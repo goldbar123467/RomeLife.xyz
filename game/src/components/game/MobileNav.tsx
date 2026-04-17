@@ -101,7 +101,13 @@ const MobileNavButton = memo(function MobileNavButton({
 
 export function MobileNav() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const { activeTab, setTab } = useGameStore();
+    const { activeTab, setTab, patronGod, piety, round } = useGameStore();
+
+    // BL-36 / BL-65: Red dot on Religion when patron is set but piety is still 0,
+    // OR when no patron is selected by round 3+.
+    const religionNudge =
+        (!!patronGod && piety === 0 && round > 1) ||
+        (!patronGod && round >= 3);
 
     const handleTabClick = (tab: Tab) => {
         setTab(tab);
@@ -135,10 +141,18 @@ export function MobileNav() {
                             aria-label="Open navigation menu"
                             aria-expanded={isDrawerOpen}
                             aria-haspopup="dialog"
-                            className="flex-1 flex flex-col items-center justify-center py-3 min-h-[56px] text-muted hover:text-ink transition-colors"
+                            className="relative flex-1 flex flex-col items-center justify-center py-3 min-h-[56px] text-muted hover:text-ink transition-colors"
                         >
                             <Menu className="w-6 h-6" aria-hidden="true" />
                             <span className="text-[11px] mt-1">More</span>
+                            {/* BL-65: Surface religion nudge on the More button since Religion lives in the drawer */}
+                            {religionNudge && (
+                                <span
+                                    className="absolute top-2 right-4 w-2 h-2 rounded-full bg-red-500"
+                                    aria-label="Religion needs attention"
+                                    data-testid="mobile-religion-nudge-dot"
+                                />
+                            )}
                         </button>
                     </div>
                 </div>
@@ -201,7 +215,7 @@ export function MobileNav() {
                                             aria-selected={activeTab === id}
                                             aria-label={TAB_DESCRIPTIONS[id]}
                                             aria-current={activeTab === id ? 'page' : undefined}
-                                            className={`flex flex-col items-center justify-center p-3 min-h-[72px] rounded-xl transition-all ${
+                                            className={`relative flex flex-col items-center justify-center p-3 min-h-[72px] rounded-xl transition-all ${
                                                 activeTab === id
                                                     ? 'bg-roman-gold/20 text-roman-gold'
                                                     : 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
@@ -209,6 +223,14 @@ export function MobileNav() {
                                         >
                                             <Icon className={`w-6 h-6 mb-1 ${activeTab === id ? 'drop-shadow-[0_0_6px_rgba(240,193,75,0.8)]' : ''}`} aria-hidden="true" />
                                             <span className="text-[11px] text-center leading-tight">{label}</span>
+                                            {/* BL-65: red dot on Religion tile inside drawer */}
+                                            {id === 'religion' && religionNudge && (
+                                                <span
+                                                    className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500"
+                                                    aria-label="Religion needs attention"
+                                                    data-testid="mobile-religion-nudge-dot-tile"
+                                                />
+                                            )}
                                         </button>
                                     ))}
                                 </div>
