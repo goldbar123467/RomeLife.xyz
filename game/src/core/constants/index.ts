@@ -423,7 +423,7 @@ export const GAME_CONSTANTS = {
      * High risk routes are still dangerous but not suicidal.
      * @balance Difficulty: Medium | Affects: Long-distance trade
      */
-    TRADE_RISK_MAX: 0.25,
+    TRADE_RISK_MAX: 0.40,
 
     /**
      * Bonus multiplier applied to trade prices.
@@ -630,9 +630,9 @@ export const GAME_CONSTANTS = {
 
     /**
      * Minimum happiness percentage before unrest failure.
-     * Lowered to 20% (from 25%) to give new players more recovery time.
-     * Below this threshold, civil unrest destroys the empire.
-     * Values below 15% would make the game too forgiving.
+     * @deprecated BL-24: Use `getHappinessFailureThreshold(round)` in `core/rules/index.ts`
+     * for the round-scaled happiness failure threshold (15% early, ramps to 25% by round 20).
+     * Kept for back-compat / reference only; `checkFailureConditions` no longer reads this.
      * @balance Difficulty: Easy | Affects: Happiness spiral recovery window
      */
     FAILURE_MIN_HAPPINESS: 20,

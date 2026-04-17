@@ -337,10 +337,14 @@ export function calculateBlessingBonus(
   const hasAllBlessings = activeBlessings.some(b => b.effectType === 'allBlessings');
 
   if (hasAllBlessings) {
-    // Get all blessings from all gods for this effect type
+    // BL-15: Non-patron god blessings apply at 50% potency to avoid power creep.
+    // Patron god's own blessings apply at full strength.
     return BLESSING_EFFECTS
       .filter(b => b.effectType === effectType)
-      .reduce((sum, b) => sum + b.value, 0);
+      .reduce((sum, b) => {
+        const multiplier = b.god === patronGod ? 1.0 : 0.5;
+        return sum + b.value * multiplier;
+      }, 0);
   }
 
   // Normal case: just sum from patron god's active blessings
@@ -350,10 +354,15 @@ export function calculateBlessingBonus(
 }
 
 /**
- * Roll for a religious event
+ * Roll for a religious event.
+ * Accepts an optional cooldowns map (eventId -> rounds remaining) to skip
+ * events that are still on cooldown.
  */
-export function rollReligiousEvent(): ReligiousEvent | null {
+export function rollReligiousEvent(
+  cooldowns?: Record<string, number>
+): ReligiousEvent | null {
   for (const event of RELIGIOUS_EVENTS) {
+    if (cooldowns && (cooldowns[event.id] ?? 0) > 0) continue;
     if (Math.random() < event.probability) {
       return event;
     }

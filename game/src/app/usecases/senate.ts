@@ -89,6 +89,19 @@ export function processSenateSeasonEnd(
         return result;
     }
 
+    // BL-20: Idempotency guard. If this round has already been processed, skip.
+    // This prevents relation corruption from accidental double-invocation of
+    // endSeason within the same round (e.g. race condition on Space key, event
+    // queue collision, or stale React render).
+    if (gameState.senate.lastProcessedRound === round) {
+        if (typeof window !== 'undefined') {
+            console.warn(`[Senate] BL-20 GUARD: skipping duplicate processSenateSeasonEnd for round ${round}`);
+        }
+        // Preserve current senate state untouched
+        result.newSenateState = gameState.senate;
+        return result;
+    }
+
     // Debug logging for Season 21 investigation
     if (typeof window !== 'undefined') {
         console.log(`[Senate] Round ${round} START - Relations:`,
@@ -380,19 +393,33 @@ export function processSenateSeasonEnd(
     }
 
     // === 8. BUILD FINAL STATE ===
+    // BL-09: Preserve any currentEvent that was already displayed (e.g. from a
+    // prior season that completed but whose event the player never resolved).
+    // If currentEvent is already set, newly generated events are appended to
+    // pendingEvents instead of overwriting the displayed one.
+    const existingCurrent = gameState.senate.currentEvent;
+    const existingPending = gameState.senate.pendingEvents ?? [];
+    const combinedPending = existingCurrent
+        ? [...existingPending, ...result.events]
+        : result.events.slice(1);
+    const nextCurrent = existingCurrent ?? (result.events[0] || null);
+
     result.newSenateState = {
         ...gameState.senate,
         senators,
         attentionThisSeason: null, // Reset for next season
         attentionLocked: false,
-        // Set first event as currentEvent to display modal, rest go to pendingEvents
-        currentEvent: result.events[0] || null,
-        pendingEvents: result.events.slice(1),
+        // Set first event as currentEvent to display modal, rest go to pendingEvents.
+        // Preserve existing currentEvent if one is still pending resolution.
+        currentEvent: nextCurrent,
+        pendingEvents: combinedPending,
         actionQueue: [
             ...queueResult.remainingActions,
             ...queueResult.processedActions.filter(a => !a.resolved),
         ],
         gracePhaseComplete: round >= SENATE_GRACE_PERIOD_ROUNDS,
+        // BL-20: Mark this round as processed so a repeat call short-circuits.
+        lastProcessedRound: round,
     };
 
     return result;
@@ -521,4 +548,82 @@ export function finalizeQueuedActions(
         id: action.id || `action_${currentRound}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         resolved: false,
     }));
+}
+
+// === BL-07: SENATE EVENT EFFECT CAPS ===
+
+export interface SenateEventEffectInput {
+    denarii?: number;
+    grain?: number;
+    happiness?: number;
+    morale?: number;
+    reputation?: number;
+    piety?: number;
+    troops?: number;
+    population?: number;
+}
+
+export interface ClampedSenateEventEffect {
+    effect: SenateEventEffectInput;
+    clamped: boolean;
+    messages: string[];
+}
+
+/**
+ * BL-07: Clamp per-event deltas so a single senator event can't swing resources
+ * by extreme amounts (e.g. ±20k denarii in one round).
+ *
+ * Caps:
+ * - happiness: ±20
+ * - denarii: ±30% of current denarii (min ±500 floor)
+ * - population: ±15
+ * - morale / piety: ±15
+ */
+export function clampSenateEventEffect(
+    state: Pick<GameState, 'denarii'>,
+    effect: SenateEventEffectInput
+): ClampedSenateEventEffect {
+    const clamped: SenateEventEffectInput = { ...effect };
+    const messages: string[] = [];
+    let wasClamped = false;
+
+    const clampField = (
+        key: keyof SenateEventEffectInput,
+        limit: number,
+        label: string
+    ) => {
+        const raw = effect[key];
+        if (raw == null) return;
+        if (raw > limit) {
+            clamped[key] = limit;
+            messages.push(`Effect on ${label} capped from +${raw} to +${limit}`);
+            wasClamped = true;
+        } else if (raw < -limit) {
+            clamped[key] = -limit;
+            messages.push(`Effect on ${label} capped from ${raw} to -${limit}`);
+            wasClamped = true;
+        }
+    };
+
+    clampField('happiness', 20, 'happiness');
+    clampField('population', 15, 'population');
+    clampField('morale', 15, 'morale');
+    clampField('piety', 15, 'piety');
+
+    // Denarii: ±30% of current denarii, min ±500 floor so early game isn't softlocked
+    if (effect.denarii != null) {
+        const pctCap = Math.abs(state.denarii) * 0.3;
+        const denariiCap = Math.max(500, pctCap);
+        if (effect.denarii > denariiCap) {
+            clamped.denarii = Math.round(denariiCap);
+            messages.push(`Effect on denarii capped from +${effect.denarii} to +${clamped.denarii}`);
+            wasClamped = true;
+        } else if (effect.denarii < -denariiCap) {
+            clamped.denarii = -Math.round(denariiCap);
+            messages.push(`Effect on denarii capped from ${effect.denarii} to ${clamped.denarii}`);
+            wasClamped = true;
+        }
+    }
+
+    return { effect: clamped, clamped: wasClamped, messages };
 }

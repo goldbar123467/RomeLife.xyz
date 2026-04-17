@@ -6,7 +6,7 @@ import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divid
 import { RESOURCE_ASSETS } from '@/lib/assets';
 import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
 import { getSenatorDangerLevel, getSenatorStateDescription } from '@/core/constants/senate';
-import { calculateProductionSummary } from '@/core/math';
+import { calculateProductionSummary, calculateIncomeBreakdown, calculateExpenseBreakdown } from '@/core/math';
 import type { ResourceType, SenatorState } from '@/core/types';
 import {
     AlertTriangle,
@@ -36,12 +36,22 @@ export function OverviewPanel() {
         founder, round, season, denarii, population, happiness,
         troops, morale, territories, buildings, piety, patronGod,
         inventory, endSeason, technologies, lastEvents,
-        emergencyCooldowns, executeEmergency, setTab, senate
+        emergencyCooldowns, executeEmergency, setTab, senate,
+        rallyTroops, rallyTroopsCooldown
     } = state;
+
+    // BL-39: Rally Troops gating for Emergency Actions panel
+    const rallyCd = rallyTroopsCooldown ?? 0;
+    const rallyCanAfford = denarii >= 300 && (inventory.grain || 0) >= 50;
+    const rallyDisabled = rallyCd > 0 || !rallyCanAfford || morale >= 100;
+    const showRally = morale < 50;
 
     const ownedTerritories = territories.filter(t => t.owned);
     const builtBuildings = buildings.filter(b => b.count > 0);
     const production = calculateProductionSummary(state);
+    // BL-33: Itemized Income / Expense breakdown for Treasury deficit tooltip
+    const incomeBreakdown = calculateIncomeBreakdown(state);
+    const expenseBreakdown = calculateExpenseBreakdown(state);
     const imperialEvents = lastEvents || [];
 
     // Calculate Legion Stats
@@ -68,7 +78,17 @@ export function OverviewPanel() {
 
     // Crisis Detection
     const grainAmount = inventory.grain || 0;
-    const isInCrisis = happiness < 30 || denarii < 100 || grainAmount < 20;
+    // BL-43 live-state crisis gate — evaluate CURRENT stats only; never consult lastEvents,
+    // starvationHistory, or any stale/historical signal so the panel disappears as soon as
+    // the empire recovers.
+    const grainDeficit = Math.max(0, production.foodConsumption - grainAmount);
+    const isCrisisMode =
+        happiness < 55 ||
+        morale < 40 ||
+        (grainDeficit > 0 && (grainDeficit / Math.max(1, production.foodConsumption)) > 0.25) ||
+        (round >= 10 && troops < 10);
+    // BL-39 preserved: Rally Troops surfaces its own panel via `showRally`.
+    const isInCrisis = isCrisisMode;
 
     // Check if emergency action can be executed
     const canExecuteEmergency = (action: typeof EMERGENCY_ACTIONS[0]) => {
@@ -143,16 +163,39 @@ export function OverviewPanel() {
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                        <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help relative" whileHover={{ scale: 1.02 }}>
                             <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon={<Coins size={18} className="text-roman-gold" />} size="sm" />
+                            {production.netIncome < 0 && (
+                                <span className="mt-1 inline-block text-red-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                                    Deficit {production.netIncome}/s
+                                </span>
+                            )}
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-[220px]">
                             <div className="font-bold text-[#f0c14b]">Treasury</div>
-                            <div className="text-xs">Income: <span className="text-green-400">+{production.income}/season</span></div>
-                            <div className="text-xs">Upkeep: <span className="text-red-400">-{production.upkeep}/season</span></div>
-                            <div className="text-xs">Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/season</span></div>
+                            {/* BL-33: Itemized Income / Expense breakdown */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] mt-1">
+                                <div className="font-semibold text-green-400 uppercase tracking-wider text-[10px]">Income</div>
+                                <div className="font-semibold text-red-400 uppercase tracking-wider text-[10px]">Expense</div>
+                                <div className="text-green-300">Tax <span className="text-white/80">+{incomeBreakdown.tax}</span></div>
+                                <div className="text-red-300">Garrison <span className="text-white/80">-{expenseBreakdown.garrisonUpkeep}</span></div>
+                                <div className="text-green-300">Trade <span className="text-white/80">+{incomeBreakdown.trade}</span></div>
+                                <div className="text-red-300">Buildings <span className="text-white/80">-{expenseBreakdown.buildingUpkeep}</span></div>
+                                <div className="text-green-300">Tribute <span className="text-white/80">+{incomeBreakdown.tribute}</span></div>
+                                <div className="text-red-300">Wonders <span className="text-white/80">-{expenseBreakdown.wonderUpkeep}</span></div>
+                                <div className="text-green-300">Wonders <span className="text-white/80">+{incomeBreakdown.wonders}</span></div>
+                                <div className="text-red-300">Events <span className="text-white/80">-{expenseBreakdown.events}</span></div>
+                            </div>
+                            <div className="border-t border-white/10 pt-1 mt-1 text-xs">
+                                <div>Total In: <span className="text-green-400">+{production.income}/s</span></div>
+                                <div>Total Out: <span className="text-red-400">-{production.upkeep}/s</span></div>
+                                <div>Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/s</span></div>
+                            </div>
+                            {production.netIncome < 0 && (
+                                <div className="text-xs text-red-400 mt-1">Raise taxes or build a marketplace to recover.</div>
+                            )}
                         </div>
                     </TooltipContent>
                 </Tooltip>
@@ -486,14 +529,49 @@ export function OverviewPanel() {
                         </div>
                     </GlassCard>
 
-                    {/* Emergency Actions - Show when in crisis */}
-                    {isInCrisis && (
-                        <GlassCard variant="crimson">
+                    {/* Emergency Actions — BL-43 live-state gate; heading severity depends on live stats. */}
+                    {isInCrisis && (() => {
+                        const severe = morale < 40 || happiness < 55;
+                        const headingTitle = severe ? 'Crisis Response' : 'Quick Actions (Advanced)';
+                        const iconColorClass = severe ? 'text-red-400' : 'text-amber-400';
+                        const cardVariant = severe ? 'crimson' : undefined;
+                        return (
+                        <GlassCard variant={cardVariant}>
                             <div className="flex items-center gap-2 mb-4">
-                                <AlertTriangle className="w-5 h-5 text-red-400" />
-                                <SectionHeader title="Emergency Actions" subtitle="Crisis Mode Active" />
+                                <AlertTriangle className={`w-5 h-5 ${iconColorClass}`} />
+                                <SectionHeader title={headingTitle} />
                             </div>
                             <div className="space-y-2">
+                                {/* BL-39: Rally Troops surfaced when morale < 50 */}
+                                {showRally && (
+                                    <motion.div
+                                        className={`p-3 rounded-xl border ${rallyCd > 0 ? 'bg-white/5 border-white/10 opacity-50' : !rallyDisabled ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50' : 'bg-white/5 border-white/10 opacity-60'}`}
+                                        whileHover={!rallyDisabled ? { scale: 1.01 } : {}}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl">⚔️</span>
+                                                <span className="font-bold text-sm">Rally Troops</span>
+                                            </div>
+                                            {rallyCd > 0 ? (
+                                                <Badge variant="default">{rallyCd} rounds</Badge>
+                                            ) : (
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    disabled={rallyDisabled}
+                                                    onClick={() => rallyTroops()}
+                                                >
+                                                    Execute
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-red-400">-300 denarii, -50 grain</span>
+                                            <span className="text-green-400">+15 morale</span>
+                                        </div>
+                                    </motion.div>
+                                )}
                                 {EMERGENCY_ACTIONS.map((action) => {
                                     const cooldown = emergencyCooldowns?.[action.id] || 0;
                                     const canExecute = canExecuteEmergency(action);
@@ -539,7 +617,8 @@ export function OverviewPanel() {
                                 })}
                             </div>
                         </GlassCard>
-                    )}
+                        );
+                    })()}
                 </div>
             </div>
         </div>

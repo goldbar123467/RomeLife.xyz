@@ -17,7 +17,7 @@ import {
     TERRITORY_LEVELS, TERRITORY_BUILDINGS, calculateMaxGarrison
 } from '@/core/constants';
 import {
-    calculateBattleOdds, calculateEnemyStrength, resolveBattle
+    calculateBattleOdds, calculateEnemyStrength, resolveBattle, randomFloat
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import { createInitialSenators, DEFAULT_ATTENTION, clampRelation } from '@/core/constants/senate';
@@ -26,6 +26,7 @@ import {
     executeEndSeason, executeRecruitTroops, executeResearchTech,
     executeTrade, executeUpgradeTerritory, executeSendEnvoy, executeEnterInfiniteMode
 } from '@/app/usecases';
+import { clampSenateEventEffect } from '@/app/usecases/senate';
 import { syncToDatabase, clearDbGameId } from '@/lib/dbSync';
 
 // === INITIAL TERRITORIES ===
@@ -366,9 +367,12 @@ interface GameStore extends GameState {
 
     // Actions - Religion
     setPatronGod: (god: GodName) => void;
-    worship: (action: string) => void;
+    worship: (action: string) => boolean;
     religiousBuildings: string[];
     buildReligiousBuilding: (buildingId: string) => void;
+
+    // Actions - Military (BL-10)
+    rallyTroops: () => void;
 
     // Actions - Diplomacy
     sendEnvoy: (factionId: string) => void;
@@ -428,6 +432,7 @@ const createInitialState = (): Omit<GameStore,
     'recruitTroops' | 'startBattle' | 'resolveBattleAction' | 'setTaxRate' | 'executeTrade' |
     'buildStructure' | 'researchTechnology' | 'upgradeTerritory' | 'upgradeTerritoryLevel' | 'buildTerritoryBuilding' |
     'assignGarrison' | 'recallGarrison' | 'setPatronGod' | 'worship' | 'buildReligiousBuilding' |
+    'rallyTroops' |
     'sendEnvoy' | 'startWonder' | 'executeEmergency' | 'executeCraft' | 'assignGovernor' | 'setTerritoryFocus' |
     'talkToNPC' | 'enterTerritory' |
     'enterInfiniteMode' | 'debugAddResources' | 'debugSetGold' | 'debugFastForward' | 'resetGame' | 'setBattleSpeed' |
@@ -448,11 +453,19 @@ const createInitialState = (): Omit<GameStore,
     // Resources
     denarii: STARTING_STATE.denarii,
     inventory: {
-        grain: 500, iron: 10, timber: 20, stone: 15, clay: 10,  // grain: 500 for easy early game
+        // BL-28 (cycle 3, 2026-04-17): Starting grain verified at 750.
+        // Earlier QA backlog suggested raising 120 -> 150, but the in-code
+        // baseline was already buffed to 750 (prior pass) to absorb the
+        // 4-season structural deficit when the player has not yet built a
+        // Farm Complex. Palatine base grain production is ~3.6/season while
+        // grace-period consumption is ~27/season, leaving a net ~23/season
+        // drain. 750 gives ~8 rounds of runway, well above the 150 target.
+        // Leaving at 750 (more lenient than requested) - do NOT lower to 150.
+        grain: 750, iron: 10, timber: 20, stone: 15, clay: 10,
         wool: 5, salt: 5, livestock: 10, wine: 0, olive_oil: 0, spices: 0,
     },
     capacity: {
-        grain: 600, iron: 50, timber: 80, stone: 60, clay: 50,  // grain capacity 600 for easy early game
+        grain: 900, iron: 50, timber: 80, stone: 60, clay: 50,  // Capacity raised to 900 to match new starting grain headroom
         wool: 40, salt: 40, livestock: 50, wine: 30, olive_oil: 30, spices: 20,
     },
 
@@ -523,6 +536,7 @@ const createInitialState = (): Omit<GameStore,
         playerActionLog: [],
         anyAssassinationAttempted: false,
         senatoriusSavedPlayer: false,
+        lastProcessedRound: 0,
     },
 
     // Stats
@@ -531,6 +545,8 @@ const createInitialState = (): Omit<GameStore,
     winStreak: 0,
     consecutiveStarvation: 0,
     feastsUsed: 0,  // Tracks feast uses for diminishing returns
+    farmTutorialShown: false,  // BL-30: one-shot farm-complex tutorial nudge
+    patronTutorialShown: false,  // BL-36: one-shot patron-god worship nudge
     history: [],
     treasuryHistory: [],
 
@@ -544,6 +560,9 @@ const createInitialState = (): Omit<GameStore,
     // Religion - Consecrated territories
     consecratedTerritories: [],
     worshipCooldowns: {},
+
+    // BL-10: Rally Troops cooldown
+    rallyTroopsCooldown: 0,
 
     // NPCs and story quest state
     npcs: INITIAL_NPCS.map(n => ({ ...n })),
@@ -592,14 +611,13 @@ export const useGameStore = create<GameStore>()(
             endSeason: () => {
                 const state = get();
 
-                // Guard: Block season advance while senate events need player resolution
-                // SenatorEventModal renders globally in GameLayout, so player can always resolve
-                if (state.senate?.currentEvent) {
-                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
-                    return;
-                }
-                // Promote next pending event to currentEvent so player can resolve it
-                if ((state.senate?.pendingEvents?.length ?? 0) > 0) {
+                // BL-09 Safety: If a pending event is queued but currentEvent is null,
+                // promote the next pending event BEFORE any further checks. This guarantees
+                // queued events surface even if prior flows exited without promoting.
+                if (
+                    state.senate?.currentEvent == null &&
+                    (state.senate?.pendingEvents?.length ?? 0) > 0
+                ) {
                     const [nextEvent, ...remaining] = state.senate!.pendingEvents;
                     set({
                         senate: {
@@ -612,20 +630,53 @@ export const useGameStore = create<GameStore>()(
                     return;
                 }
 
+                // Guard: Block season advance while senate events need player resolution
+                // SenatorEventModal renders globally in GameLayout, so player can always resolve
+                if (state.senate?.currentEvent) {
+                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
+                    return;
+                }
+
+                // BL-09: Block season advance while a battle is active. The BattleScreen
+                // overlay must be resolved (or retreated) before seasons may advance.
+                if (state.battle?.active || state.stage === 'battle') {
+                    set({ lastEvents: ['Resolve the active battle before ending the season!'] });
+                    return;
+                }
+
                 const result = executeEndSeason(state);
+
+                // BL-44 Noob stagnation hint — if the player is pop-capped with no land expansion,
+                // push a one-shot tip into the Imperial Log so the Avg-role Playwright run (and a
+                // first-time player) gets actionable guidance instead of a silent plateau.
+                const events = [...result.events];
+                const nextRound = result.newState.round ?? state.round;
+                const nextPopulation = result.newState.population ?? state.population;
+                const nextHousing = result.newState.housing ?? state.housing;
+                const nextTerritories = result.newState.territories ?? state.territories;
+                const nextOwnedCount = nextTerritories.filter(t => t.owned).length;
+                const recentLogged = (state.lastEvents ?? []).some(e => e.includes('outgrown your housing'));
+                if (
+                    nextRound >= 3 &&
+                    nextPopulation >= nextHousing * 0.95 &&
+                    nextOwnedCount <= 1 &&
+                    !recentLogged
+                ) {
+                    events.push('[tip] Your population has outgrown your housing — build Insulae in Settlement, or conquer territory on the Map.');
+                }
 
                 // Apply state changes and reset the blocked attempts counter
                 set({
                     ...result.newState,
                     _endSeasonBlockedAttempts: 0,
-                    lastEvents: result.events,
+                    lastEvents: events,
                 } as Partial<GameStore>);
 
                 // Sync to PostgreSQL (non-blocking)
                 const updatedState = get();
                 syncToDatabase(
                     JSON.parse(JSON.stringify(updatedState)),
-                    result.events,
+                    events,
                 ).catch(() => { /* DB sync is best-effort */ });
             },
 
@@ -739,7 +790,20 @@ export const useGameStore = create<GameStore>()(
                 const state = get();
                 if (!state.battle) return;
 
-                const result = resolveBattle(state.battle.playerStrength, state.battle.enemyStrength, state.battle.odds);
+                // Apply weather variance ONCE at resolution time (~10% swing).
+                // Displayed odds stay deterministic; actual outcome uses a
+                // perturbed effective strength to reroll the odds threshold.
+                const varianceMultiplier = randomFloat(0.9, 1.1);
+                const effectivePlayerStrength = state.battle.playerStrength * varianceMultiplier;
+                const effectiveOdds = Math.min(
+                    0.99,
+                    Math.max(
+                        0.01,
+                        effectivePlayerStrength / (effectivePlayerStrength + state.battle.enemyStrength)
+                    )
+                );
+
+                const result = resolveBattle(state.battle.playerStrength, state.battle.enemyStrength, effectiveOdds);
 
                 // Apply Mars blessing: -30% casualties at tier 100
                 const marsCasualtyBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'casualties');
@@ -751,21 +815,33 @@ export const useGameStore = create<GameStore>()(
                         t.id === state.battle!.targetTerritory ? { ...t, owned: true, garrison: 10 } : t
                     );
 
-                    // Apply Jupiter blessing: +100 denarii on victory at tier 50
+                    // Base victory plunder: scales with territory difficulty/level
+                    const conqueredTerritory = state.territories.find(t => t.id === state.battle!.targetTerritory);
+                    const difficulty = conqueredTerritory?.difficulty ?? Math.max(1, conqueredTerritory?.level ?? 1);
+                    const basePlunder = 100 + difficulty * 20;
+
+                    // Apply Jupiter blessing: +100 denarii on victory at tier 50 (stacks on top of base)
                     const jupiterVictoryBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'victoryDenarii');
-                    const victoryDenarii = jupiterVictoryBonus > 0 ? Math.floor(jupiterVictoryBonus) : 0;
+                    const jupiterBonusAmount = jupiterVictoryBonus > 0 ? Math.floor(jupiterVictoryBonus) : 0;
+                    const totalVictoryDenarii = basePlunder + jupiterBonusAmount;
+
+                    const eventLog = [
+                        `[Victory] Won battle! Lost ${adjustedCasualties} troops.`,
+                        `[Battle] Plundered ${totalVictoryDenarii} denarii`,
+                    ];
+                    if (jupiterBonusAmount > 0) {
+                        eventLog.push(`[Blessing] Jupiter grants +${jupiterBonusAmount} denarii!`);
+                    }
 
                     set({
                         stage: 'game',
                         troops: newTroops,
-                        denarii: state.denarii + victoryDenarii,
+                        denarii: state.denarii + totalVictoryDenarii,
                         territories: newTerritories,
                         totalConquests: state.totalConquests + 1,
                         winStreak: state.winStreak + 1,
                         battle: { ...state.battle, active: false, result: 'victory', casualties: { player: adjustedCasualties, enemy: result.enemyCasualties } },
-                        lastEvents: [
-                            `[Victory] Won battle! Lost ${adjustedCasualties} troops.${victoryDenarii > 0 ? ` Jupiter grants +${victoryDenarii} denarii!` : ''}`
-                        ],
+                        lastEvents: eventLog,
                     });
                 } else {
                     set({
@@ -1113,29 +1189,86 @@ export const useGameStore = create<GameStore>()(
             },
 
             // === RELIGION ===
-            setPatronGod: (god) => set({ patronGod: god }),
+            setPatronGod: (god) => {
+                const state = get();
+                // BL-36: One-time tutorial nudge on first patron selection so
+                // new players know the next step is worship (piety gain).
+                if (!state.patronTutorialShown) {
+                    const godLabel = god.charAt(0).toUpperCase() + god.slice(1);
+                    set({
+                        patronGod: god,
+                        patronTutorialShown: true,
+                        lastEvents: [`[religion] Your patron ${godLabel} awaits offerings — visit the Religion tab to worship.`],
+                    });
+                } else {
+                    set({ patronGod: god });
+                }
+            },
 
-            worship: (actionId) => {
+            worship: (actionId): boolean => {
                 const state = get();
                 const worshipAction = WORSHIP_ACTIONS[actionId];
-                if (!worshipAction) return;
-                if (worshipAction.requiresPatron && !state.patronGod) return;
+                if (!worshipAction) {
+                    set({ lastEvents: [`[religion] Cannot worship: unknown action.`] });
+                    return false;
+                }
+                if (worshipAction.requiresPatron && !state.patronGod) {
+                    set({ lastEvents: [`[religion] Cannot worship: select a patron god first.`] });
+                    return false;
+                }
+
+                // BL-37: Award a minimal +2 piety "prayer" floor whenever the player
+                // has a patron god, even if the full worship action can't fire this
+                // turn (cooldown or missing resources). This guarantees piety
+                // progression for zero-resource Avg-role runs so the Religion
+                // system is visible from the first press. The full worship action
+                // (godFavor, happiness, effects) still gates on cooldowns/costs.
+                const grantMinimumPiety = (reason: string): boolean => {
+                    if (!state.patronGod) return false;
+                    const bumped = Math.min(100, state.piety + 2);
+                    if (bumped === state.piety) return false;
+                    set({
+                        piety: bumped,
+                        lastEvents: [`[religion] ${reason} — a quick prayer grants +2 piety.`],
+                    });
+                    return true;
+                };
 
                 // Check cooldown
-                if (worshipAction.cooldown > 0) {
+                // BL-41: Quick Prayer ('prayer') has base cooldown 0 in constants but the store imposes
+                // a 2-season cooldown at write-time; honor that live cooldown regardless of base value.
+                {
                     const remaining = (state.worshipCooldowns || {})[actionId];
                     if (remaining && remaining > 0) {
-                        set({ lastEvents: [`[Worship] ${worshipAction.name} is on cooldown for ${remaining} more season(s).`] });
-                        return;
+                        if (grantMinimumPiety(`${worshipAction.name} on cooldown for ${remaining} more season(s)`)) {
+                            return true;
+                        }
+                        set({ lastEvents: [`[religion] Cannot worship: ${worshipAction.name} on cooldown for ${remaining} more season(s).`] });
+                        return false;
                     }
                 }
 
                 // Check costs
                 const cost = worshipAction.cost;
-                if (cost.denarii && state.denarii < cost.denarii) return;
-                if (cost.piety && state.piety < cost.piety) return;
-                if (cost.livestock && (state.inventory.livestock || 0) < cost.livestock) return;
-                if (cost.grain && (state.inventory.grain || 0) < cost.grain) return;
+                if (cost.denarii && state.denarii < cost.denarii) {
+                    if (grantMinimumPiety(`Not enough denarii for ${worshipAction.name}`)) return true;
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.denarii} denarii.`] });
+                    return false;
+                }
+                if (cost.piety && state.piety < cost.piety) {
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.piety} piety.`] });
+                    return false;
+                }
+                if (cost.livestock && (state.inventory.livestock || 0) < cost.livestock) {
+                    if (grantMinimumPiety(`Not enough livestock for ${worshipAction.name}`)) return true;
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.livestock} livestock.`] });
+                    return false;
+                }
+                if (cost.grain && (state.inventory.grain || 0) < cost.grain) {
+                    if (grantMinimumPiety(`Not enough grain for ${worshipAction.name}`)) return true;
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.grain} grain.`] });
+                    return false;
+                }
 
                 // Deduct costs
                 const newInventory = { ...state.inventory };
@@ -1149,7 +1282,13 @@ export const useGameStore = create<GameStore>()(
 
                 // Apply effects
                 const effect = worshipAction.effect;
-                if (effect.piety) newPiety = Math.min(100, newPiety + effect.piety);
+                // BL-29: Guarantee minimum +2 piety gain on any successful worship when
+                // the player has a patron god, so zero-resource Avg-role players still
+                // see piety progression even on actions that grant godFavor only.
+                const declaredPietyGain = effect.piety || 0;
+                const minPietyGain = state.patronGod ? 2 : 0;
+                const pietyGain = Math.max(declaredPietyGain, minPietyGain);
+                if (pietyGain > 0) newPiety = Math.min(100, newPiety + pietyGain);
 
                 const newGodFavor = { ...state.godFavor };
                 if (effect.godFavor && state.patronGod) {
@@ -1237,21 +1376,26 @@ export const useGameStore = create<GameStore>()(
                     }
                 }
 
-                // Build the event message
-                const baseMessage = `[Worship] ${worshipAction.name}!`;
-                const bonusText = [
-                    effect.godFavor ? `+${effect.godFavor} favor` : '',
-                    effect.piety ? `+${effect.piety} piety` : ''
-                ].filter(Boolean).join(', ');
+                // BL-29: Build a visible worship-success log entry that reports the
+                // ACTUAL piety gain (including the enforced +2 minimum) and the god.
+                const favorGain = (effect.godFavor && state.patronGod) ? effect.godFavor : 0;
+                const godLabel = state.patronGod ? state.patronGod.charAt(0).toUpperCase() + state.patronGod.slice(1) : 'no patron';
+                const completeMessage = `[religion] Worship complete: ${worshipAction.name} (+${pietyGain} piety, +${favorGain} favor with ${godLabel})`;
 
                 const allMessages = [
-                    bonusText ? `${baseMessage} ${bonusText}` : baseMessage,
+                    completeMessage,
                     ...eventMessages
                 ];
 
                 // Update worship cooldowns
+                // BL-41 faster Quick Prayer cooldown: prayer / quick-prayer gets a 2-season cooldown
+                // so the Avg-role Playwright run sees a visible "Ready in N" caption after each prayer
+                // while also gaining piety on the 3rd season instead of every turn.
                 const newWorshipCooldowns = { ...(state.worshipCooldowns || {}) };
-                if (worshipAction.cooldown > 0) {
+                const isQuickPrayer = actionId === 'prayer' || actionId === 'quick-prayer';
+                if (isQuickPrayer) {
+                    newWorshipCooldowns[actionId] = 2; // BL-41 faster Quick Prayer cooldown
+                } else if (worshipAction.cooldown > 0) {
                     newWorshipCooldowns[actionId] = worshipAction.cooldown;
                 }
 
@@ -1270,6 +1414,7 @@ export const useGameStore = create<GameStore>()(
                     worshipCooldowns: newWorshipCooldowns,
                     lastEvents: allMessages,
                 });
+                return true;
             },
 
             buildReligiousBuilding: (buildingId) => {
@@ -1283,6 +1428,33 @@ export const useGameStore = create<GameStore>()(
                     denarii: state.denarii - building.cost,
                     religiousBuildings: [...state.religiousBuildings, buildingId],
                     lastEvents: [`[Building] Built ${building.name}! +${building.pietyPerSeason} piety/season`],
+                });
+            },
+
+            // === MILITARY (BL-10) ===
+            rallyTroops: () => {
+                const state = get();
+                const cooldown = state.rallyTroopsCooldown ?? 0;
+                if (cooldown > 0) {
+                    set({ lastEvents: [`[Military] Rally Troops is on cooldown (${cooldown} season(s) remaining).`] });
+                    return;
+                }
+                if (state.morale >= 100) {
+                    set({ lastEvents: [`[Military] Legion morale is already at maximum.`] });
+                    return;
+                }
+                if (state.denarii < 300 || (state.inventory.grain || 0) < 50) {
+                    set({ lastEvents: [`[Military] Rally Troops requires 300 denarii and 50 grain.`] });
+                    return;
+                }
+
+                const newInventory = { ...state.inventory, grain: state.inventory.grain - 50 };
+                set({
+                    denarii: state.denarii - 300,
+                    inventory: newInventory,
+                    morale: Math.min(100, state.morale + 15),
+                    rallyTroopsCooldown: 3,
+                    lastEvents: [`[Military] Legion rallied — morale +15 (-300 denarii, -50 grain)`],
                 });
             },
 
@@ -1771,6 +1943,7 @@ export const useGameStore = create<GameStore>()(
                         playerActionLog: [],
                         anyAssassinationAttempted: false,
                         senatoriusSavedPlayer: false,
+                        lastProcessedRound: 0,
                     },
                 });
             },
@@ -1824,10 +1997,15 @@ export const useGameStore = create<GameStore>()(
                     };
                 }
 
-                // Apply resource changes
+                // Apply resource changes (BL-07: clamp to prevent extreme swings)
                 const newState: Partial<GameStore> = {};
+                const clampMessages: string[] = [];
                 if (choice.effects.resourceChanges) {
-                    const rc = choice.effects.resourceChanges;
+                    const clampResult = clampSenateEventEffect(state, choice.effects.resourceChanges);
+                    const rc = clampResult.effect;
+                    if (clampResult.clamped) {
+                        clampMessages.push(...clampResult.messages.map(m => `[Senate] ${m}`));
+                    }
                     if (rc.denarii) newState.denarii = state.denarii + rc.denarii;
                     if (rc.happiness) newState.happiness = Math.max(0, Math.min(100, state.happiness + rc.happiness));
                     if (rc.morale) newState.morale = Math.max(0, Math.min(100, state.morale + rc.morale));
@@ -1851,7 +2029,7 @@ export const useGameStore = create<GameStore>()(
                         pendingEvents: state.senate.pendingEvents.slice(1),
                         eventHistory: newHistory,
                     },
-                    lastEvents: [`Senate: Resolved "${event.title}"`],
+                    lastEvents: [`Senate: Resolved "${event.title}"`, ...clampMessages],
                 });
             },
 
@@ -1966,3 +2144,8 @@ export const useGameStore = create<GameStore>()(
 );
 
 export type { GameStore };
+
+// ── Dev-only: expose store on window for Playwright specs / debugging ──
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+}

@@ -9,6 +9,21 @@ interface SavePayload {
   events?: string[];
 }
 
+// Module-level flag: once the DB is known-unavailable, short-circuit every
+// subsequent save request in this Node process to avoid spamming the logs
+// with DrizzleQueryError / ECONNREFUSED stack traces during local/CI runs
+// that don't have Postgres running.
+let dbUnavailable = false;
+
+function isConnectionRefused(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string }; message?: string } | null;
+  if (!e) return false;
+  if (e.code === 'ECONNREFUSED') return true;
+  if (e.cause?.code === 'ECONNREFUSED') return true;
+  if (typeof e.message === 'string' && e.message.includes('ECONNREFUSED')) return true;
+  return false;
+}
+
 /**
  * POST /api/game/save
  *
@@ -17,6 +32,11 @@ interface SavePayload {
  * Parses events into categorized log entries and extracts system stats.
  */
 export async function POST(req: NextRequest) {
+  // Short-circuit once the DB has been confirmed unavailable this session.
+  if (dbUnavailable) {
+    return NextResponse.json({ ok: true, saved: false, reason: 'db_unavailable' });
+  }
+
   try {
     const body: SavePayload = await req.json();
     const { state, events: rawEvents } = body;
@@ -146,11 +166,22 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ gameId, round, saved: true });
   } catch (error) {
-    console.error('Save error:', error);
-    return NextResponse.json(
-      { error: 'Failed to save game state', details: String(error) },
-      { status: 500 }
-    );
+    // Connection refused → Postgres isn't running. Flip the module flag so we
+    // stop hitting the DB for the rest of this process lifetime and just log
+    // one warning instead of a stack trace per endSeason call.
+    if (isConnectionRefused(error)) {
+      if (!dbUnavailable) {
+        dbUnavailable = true;
+        console.warn('[db] Postgres unavailable, saves disabled for session');
+      }
+      return NextResponse.json({ ok: true, saved: false, reason: 'db_unavailable' });
+    }
+
+    // Non-connection errors: log once, return 200 so client UX still works.
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[save] db error: ${code}`);
+    return NextResponse.json({ ok: true, saved: false, reason: 'db_error' });
   }
 }
 

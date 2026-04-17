@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, SectionHeader, StatDisplay, GameImage } from '@/components/ui';
-import { calculateIncome, calculateUpkeep, calculateFoodConsumption } from '@/core/math';
+import { calculateIncome, calculateUpkeep, calculateFoodConsumption, calculateTaxHappinessDelta } from '@/core/math';
 import { SEASON_MODIFIERS, GAME_CONSTANTS } from '@/core/constants';
 import {
     AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -34,6 +34,18 @@ export function EconomyPanel() {
     const taxEfficiency = taxRate > 0.20
         ? (1 / (1 + (taxRate - 0.20) * 5)) * 100
         : 100;
+
+    // BL-23: Projected Δ happiness/season vs the 10% "balanced" baseline.
+    // Uses the shared helper that mirrors executeEndSeason's formula.
+    const happinessDelta = calculateTaxHappinessDelta(taxRate);
+    const happinessDeltaLabel = happinessDelta === 0
+        ? 'Δ happiness: 0/season'
+        : `Δ happiness: ${happinessDelta > 0 ? '+' : ''}${happinessDelta}/season`;
+    const happinessDeltaClass = happinessDelta < 0
+        ? 'text-red-400'
+        : happinessDelta > 0
+            ? 'text-green-400'
+            : 'text-muted';
 
     const taxPresets = [
         { rate: 0.05, name: 'Minimal', desc: 'Happy citizens, low revenue' },
@@ -188,6 +200,11 @@ export function EconomyPanel() {
                             <span>0%</span>
                             <span className="text-yellow-400">20% (Optimal)</span>
                             <span>50%</span>
+                        </div>
+                        {/* BL-23: Per-tick happiness delta preview (vs. 10% baseline) */}
+                        <div className={`mt-2 text-xs font-medium ${happinessDeltaClass}`}>
+                            {happinessDeltaLabel}
+                            <span className="ml-1 text-muted font-normal">(vs. 10% baseline)</span>
                         </div>
                     </div>
                 </div>
