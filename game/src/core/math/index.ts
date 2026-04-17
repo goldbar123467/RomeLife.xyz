@@ -4,11 +4,12 @@
 
 import type {
     Rarity, RarityData, Season, ResourceType, Territory, Building,
-    SeasonModifiers, GameState, ProductionSummary
+    SeasonModifiers, GameState, ProductionSummary,
+    IncomeBreakdown, ExpenseBreakdown
 } from '../types';
 import {
     RARITY_TABLE, SEASON_MODIFIERS, TERRITORY_LEVELS,
-    BASE_PRICES, GAME_CONSTANTS, TERRITORY_FOCUS
+    BASE_PRICES, GAME_CONSTANTS, TERRITORY_FOCUS, REPUTATION_MILESTONES
 } from '../constants';
 import { calculateBlessingBonus } from '../constants/religion';
 import { calculateBuildingEffects } from '../constants/territory';
@@ -315,6 +316,30 @@ export function calculateIncome(state: GameState): number {
 }
 
 /**
+ * BL-23: Happiness penalty from a given tax rate per season.
+ * Mirrors the formula applied in `executeEndSeason` (usecases/index.ts:467):
+ *   if (taxRate > 0.20) newHappiness -= floor((taxRate - 0.20) * 50)
+ * Returned as a positive integer (the amount subtracted from happiness each season).
+ */
+export function calculateTaxHappinessPenalty(taxRate: number): number {
+    if (taxRate <= 0.20) return 0;
+    return Math.floor((taxRate - 0.20) * 50);
+}
+
+/**
+ * BL-23: Projected Δhappiness per season for the current tax rate relative
+ * to a neutral baseline (default 10% — a "low / balanced" preset).
+ * Negative delta means this rate costs happiness compared to the baseline;
+ * positive means it preserves happiness compared to a harsher baseline.
+ */
+export function calculateTaxHappinessDelta(taxRate: number, baselineRate: number = 0.10): number {
+    const currentPenalty = calculateTaxHappinessPenalty(taxRate);
+    const baselinePenalty = calculateTaxHappinessPenalty(baselineRate);
+    // penalty is subtracted from happiness, so delta = baseline - current
+    return baselinePenalty - currentPenalty;
+}
+
+/**
  * Calculate total upkeep costs
  * Formula: Σ(building upkeep) + (troops × 2) + (housing ÷ 15) + (forts × 4) + (sanitation ÷ 8)
  */
@@ -328,7 +353,11 @@ export function calculateUpkeep(state: GameState, seasonMod?: SeasonModifiers): 
         .reduce((sum, b) => sum + (b.upkeep * b.count), 0);
 
     // Military upkeep
-    const troopUpkeep = troops * GAME_CONSTANTS.TROOP_UPKEEP;
+    // BL-33: Early-game upkeep relief. For small standing armies (≤30 troops)
+    // charge 0.5/troop instead of the full TROOP_UPKEEP (2). This keeps the
+    // starter garrison affordable during rounds 1-10 when tax income is thin.
+    const perTroopUpkeep = troops <= 30 ? 0.5 : GAME_CONSTANTS.TROOP_UPKEEP;
+    const troopUpkeep = troops * perTroopUpkeep;
 
     // Infrastructure upkeep
     const housingUpkeep = housing / GAME_CONSTANTS.HOUSING_UPKEEP_DIVISOR;
@@ -358,6 +387,78 @@ export function calculateUpkeep(state: GameState, seasonMod?: SeasonModifiers): 
 }
 
 /**
+ * BL-33: Itemized income breakdown for Treasury deficit tooltip.
+ * Splits `calculateIncome` into coarse buckets the UI can show (tax, trade,
+ * tribute, wonders). Values are rough approximations — totals should roughly
+ * match calculateIncome() but minor rounding drift is acceptable.
+ */
+export function calculateIncomeBreakdown(state: GameState): IncomeBreakdown {
+    const total = calculateIncome(state);
+
+    // Wonders: recurring income effects from COMPLETED wonders
+    const wonders = (state.wonders || [])
+        .filter(w => w.built)
+        .reduce((sum, w) => {
+            const inc = (w.effects || []).find(e => e.type === 'income');
+            return sum + (inc?.value || 0);
+        }, 0);
+
+    // Trade: building-level trade income (Marketplace/Banking House etc.)
+    // Approximated from building effects that match income/trade types.
+    const trade = state.buildings
+        .filter(b => b.count > 0)
+        .reduce((sum, b) => {
+            const inc = b.effects.find(e => e.type === 'income');
+            return sum + ((inc?.value || 0) * b.count);
+        }, 0);
+
+    // Tribute: per-territory population tax (0.5/pop)
+    const tribute = Math.floor(
+        state.territories
+            .filter(t => t.owned)
+            .reduce((sum, t) => sum + (t.population * 0.5), 0)
+    );
+
+    // Tax: remainder attributed to base population tax
+    const tax = Math.max(0, total - trade - tribute - wonders);
+
+    return { tax, trade, tribute, wonders };
+}
+
+/**
+ * BL-33: Itemized expense breakdown for Treasury deficit tooltip.
+ * Separates upkeep into garrison (troops + forts), buildings, wonders, and
+ * recurring event penalties. Matches the numeric output of calculateUpkeep()
+ * to the nearest denarius for the tooltip display.
+ */
+export function calculateExpenseBreakdown(state: GameState): ExpenseBreakdown {
+    const { troops, forts, housing, sanitation, buildings } = state;
+
+    // BL-33: same early-game relief as calculateUpkeep
+    const perTroopUpkeep = troops <= 30 ? 0.5 : GAME_CONSTANTS.TROOP_UPKEEP;
+    const troopUpkeep = troops * perTroopUpkeep;
+    const fortUpkeep = forts * GAME_CONSTANTS.FORT_UPKEEP;
+    const garrisonUpkeep = Math.floor(troopUpkeep + fortUpkeep);
+
+    // Building upkeep includes empire buildings + housing/sanitation infra
+    const empireBuildingUpkeep = buildings
+        .filter(b => b.count > 0)
+        .reduce((sum, b) => sum + (b.upkeep * b.count), 0);
+    const housingUpkeep = housing / GAME_CONSTANTS.HOUSING_UPKEEP_DIVISOR;
+    const sanitationUpkeep = sanitation / GAME_CONSTANTS.SANITATION_UPKEEP_DIVISOR;
+    const buildingUpkeep = Math.floor(empireBuildingUpkeep + housingUpkeep + sanitationUpkeep);
+
+    // Wonders don't currently have a separate upkeep line — treat as 0
+    const wonderUpkeep = 0;
+
+    // Events column reserved for event-driven recurring penalties — 0 today,
+    // kept as a line item so future events can attribute costs.
+    const events = 0;
+
+    return { garrisonUpkeep, buildingUpkeep, wonderUpkeep, events };
+}
+
+/**
  * Calculate food consumption per season
  * Formula: (Population × 0.42 + Troops × 0.55) × Seasonal × Grace × CeresBlessing
  */
@@ -372,6 +473,10 @@ export function calculateFoodConsumption(state: GameState, seasonMod?: SeasonMod
     consumption *= seasonMod.foodConsumption;
 
     // Grace period (early game)
+    // BL-28 verified: .find() uses `round <= maxRound`, so round=1..8 hits the
+    // first bucket (multiplier 0.5), round=9..14 hits the second (0.65), etc.
+    // No off-by-one. Paired with the raised 750 starting-grain stockpile this
+    // prevents the round 5-7 famine spiral that Avg/Goat personas were hitting.
     const graceConfig = GAME_CONSTANTS.GRACE_MULTIPLIERS.find(g => round <= g.maxRound);
     if (graceConfig) {
         consumption *= graceConfig.multiplier;
@@ -479,8 +584,11 @@ export function calculateBattleOdds(
     const cappedTechMult = Math.min(GAME_CONSTANTS.MAX_TECH_MULTIPLIER, totalTechMult);
     playerStrength *= cappedTechMult;
 
-    // Weather variance
-    playerStrength *= randomFloat(0.9, 1.1);
+    // NOTE: Weather variance (randomFloat 0.9..1.1) is intentionally NOT applied
+    // here so that the displayed odds reflect the true deterministic expected
+    // win rate. The ~10% variance is applied exactly once inside resolveBattle
+    // (see src/store/gameStore.ts resolveBattleAction) when rolling the actual
+    // outcome.
 
     const rawOdds = playerStrength / (playerStrength + enemyStrength);
     const odds = Math.min(0.99, Math.max(0.01, rawOdds));
@@ -571,17 +679,34 @@ export function calculateStabilityChange(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _state: GameState
 ): number {
-    let change = 0;
-
-    // Garrison effect (>= 20 stabilizes, < 20 destabilizes)
-    if (territory.garrison >= 20) {
-        change += 1;
+    // Smooth garrison scaling: 0 garrison = -2, 25 = +1, 50+ = +2
+    // base = (garrison / 25) - 1 clamped to [-2, +2]
+    // (0/25)-1 = -1, actually we want 0=-2. Use (garrison/25)-2 clamped to [-2,+2]?
+    // Spec: garrison 0 => -2, garrison 25 => +1, garrison 50+ => +2
+    // Interp: slope ~3 from 0 to 25 (→ +1), then +1 more up to 50. Use piecewise linear.
+    let change: number;
+    if (territory.garrison <= 25) {
+        // 0 -> -2, 25 -> +1  (slope 3/25 = 0.12)
+        change = -2 + (territory.garrison / 25) * 3;
     } else {
-        change -= 2;
+        // 25 -> +1, 50 -> +2 (slope 1/25 = 0.04), cap at +2
+        change = 1 + Math.min(1, (territory.garrison - 25) / 25);
+    }
+    // Clamp base garrison effect to [-2, +2]
+    change = Math.max(-2, Math.min(2, change));
+
+    // Fort / defensive building bonus: +0.5 if any defensive building present in this territory
+    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
+    const hasFort = territoryBuildings.some(b =>
+        b.id === 'fort' ||
+        b.id.includes('fort') ||
+        b.effects.some(e => e.type === 'defense')
+    );
+    if (hasFort) {
+        change += 0.5;
     }
 
-    // Building bonuses (multiply by count for stacking)
-    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
+    // Preserve happiness-building stability bonus loop
     for (const building of territoryBuildings) {
         for (const effect of building.effects) {
             if (effect.type === 'happiness') {
@@ -590,7 +715,13 @@ export function calculateStabilityChange(
         }
     }
 
-    return change;
+    // Governor stability scaling: multiply by (1 + bonus)
+    if (territory.governor?.bonus?.stability) {
+        change *= (1 + territory.governor.bonus.stability);
+    }
+
+    // Cap final change to [-5, +5]
+    return Math.max(-5, Math.min(5, change));
 }
 
 /**
@@ -944,4 +1075,18 @@ export function generateProceduralCity(index: number, ownedTerritories: number):
         biases: [resourceTypes[biasIdx1], resourceTypes[biasIdx2]],
         specialties: [resourceTypes[randomInt(0, resourceTypes.length - 1)]],
     };
+}
+
+// BL-11: Sum reputation-milestone trade bonuses for a given rep value.
+// Stacks additively with Mercury blessings and trade-hub focus in pricing.
+export function getReputationTradeBonus(reputation: number): { tradePrices: number; tariffReduction: number } {
+    let tradePrices = 0;
+    let tariffReduction = 0;
+    for (const m of REPUTATION_MILESTONES) {
+        if (reputation >= m.threshold) {
+            tradePrices += m.bonus.tradePrices ?? 0;
+            tariffReduction += m.bonus.tariffReduction ?? 0;
+        }
+    }
+    return { tradePrices, tariffReduction };
 }

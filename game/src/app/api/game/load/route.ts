@@ -49,10 +49,12 @@ export async function GET(req: NextRequest) {
       fullState: latestSnapshot.fullState,
     });
   } catch (error) {
-    console.error('Load error:', error);
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[load] db unavailable: ${code}`);
     return NextResponse.json(
-      { error: 'Failed to load game', details: String(error) },
-      { status: 500 }
+      { ok: false, error: 'load unavailable' },
+      { status: 503 }
     );
   }
 }
@@ -87,10 +89,12 @@ export async function POST(req: NextRequest) {
       fullState: snapshot.fullState,
     });
   } catch (error) {
-    console.error('Load round error:', error);
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[load] db unavailable: ${code}`);
     return NextResponse.json(
-      { error: 'Failed to load round', details: String(error) },
-      { status: 500 }
+      { ok: false, error: 'load unavailable' },
+      { status: 503 }
     );
   }
 }

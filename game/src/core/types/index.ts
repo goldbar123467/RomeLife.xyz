@@ -472,11 +472,52 @@ export interface GameState {
     // Event Cooldowns (prevent same event from repeating)
     eventCooldowns?: Record<string, number>;
 
+    // BL-21: Track last round we warned about deficit / low grain to avoid spam
+    lastDeficitWarnRound?: number;
+    lastLowGrainWarnRound?: number;
+
+    // BL-33: Itemized season breakdown for Treasury deficit tooltip
+    lastSeasonIncome?: IncomeBreakdown;
+    lastSeasonExpense?: ExpenseBreakdown;
+
     // Religion - Consecrated territories get +25% production
     consecratedTerritories: string[];
 
     // Worship action cooldowns
     worshipCooldowns?: Record<string, number>;
+
+    // BL-10: Rally Troops morale recovery action cooldown (seasons remaining)
+    rallyTroopsCooldown?: number;
+
+    // BL-30: One-shot flag so the farm-complex tutorial nudge fires exactly once
+    farmTutorialShown?: boolean;
+
+    // BL-36: One-shot flag so the patron-god worship nudge fires exactly once
+    patronTutorialShown?: boolean;
+
+    // BL-44: One-shot flag so the housing-cap / expansion nudge fires exactly once
+    housingCapNudgeShown?: boolean;
+
+    // BL-53 / BL-58: Round of last military-recruit nudge (repeats every 8 rounds)
+    lastTroopNudgeRound?: number;
+
+    // BL-54: One-shot flag so the conquest/expansion nudge fires exactly once
+    conquestNudgeShown?: boolean;
+
+    // BL-56: One-shot flag so the patron-god nudge fires exactly once
+    patronNudgeShown?: boolean;
+
+    // BL-40: Round of last auto-triggered Emergency Grain Import (cooldown = 4 rounds)
+    lastEmergencyImportRound?: number;
+
+    // BL-49: Round of last recurring spending-nudge (3-round cooldown)
+    spendingNudgeLastRound?: number;
+
+    // BL-49: One-shot flag for the Insulae housing-expansion nudge
+    insulaeNudgeShown?: boolean;
+
+    // BL-11: Reputation milestone thresholds already reached (prevents re-firing)
+    reputationMilestonesReached?: number[];
 
     // NPCs and story quest state
     npcs: NPC[];
@@ -522,4 +563,19 @@ export interface ProductionSummary {
     upkeep: number;
     foodConsumption: number;
     netIncome: number;
+}
+
+// BL-33: Itemized breakdowns for Treasury deficit tooltip
+export interface IncomeBreakdown {
+    tax: number;
+    trade: number;
+    tribute: number;
+    wonders: number;
+}
+
+export interface ExpenseBreakdown {
+    garrisonUpkeep: number;
+    buildingUpkeep: number;
+    wonderUpkeep: number;
+    events: number;
 }

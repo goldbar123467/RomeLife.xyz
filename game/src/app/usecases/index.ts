@@ -10,7 +10,8 @@ import type {
     DiplomacyHistoryEntry
 } from '@/core/types';
 import {
-    SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS, GAME_CONSTANTS
+    SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS, GAME_CONSTANTS,
+    REPUTATION_MILESTONES
 } from '@/core/constants';
 import { calculateBuildingEffects } from '@/core/constants/territory';
 import { rollRandomEvent as rollEmpireEvent, EVENT_COOLDOWN_ROUNDS } from '@/core/constants/events';
@@ -22,13 +23,15 @@ import {
     calculateEnvoySuccess, calculateEnvoyEffect, calculateRelationDecay,
     calculateTradeRisk, resolveTradeRisk, calculateStabilityChange, rollTerritoryEvent,
     shouldGenerateContent, generateProceduralTerritory, randomInt, random, roundResource,
+    calculateIncomeBreakdown, calculateExpenseBreakdown,
+    getReputationTradeBonus,
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import {
     checkVictoryConditions, checkFailureConditions, checkAchievements,
     checkQuestProgress, getTechBonus
 } from '@/core/rules';
-import { processSenateSeasonEnd } from '@/app/usecases/senate';
+import { processSenateSeasonEnd, clampReligiousEventEffect } from '@/app/usecases/senate';
 
 // === END SEASON USE CASE ===
 
@@ -54,6 +57,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Calculate production
     const summary = calculateProductionSummary(state);
 
+    // BL-40: Tracks -400 denarii cost if emergency grain import triggers below
+    let newDenariiAdjustment_emergency = 0;
+
     // Update inventory with production (round to avoid floating point errors)
     const newInventory = { ...state.inventory };
     for (const [resource, amount] of Object.entries(summary.resources)) {
@@ -64,10 +70,96 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         ));
     }
 
+    // BL-40 / BL-45 / BL-57: Auto Emergency Grain Import.
+    // BL-57 adds a predictive preventive path (denarii >= 400) that fires BEFORE
+    // starvation detection so goat-role runs don't eat a −15% population hit.
+    const _preConsumeGrain = newInventory.grain;
+    const _preConsumeFoodNeed = summary.foodConsumption;
+    const _preConsumeDeficit = Math.max(0, _preConsumeFoodNeed - _preConsumeGrain);
+    const _lastEmergencyImport = state.lastEmergencyImportRound ?? -99;
+    let newLastEmergencyImportRound: number | undefined = state.lastEmergencyImportRound;
+
+    const tryEmergencyImport = (tag: 'import' | 'airlift' | 'preventive'): void => {
+        const grainCap = state.capacity.grain || 100;
+        const grainRoom = Math.max(0, grainCap - newInventory.grain);
+        const desiredGrain = Math.max(200, Math.ceil(_preConsumeFoodNeed * 2));
+        const grainAdded = Math.min(desiredGrain, grainRoom);
+        if (grainAdded <= 0) return;
+        const cost = tag === 'preventive' ? 400 : 4 * grainAdded;
+        const projectedDenarii = state.denarii + newDenariiAdjustment_emergency;
+        if (projectedDenarii - cost < 0) return;
+        newInventory.grain = newInventory.grain + grainAdded;
+        newDenariiAdjustment_emergency -= cost;
+        const label =
+            tag === 'airlift' ? 'Emergency grain airlift' :
+            tag === 'preventive' ? 'Emergency Import' :
+            'Emergency grain import';
+        if (tag === 'preventive') {
+            events.push(
+                `[crisis] Winter grain reserves low (grain ${_preConsumeGrain}, need ${_preConsumeFoodNeed}) — ${label}: -${cost}d, +${grainAdded} grain.`
+            );
+        } else {
+            events.push(`[trade] ${label}: -${cost}d, +${grainAdded}g`);
+        }
+        newLastEmergencyImportRound = newRound;
+        // eslint-disable-next-line no-console
+        console.warn(`[BL-45][${tag}]`, {
+            round: newRound,
+            grainAdded,
+            cost,
+            denarii: projectedDenarii - cost,
+            deficit: _preConsumeDeficit,
+        });
+    };
+
+    // BL-57: Predictive preventive airlift — fires BEFORE starvation detection
+    // when projected grain after this season's consumption drops below zero.
+    const projectedNextSeasonGrain = _preConsumeGrain - _preConsumeFoodNeed;
+    if (
+        projectedNextSeasonGrain < 0 &&
+        state.denarii >= 400 &&
+        state.consecutiveStarvation === 0
+    ) {
+        tryEmergencyImport('preventive');
+    }
+
+    if (
+        state.denarii >= 2000 &&
+        _preConsumeDeficit > 0 &&
+        (newRound - _lastEmergencyImport) >= 4 &&
+        state.consecutiveStarvation === 0 &&
+        newLastEmergencyImportRound !== newRound
+    ) {
+        tryEmergencyImport('import');
+    }
+
+    // BL-45: airlift inside cooldown when coffers are flush and deficit persists.
+    if (
+        state.denarii >= 3000 &&
+        _preConsumeDeficit > _preConsumeFoodNeed * 0.1 &&
+        state.consecutiveStarvation === 0 &&
+        newLastEmergencyImportRound !== newRound
+    ) {
+        tryEmergencyImport('airlift');
+    }
+
     // Consume food
     const foodConsumed = summary.foodConsumption;
     const grainAvailable = newInventory.grain;
     newInventory.grain = Math.max(0, grainAvailable - foodConsumed);
+
+    // BL-28: Defensive pacing log. If post-consumption grain dips below 0.5x of
+    // a single season's consumption, surface a console.warn so future QA /
+    // instrumented playthroughs catch pacing regressions (e.g. grace-period or
+    // Farm Complex production silently changing). Does not affect gameplay.
+    if (foodConsumed > 0 && newInventory.grain < foodConsumed * 0.5) {
+        // eslint-disable-next-line no-console
+        console.warn(
+            `[BL-28][pacing] Round ${state.round} ${state.season} -> ${nextSeason}: ` +
+            `grain ${newInventory.grain} below 0.5x consumption (${foodConsumed}). ` +
+            `pop=${state.population} troops=${state.troops} grace-multiplier applied.`
+        );
+    }
 
     // Check starvation (Ceres tier 100: famine immunity)
     const ceresFamineImmune = calculateBlessingBonus(state.patronGod, state.godFavor, 'famineImmune') > 0;
@@ -80,14 +172,185 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
-    const newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
+    // BL-30/BL-38: Soften early-game Famine trigger.
+    // - Reset the consecutive-starvation counter on ANY season whose grain
+    //   deficit is <10% of consumption (near-miss counts as a recovery),
+    //   not only on strictly non-starving seasons.
+    // - Keep the round 1-10 near-miss cap at 1 for truly marginal deficits.
+    const grainShortfall = Math.max(0, foodConsumed - grainAvailable);
+    const deficitRatio = foodConsumed > 0 ? grainShortfall / foodConsumed : 0;
+    let newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
+    // BL-40: telemetry — surface every consec-starvation increment so famine cascades are visible in logs
+    if (isStarving) {
+        // eslint-disable-next-line no-console
+        console.warn('[BL-40][famine-branch]', { branch: 'increment', round: newRound, consec: newConsecutiveStarvation, grainShortfall, foodConsumed });
+    }
+    if (isStarving && deficitRatio < 0.10) {
+        // Near-miss: grain was short by less than 10% of need. Count as recovery.
+        newConsecutiveStarvation = 0;
+    }
+    if (
+        isStarving &&
+        newRound <= 10 &&
+        foodConsumed > 0 &&
+        state.consecutiveStarvation >= 1 &&
+        newConsecutiveStarvation >= 2
+    ) {
+        if (grainShortfall <= foodConsumed * 0.2) {
+            newConsecutiveStarvation = 1;
+            events.push('[food] Desperate foraging averts Famine — build a Farm Complex!');
+        }
+    }
 
-    // Calculate population growth (starvation uses STARVATION_POP_LOSS constant)
-    const popGrowth = calculatePopulationGrowth(state);
-    const starvationLoss = isStarving ? Math.floor(state.population * GAME_CONSTANTS.STARVATION_POP_LOSS) : 0;
-    const newPopulation = Math.max(0, state.population + popGrowth - starvationLoss);
+    // BL-38: 2-round recovery grace. A first starvation applies full penalty
+    // (15% pop loss, 15 morale). A 2nd consecutive starvation softens to
+    // 5% pop / 5 morale so the player has a chance to course-correct. A
+    // 3rd consecutive (now FAILURE_STARVATION_LIMIT) applies full penalty
+    // and tips into Famine.
+    const popLossPct = (() => {
+        if (!isStarving) return 0;
+        if (newConsecutiveStarvation === 2) return 0.05;
+        return GAME_CONSTANTS.STARVATION_POP_LOSS;
+    })();
+
+    // BL-42: strict pop ordering
+    // Step 1: consumption was already computed above (foodConsumed)
+    // Step 2: starvation already determined (isStarving)
+    // Step 3: pop after starvation (pre-growth)
+    const step3_popAfterStarvation = isStarving
+        ? Math.max(0, Math.floor(state.population * (1 - popLossPct)))
+        : state.population;
+    const starvationLoss = state.population - step3_popAfterStarvation;
+    // Step 4: growth uses POST-STARVATION pop (not pre-starvation), so a season
+    //         that kills 15% of pop cannot simultaneously grow from the dead.
+    const popGrowth = calculatePopulationGrowth({ ...state, population: step3_popAfterStarvation });
+    // Step 5: add growth to post-starvation pop
+    const step5_popAfterGrowth = step3_popAfterStarvation + popGrowth;
+    // Step 6: single housing-cap clamp at the end
+    const newPopulation = Math.max(0, Math.min(step5_popAfterGrowth, state.housing));
     if (popGrowth > 0) events.push(`[Population] Population grew by ${popGrowth}`);
     if (starvationLoss > 0) events.push(`[Crisis] Lost ${starvationLoss} to starvation`);
+    // BL-42 defensive assertion: catch large unexpected swings
+    if (Math.abs(newPopulation - state.population) > state.housing * 0.2) {
+        events.push(`[BL-42] Pop swing ${state.population}->${newPopulation} exceeds 20% of housing cap`);
+    }
+
+    // BL-18: Surface the silent sanitation-death-spiral.
+    // `calculatePopulationGrowth` returns -1 when sanitation < 15 AND pop < housing
+    // (disease/death outpaces births). Previously there was no UI surface, so the
+    // player would see population slowly bleed without knowing why.
+    if (popGrowth < 0 && state.sanitation < 15 && state.population < state.housing) {
+        events.push(
+            `[!] Sanitation critical (${state.sanitation}) — population declining from disease. Build a Bathhouse/Aqueduct.`
+        );
+    }
+
+    // BL-30: One-shot Farm Complex tutorial nudge — after round 2, if the player
+    // still hasn't built a Farm Complex (farm_1) in Palatine Hill, surface a hint
+    // so aggressive/Goat playstyles don't starve by round 7.
+    let newFarmTutorialShown = state.farmTutorialShown ?? false;
+    if (!newFarmTutorialShown && newRound >= 2) {
+        const hasFarmComplex = state.buildings.some(b => b.id === 'farm_1' && b.count > 0);
+        if (!hasFarmComplex) {
+            events.push(
+                '[tutorial] Build a Farm Complex in Palatine Hill to secure your grain supply (Settlement → Build).'
+            );
+            newFarmTutorialShown = true;
+        }
+    }
+
+    // BL-49: Recurring spending nudge — when the player is sitting on >=1000d
+    // while a grain deficit is firing and no Farm Complex exists, remind them
+    // to spend. 3-round cooldown to avoid spam.
+    let newSpendingNudgeLastRound = state.spendingNudgeLastRound;
+    {
+        const hasFarmComplexNow = state.buildings.some(b => b.id === 'farm_1' && b.count > 0);
+        const lastNudge = state.spendingNudgeLastRound ?? -999;
+        if (
+            !hasFarmComplexNow &&
+            state.denarii >= 1000 &&
+            _preConsumeDeficit > 0 &&
+            (newRound - lastNudge) >= 3
+        ) {
+            events.push(
+                `[spend] You have ${state.denarii}d banked — build a Farm Complex (500d) in Palatine Hill → Build to stop the famine.`
+            );
+            newSpendingNudgeLastRound = newRound;
+        }
+    }
+
+    // BL-49 bonus: one-shot Insulae nudge when population is pinned at housing
+    // and the player has coin to spare. Kicks in from round 5 onwards.
+    let newInsulaeNudgeShown = state.insulaeNudgeShown ?? false;
+    if (
+        !newInsulaeNudgeShown &&
+        state.denarii >= 2000 &&
+        state.population >= state.housing * 0.95 &&
+        state.round >= 5
+    ) {
+        events.push(
+            `[spend] Denarii banked: ${state.denarii} — consider building Insulae (800d) to raise housing cap above 150.`
+        );
+        newInsulaeNudgeShown = true;
+    }
+
+    // BL-44: One-shot housing-cap progression nudge — when pop is pinned at housing
+    // and the player hasn't expanded territorially, tell them where to go next.
+    let newHousingCapNudgeShown = state.housingCapNudgeShown ?? false;
+    if (!newHousingCapNudgeShown && newRound >= 3) {
+        const ownedTerritories = state.territories.filter(t => t.owned).length;
+        if (newPopulation >= state.housing * 0.95 && ownedTerritories <= 1) {
+            events.push(
+                '[progression] Your population has outgrown your housing — build Insulae in Settlement, or conquer territory on the Map.'
+            );
+            newHousingCapNudgeShown = true;
+        }
+    }
+
+    // BL-53 / BL-58: Recurring military-recruit nudge — repeats every 8 rounds
+    // while legion is understaffed and player can afford recruitment.
+    const lastTroopNudgeRound = state.lastTroopNudgeRound ?? 0;
+    let newLastTroopNudgeRound = lastTroopNudgeRound;
+    if (
+        newRound >= 3 &&
+        state.troops <= 40 &&
+        state.denarii >= 300 &&
+        (newRound - lastTroopNudgeRound) >= 8
+    ) {
+        const ownedTerritories = state.territories.filter(t => t.owned).length;
+        events.push(
+            `[military] Your legion (${state.troops} troops) is understaffed for ${ownedTerritories} territories. Visit Military → Recruit to train Auxiliaries.`
+        );
+        newLastTroopNudgeRound = newRound;
+    }
+
+    // BL-54: One-shot conquest/expansion nudge — when player has resources to
+    // conquer but hasn't expanded past their starting territory, point them at
+    // the Map tab. Avoids passive 25-season playthroughs that never expand.
+    let newConquestNudgeShown = state.conquestNudgeShown ?? false;
+    if (
+        !newConquestNudgeShown &&
+        newRound >= 5 &&
+        state.troops >= 20 &&
+        state.denarii >= 500
+    ) {
+        const ownedTerritories = state.territories.filter(t => t.owned).length;
+        if (ownedTerritories <= 1) {
+            events.push(
+                `[conquest] Latium is undefended — dispatch troops via Map → Conquer to expand your empire (requires 15+ troops, 300d).`
+            );
+            newConquestNudgeShown = true;
+        }
+    }
+
+    // BL-56: One-shot patron-god nudge — new players often never choose a patron.
+    let newPatronNudgeShown = state.patronNudgeShown ?? false;
+    if (!newPatronNudgeShown && newRound >= 3 && !state.patronGod) {
+        events.push(
+            '[religion] Rome needs divine favor — choose a patron god on the Religion tab (+1 piety/season + tier bonuses).'
+        );
+        newPatronNudgeShown = true;
+    }
 
     // Update denarii with tiered deficit protection (extended to round 24)
     let effectiveNetIncome = summary.netIncome;
@@ -107,11 +370,37 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             effectiveNetIncome = Math.max(summary.netIncome, -Math.floor(state.denarii * maxLossPct));
         }
     }
-    let newDenarii = Math.max(0, state.denarii + effectiveNetIncome);
+    let newDenarii = Math.max(0, state.denarii + effectiveNetIncome + newDenariiAdjustment_emergency); // BL-40 applies emergency import cost
     if (effectiveNetIncome > 0) {
         events.push(`[Treasury] Income: +${effectiveNetIncome} denarii`);
     } else if (effectiveNetIncome < 0) {
         events.push(`[Treasury] Deficit: ${effectiveNetIncome} denarii`);
+    }
+
+    // BL-21: Surface deficit and low-grain warnings early (cooldown: 2 rounds)
+    // Uses the uncapped summary.netIncome so the warning fires even while
+    // tiered deficit protection is softening the real loss.
+    let newLastDeficitWarnRound = state.lastDeficitWarnRound;
+    let newLastLowGrainWarnRound = state.lastLowGrainWarnRound;
+    if (summary.netIncome < 0) {
+        const lastWarn = state.lastDeficitWarnRound ?? -999;
+        if (newRound - lastWarn >= 2) {
+            events.push(
+                `[!] Deficit: losing ${Math.abs(summary.netIncome)} denarii/season. Raise taxes or build a marketplace.`
+            );
+            newLastDeficitWarnRound = newRound;
+        }
+    }
+    // Low-grain warning: under 1.5x seasonal consumption projects famine soon
+    if (foodConsumed > 0 && newInventory.grain < foodConsumed * 1.5) {
+        const lastWarn = state.lastLowGrainWarnRound ?? -999;
+        if (newRound - lastWarn >= 2) {
+            const seasonsLeft = Math.max(0, Math.floor(newInventory.grain / foodConsumed));
+            events.push(
+                `[!] Low grain: famine in ~${seasonsLeft} season${seasonsLeft === 1 ? '' : 's'} unless you build a Farm/Granary.`
+            );
+            newLastLowGrainWarnRound = newRound;
+        }
     }
 
     // Update market prices
@@ -435,18 +724,33 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Only trigger if player has engaged with religion (piety > 20)
     let religiousEvent: ReligiousEvent | null = null;
     if (state.piety > 20) {
-        religiousEvent = rollReligiousEvent();
+        // Pass the already-decayed cooldowns map so we skip religious events still on cooldown
+        religiousEvent = rollReligiousEvent(newEventCooldowns);
         if (religiousEvent) {
+            // Record cooldown for this religious event (same 4-round pattern as empire events)
+            newEventCooldowns[religiousEvent.id] = EVENT_COOLDOWN_ROUNDS;
             events.push(`${religiousEvent.icon} ${religiousEvent.name}: ${religiousEvent.description}`);
 
-            // Apply religious event effects
-            if (religiousEvent.effects.piety) eventPiety += religiousEvent.effects.piety;
-            if (religiousEvent.effects.happiness) eventHappiness += religiousEvent.effects.happiness;
-            if (religiousEvent.effects.morale) eventMorale += religiousEvent.effects.morale;
-            if (religiousEvent.effects.reputation) eventReputation += religiousEvent.effects.reputation;
-            if (religiousEvent.effects.grain) {
+            // BL-46: Clamp per-field deltas so a single divine_wrath can't crater piety.
+            const clampResult = clampReligiousEventEffect(religiousEvent.effects);
+            const clampedFx = clampResult.effect;
+            if (clampResult.clamped) {
+                events.push(`[religion-clamp] ${religiousEvent.name}: ${clampResult.messages.join(', ')}`);
+            }
+
+            // Apply religious event effects (clamped)
+            // BL-52: log attributed piety change so players see why piety moved.
+            if (clampedFx.piety && Math.abs(clampedFx.piety) >= 4) {
+                const signed = clampedFx.piety > 0 ? `+${clampedFx.piety}` : `${clampedFx.piety}`;
+                events.push(`[religion] ${religiousEvent.name}: ${signed} piety`);
+            }
+            if (clampedFx.piety) eventPiety += clampedFx.piety;
+            if (clampedFx.happiness) eventHappiness += clampedFx.happiness;
+            if (clampedFx.morale) eventMorale += clampedFx.morale;
+            if (clampedFx.reputation) eventReputation += clampedFx.reputation;
+            if (clampedFx.grain) {
                 newInventory.grain = Math.max(0, Math.min(
-                    newInventory.grain + religiousEvent.effects.grain,
+                    newInventory.grain + clampedFx.grain,
                     state.capacity.grain || 100
                 ));
             }
@@ -477,9 +781,27 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const moraleAdjust = Math.round((seasonMod.morale - 1) * 100);
     // Jupiter tier 75: +15 morale (additive value from BLESSING_EFFECTS)
     const godMoraleBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'morale');
-    const starvationMoraleLoss = isStarving ? GAME_CONSTANTS.STARVATION_MORALE_LOSS : 0;
-    let newMorale = Math.floor(state.morale + moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss);
+    // BL-38: 2nd consecutive starvation softens morale loss to -5 (was -15) so
+    // winter + starvation don't stack into an unrecoverable hit.
+    const starvationMoraleLoss = isStarving
+        ? (newConsecutiveStarvation === 2 ? 5 : GAME_CONSTANTS.STARVATION_MORALE_LOSS)
+        : 0;
+    const moraleDeltaRaw = moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss;
+    // BL-38: Cap per-season morale decay at -8 so a single season can't slam
+    // morale by -30. Positive swings remain uncapped.
+    const moraleDelta = moraleDeltaRaw < -8 ? -8 : moraleDeltaRaw;
+    let newMorale = Math.floor(state.morale + moraleDelta);
     newMorale = Math.max(0, Math.min(100, newMorale));
+
+    // BL-39: passive morale recovery for stable empires
+    if (
+        state.population >= state.housing * 0.8 &&
+        newHappiness >= 60 &&
+        state.troops > 0 &&
+        newMorale < 80
+    ) {
+        newMorale = Math.min(80, newMorale + 3);
+    }
 
     // Diplomacy decay
     const newRelations = { ...state.diplomacy.relations };
@@ -507,6 +829,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-10: Rally Troops cooldown decay
+    const newRallyTroopsCooldown = Math.max(0, (state.rallyTroopsCooldown ?? 0) - 1);
+
     // Check achievements
     const achievementsUnlocked = checkAchievements(
         { ...state, round: newRound, denarii: newDenarii, population: newPopulation },
@@ -524,6 +849,10 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     }
 
     let newPiety = state.piety + totalBuildingPiety + totalGovernorPiety; // Building + governor piety
+    // BL-41 passive piety: +1/season when a patron god is set (capped via clamp below)
+    if (state.patronGod) {
+        newPiety = Math.min(100, newPiety + 1);
+    }
     let newHousing = state.housing;
     const newCapacity = { ...state.capacity };
     for (const achievement of achievementsUnlocked) {
@@ -556,16 +885,16 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         return { ...q, progress, completed };
     });
 
-    // Minerva tier 50: +1 free tech every 3 rounds (buffed from 5)
-    // Minerva tier 75: +2 free techs every 3 rounds
+    // Minerva tier 50: +1 free tech every 3 rounds (buffed from every 5)
+    // Minerva favor >= 75: grants +2 free techs per trigger instead of +1
     let newTechnologies = state.technologies;
     const minervaFreeTech = calculateBlessingBonus(state.patronGod, state.godFavor, 'freeTech');
     if (minervaFreeTech > 0 && newRound % 3 === 0 && newRound > 0) {
         const unresearchedTechs = newTechnologies.filter(t => !t.researched);
         if (unresearchedTechs.length > 0) {
-            // At tier 75+, grant 2 techs instead of 1
-            const minervaTier75 = calculateBlessingBonus(state.patronGod, state.godFavor, 'buildingEfficiency');
-            const techsToGrant = minervaTier75 > 0 ? 2 : 1;
+            // At Minerva favor >= 75, grant 2 techs instead of 1
+            const minervaFavor = state.patronGod === 'minerva' ? (state.godFavor.minerva ?? 0) : 0;
+            const techsToGrant = minervaFavor >= 75 ? 2 : 1;
 
             for (let i = 0; i < techsToGrant && i < unresearchedTechs.length; i++) {
                 const randomTech = unresearchedTechs[i];
@@ -661,6 +990,24 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-11: Reputation milestone crossings — surface to log and remember so each fires once.
+    const finalReputation = Math.max(0, Math.min(100, newReputation + eventReputation));
+    const alreadyReached = state.reputationMilestonesReached ?? [];
+    const newMilestonesReached = [...alreadyReached];
+    for (const m of REPUTATION_MILESTONES) {
+        if (finalReputation >= m.threshold && !alreadyReached.includes(m.threshold)) {
+            const pricePct = Math.round((m.bonus.tradePrices ?? 0) * 100);
+            const tariffPct = Math.round((m.bonus.tariffReduction ?? 0) * 100);
+            const parts: string[] = [];
+            if (pricePct > 0) parts.push(`+${pricePct}% trade prices`);
+            if (tariffPct > 0) parts.push(`−${tariffPct}% tariff`);
+            events.push(
+                `[milestone] Reputation ${m.threshold} reached — ${m.name} (${parts.join(' / ') || 'recognition'})`
+            );
+            newMilestonesReached.push(m.threshold);
+        }
+    }
+
     // Record history
     const historyEntry = {
         round: newRound,
@@ -677,6 +1024,32 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Build total additional income BEFORE treasury history so chart data is accurate
     const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + wonderRecurringIncome + eventDenarii;
 
+    // BL-50: Surface unexplained denarii drops (net change <= -100) with the 2 largest known cost lines.
+    const finalDenarii = Math.max(0, newDenarii + totalAdditionalIncome);
+    const netDenariiDelta = finalDenarii - state.denarii;
+    if (netDenariiDelta <= -100) {
+        const causes: { label: string; cost: number }[] = [];
+        if (newDenariiAdjustment_emergency < 0) {
+            causes.push({ label: 'emergency grain import', cost: -newDenariiAdjustment_emergency });
+        }
+        if (effectiveNetIncome < 0) {
+            causes.push({ label: 'upkeep deficit', cost: -effectiveNetIncome });
+        }
+        if (senateResult && senateResult.denariiChange < 0) {
+            causes.push({ label: 'senate event', cost: -senateResult.denariiChange });
+        }
+        if (eventDenarii < 0) {
+            causes.push({ label: 'random event', cost: -eventDenarii });
+        }
+        const top = causes.sort((a, b) => b.cost - a.cost).slice(0, 2);
+        if (top.length > 0) {
+            const detail = top.map(c => `${c.label} -${c.cost}d`).join(', ');
+            events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii — largest costs: ${detail}`);
+        } else {
+            events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii this season — check Economy tab.`);
+        }
+    }
+
     // Record treasury history for charts (uses final denarii including all income sources)
     const treasuryEntry: TreasuryHistoryEntry = {
         round: newRound,
@@ -691,7 +1064,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         round: newRound,
         inventory: newInventory,
         denarii: Math.max(0, newDenarii + totalAdditionalIncome),
-        population: Math.max(0, newPopulation + eventPopulation),
+        // BL-42: apply final housing-cap clamp AFTER events so event pop cannot
+        // push us past housing (eliminates the 150→159 oscillation).
+        population: Math.max(0, Math.min(newPopulation + eventPopulation, newHousing)),
         troops: Math.max(0, state.troops + eventTroops),
         happiness: newHappiness,
         morale: newMorale,
@@ -706,6 +1081,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         godFavor: newGodFavor,
         // Apply achievement rewards + wonder effects + event effects
         reputation: Math.max(0, Math.min(100, newReputation + eventReputation)),
+        // BL-11: persist crossed milestone thresholds so each fires exactly once.
+        reputationMilestonesReached: newMilestonesReached,
         supplies: newSupplies,
         piety: Math.max(0, Math.min(100, newPiety + wonderEffects.piety + eventPiety)),
         sanitation: Math.max(0, Math.min(100, state.sanitation + wonderEffects.sanitation)),
@@ -729,7 +1106,23 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         },
         emergencyCooldowns: newEmergencyCooldowns,
         worshipCooldowns: newWorshipCooldowns,
+        rallyTroopsCooldown: newRallyTroopsCooldown,
         eventCooldowns: newEventCooldowns,
+        farmTutorialShown: newFarmTutorialShown,
+        housingCapNudgeShown: newHousingCapNudgeShown,
+        lastTroopNudgeRound: newLastTroopNudgeRound,
+        conquestNudgeShown: newConquestNudgeShown,
+        patronNudgeShown: newPatronNudgeShown,
+        insulaeNudgeShown: newInsulaeNudgeShown,
+        // BL-49: Preserve spending-nudge cooldown across seasons.
+        ...(newSpendingNudgeLastRound !== undefined ? { spendingNudgeLastRound: newSpendingNudgeLastRound } : {}),
+        // BL-40: Preserve emergency-import cooldown so it respects the 4-round cadence.
+        ...(newLastEmergencyImportRound !== undefined ? { lastEmergencyImportRound: newLastEmergencyImportRound } : {}),
+        // BL-33: Itemized breakdown for Treasury deficit tooltip
+        lastSeasonIncome: calculateIncomeBreakdown(state),
+        lastSeasonExpense: calculateExpenseBreakdown(state),
+        lastDeficitWarnRound: newLastDeficitWarnRound,
+        lastLowGrainWarnRound: newLastLowGrainWarnRound,
         history: [...state.history, historyEntry],
         treasuryHistory: [...(state.treasuryHistory || []), treasuryEntry].slice(-50), // Keep last 50 entries
         // BUG-001 FIX: Always preserve senate state to prevent accidental resets
@@ -918,6 +1311,10 @@ export function executeTrade(
     const mercuryPriceBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tradePrices');
     const mercuryTariffBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tariffs');
 
+    // BL-11: Reputation milestone stacking (additive with Mercury).
+    // tariffReduction is applied as a positive number, same shape as focus reduction.
+    const repTradeBonus = getReputationTradeBonus(state.reputation);
+
     // Territory focus: trade_hub +15% trade prices, +20% tariff reduction
     let focusTradePriceBonus = 0;
     let focusTariffReduction = 0;
@@ -928,8 +1325,12 @@ export function executeTrade(
             if (focusData.bonus.tariffReduction) focusTariffReduction += focusData.bonus.tariffReduction;
         }
     }
+    // Clamp cumulative tariff reduction from territory focuses to prevent inversion
+    focusTariffReduction = Math.min(0.80, focusTariffReduction);
 
-    const tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction); // mercuryTariffBonus is negative (-0.20)
+    let tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction - repTradeBonus.tariffReduction); // mercuryTariffBonus is negative (-0.20)
+    // Clamp tariffMod: cannot invert to revenue bonus, cannot exceed 100% reduction
+    tariffMod = Math.max(0, Math.min(1, tariffMod));
 
     if (!riskResult.success) {
         // Trade failed - lose some resources
@@ -951,7 +1352,8 @@ export function executeTrade(
     }
 
     // Successful trade - apply Mercury price bonus (+10% at tier 25) and focus bonus
-    const denariiGained = Math.floor(basePrice * amount * cityBonus * founderBonus * techBonus * tariffMod * (1 + mercuryPriceBonus + focusTradePriceBonus));
+    // BL-11: stack reputation-milestone trade-price bonus additively.
+    const denariiGained = Math.floor(basePrice * amount * cityBonus * founderBonus * techBonus * tariffMod * (1 + mercuryPriceBonus + focusTradePriceBonus + repTradeBonus.tradePrices));
 
     return {
         success: true,

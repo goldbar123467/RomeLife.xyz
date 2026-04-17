@@ -423,7 +423,7 @@ export const GAME_CONSTANTS = {
      * High risk routes are still dangerous but not suicidal.
      * @balance Difficulty: Medium | Affects: Long-distance trade
      */
-    TRADE_RISK_MAX: 0.25,
+    TRADE_RISK_MAX: 0.40,
 
     /**
      * Bonus multiplier applied to trade prices.
@@ -630,9 +630,9 @@ export const GAME_CONSTANTS = {
 
     /**
      * Minimum happiness percentage before unrest failure.
-     * Lowered to 20% (from 25%) to give new players more recovery time.
-     * Below this threshold, civil unrest destroys the empire.
-     * Values below 15% would make the game too forgiving.
+     * @deprecated BL-24: Use `getHappinessFailureThreshold(round)` in `core/rules/index.ts`
+     * for the round-scaled happiness failure threshold (15% early, ramps to 25% by round 20).
+     * Kept for back-compat / reference only; `checkFailureConditions` no longer reads this.
      * @balance Difficulty: Easy | Affects: Happiness spiral recovery window
      */
     FAILURE_MIN_HAPPINESS: 20,
@@ -932,6 +932,14 @@ export const TERRITORY_FOCUS: Record<string, TerritoryFocusData> = {
         cost: 300,
     },
 };
+
+// BL-11: Reputation milestones. Crossing a threshold surfaces a log event and
+// grants small stacking trade bonuses (applied in usecases trade pricing).
+export const REPUTATION_MILESTONES = [
+    { threshold: 25,  name: 'Respected',  bonus: { tradePrices: 0.05, tariffReduction: 0 } },
+    { threshold: 50,  name: 'Renowned',   bonus: { tradePrices: 0, tariffReduction: 0.05 } },
+    { threshold: 100, name: 'Legendary',  bonus: { tradePrices: 0.10, tariffReduction: 0.05 } },
+];
 
 // === RE-EXPORTS ===
 export * from './religion';

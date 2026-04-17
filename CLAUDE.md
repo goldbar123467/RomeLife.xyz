@@ -272,12 +272,12 @@ bun dev         # Test in browser
 - Industrial: 15 buildings, 10,000 denarii
 
 ### Failure Conditions
-- Famine: 2+ consecutive starvation (FAILURE_STARVATION_LIMIT = 2)
+- Famine: 3+ consecutive starvation (FAILURE_STARVATION_LIMIT = 3, cycle 5 — 2-round recovery grace)
 - Collapse: Population < 40 (FAILURE_MIN_POPULATION = 40)
 - Unrest: Happiness <= 25% (FAILURE_MIN_HAPPINESS = 25)
 
 ### Starting State
-- 500 denarii, 100 population, 70% happiness
+- 5000 denarii, 100 population, 70% happiness
 - 120 grain, 150 grain capacity (survives first winter with Farm Complex)
 - 25 troops, 80% morale
 - 150 housing, 50 sanitation, 1 fort, 50 supplies

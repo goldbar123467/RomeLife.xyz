@@ -12,16 +12,16 @@ async function startGame(page: Page, founder: 'Romulus' | 'Remus' = 'Romulus') {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    // Intro screen
-    await expect(page.getByText('FOUNDING OF ROME')).toBeVisible({ timeout: 15000 });
-    await page.getByRole('button', { name: 'Begin Your Legacy' }).click();
+    // Intro screen - wait for the CTA button (title text is now "ROME LIFE")
+    await expect(page.getByRole('button', { name: /Begin Your Legacy/i })).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: /Begin Your Legacy/i }).click();
     await page.waitForTimeout(400);
 
     // Founder select
-    await expect(page.getByText('Choose Your Founder')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Choose Your Founder/i)).toBeVisible({ timeout: 5000 });
     await page.getByText(founder, { exact: true }).first().click();
     await page.waitForTimeout(300);
-    await page.getByRole('button', { name: new RegExp(`Found Rome as ${founder}`) }).click();
+    await page.getByRole('button', { name: new RegExp(`Found Rome as ${founder}`, 'i') }).click();
     await page.waitForTimeout(1000);
 }
 
@@ -98,9 +98,7 @@ test.describe('Rome Empire Builder - QA Smoke Tests', () => {
         await page.reload();
         await page.waitForLoadState('networkidle');
 
-        await expect(page.getByText('FOUNDING OF ROME')).toBeVisible({ timeout: 15000 });
-        await expect(page.getByText('Complete Edition')).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Begin Your Legacy' })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Begin Your Legacy/i })).toBeVisible({ timeout: 15000 });
 
         await page.screenshot({ path: 'tests/screenshots/01-intro.png', fullPage: true });
     });

@@ -18,7 +18,7 @@ export function ReligionPanel() {
     const [selectedGod, setSelectedGod] = useState<God | null>(null);
     const {
         patronGod, godFavor, piety, setPatronGod, worship, denarii, inventory,
-        religiousBuildings, buildReligiousBuilding
+        religiousBuildings, buildReligiousBuilding, worshipCooldowns
     } = useGameStore();
 
     const tabs: { id: ReligionTab; label: string; icon: LucideIcon | string }[] = [
@@ -78,6 +78,38 @@ export function ReligionPanel() {
                     </span>
                 </div>
             </div>
+
+            {/* BL-37: Quick Prayer — always visible on every Religion sub-tab.
+                Always triggers the 'prayer' worship action (cost: none, cooldown: 0).
+                Exposed with an explicit button role + aria-label="Pray" so the QA
+                spec can find it with getByRole('button', { name: /Pray/i }). */}
+            {patronGod && (() => {
+                // BL-41: Quick Prayer cooldown + "Ready in N seasons" caption
+                const quickPrayerCd = (worshipCooldowns ?? {})['prayer'] ?? 0;
+                const onQuickPrayerCd = quickPrayerCd > 0;
+                return (
+                    <div>
+                        <button
+                            type="button"
+                            aria-label="Pray"
+                            data-testid="worship-action-quick-prayer"
+                            onClick={() => worship('prayer')}
+                            disabled={onQuickPrayerCd}
+                            className={`inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-200 px-5 py-3 text-base min-h-[48px] ${onQuickPrayerCd ? 'bg-white/5 border border-white/10 text-muted cursor-not-allowed opacity-60' : 'btn-gold'}`}
+                        >
+                            Pray
+                        </button>
+                        {onQuickPrayerCd && (
+                            <div
+                                className="mt-1 text-xs text-muted"
+                                data-testid="worship-quick-prayer-cooldown"
+                            >
+                                Ready in {quickPrayerCd} season{quickPrayerCd !== 1 ? 's' : ''}
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* Tab Navigation */}
             <div className="flex gap-2 border-b border-line pb-2">
@@ -314,6 +346,10 @@ export function ReligionPanel() {
                         ) : (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 {Object.values(WORSHIP_ACTIONS).map(action => {
+                                    // BL-22: Check worship cooldown for this action
+                                    const actionCooldown = (worshipCooldowns ?? {})[action.id] ?? 0;
+                                    const onCooldown = actionCooldown > 0;
+
                                     // Check if player can afford the action
                                     let canAfford = true;
                                     const costItems: { amount: number; icon: LucideIcon; color: string }[] = [];
@@ -343,17 +379,19 @@ export function ReligionPanel() {
                                     if (action.effect.reputation) effectParts.push(`+${action.effect.reputation} Rep`);
                                     const effectText = effectParts.join(', ');
 
+                                    const isInteractive = canAfford && !onCooldown;
                                     return (
                                         <motion.div
                                             key={action.id}
+                                            data-testid={`worship-action-${action.id}`}
                                             className={`bg-paper-light rounded-xl p-4 border transition-all ${
-                                                canAfford
+                                                isInteractive
                                                     ? 'border-roman-gold/30 hover:border-roman-gold/50 cursor-pointer'
                                                     : 'border-line opacity-50 cursor-not-allowed'
                                             }`}
-                                            whileHover={canAfford ? { scale: 1.02 } : {}}
-                                            whileTap={canAfford ? { scale: 0.98 } : {}}
-                                            onClick={() => canAfford && worship(action.id)}
+                                            whileHover={isInteractive ? { scale: 1.02 } : {}}
+                                            whileTap={isInteractive ? { scale: 0.98 } : {}}
+                                            onClick={() => isInteractive && worship(action.id)}
                                         >
                                             <div className="text-center">
                                                 <GameImage src={WORSHIP_ACTION_ASSETS[action.id] || action.icon} size="lg" alt={action.name} className="mb-2" />
@@ -373,11 +411,21 @@ export function ReligionPanel() {
                                                     )}
                                                 </div>
                                                 <div className="text-xs text-green-400">{effectText}</div>
-                                                {action.cooldown > 0 && (
+                                                {/* BL-22 + BL-41: live cooldown badge + "Ready in N seasons" caption */}
+                                                {onCooldown ? (
+                                                    <div className="mt-2 flex flex-col items-center gap-1">
+                                                        <Badge variant="default" size="sm" className="bg-red-500/20 text-red-400 border border-red-500/30">
+                                                            Cooldown: {actionCooldown} season{actionCooldown !== 1 ? 's' : ''}
+                                                        </Badge>
+                                                        <span className="text-[11px] text-muted">
+                                                            Ready in {actionCooldown} season{actionCooldown !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                ) : action.cooldown > 0 ? (
                                                     <div className="text-xs text-muted mt-2">
                                                         {action.cooldown} round cooldown
                                                     </div>
-                                                )}
+                                                ) : null}
                                             </div>
                                         </motion.div>
                                     );

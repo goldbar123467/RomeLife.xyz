@@ -89,6 +89,19 @@ export function processSenateSeasonEnd(
         return result;
     }
 
+    // BL-20: Idempotency guard. If this round has already been processed, skip.
+    // This prevents relation corruption from accidental double-invocation of
+    // endSeason within the same round (e.g. race condition on Space key, event
+    // queue collision, or stale React render).
+    if (gameState.senate.lastProcessedRound === round) {
+        if (typeof window !== 'undefined') {
+            console.warn(`[Senate] BL-20 GUARD: skipping duplicate processSenateSeasonEnd for round ${round}`);
+        }
+        // Preserve current senate state untouched
+        result.newSenateState = gameState.senate;
+        return result;
+    }
+
     // Debug logging for Season 21 investigation
     if (typeof window !== 'undefined') {
         console.log(`[Senate] Round ${round} START - Relations:`,
@@ -100,6 +113,14 @@ export function processSenateSeasonEnd(
 
     let senators = { ...gameState.senate.senators };
     const attention = gameState.senate.attentionThisSeason || getDefaultAttention();
+
+    // BL-55: Snapshot starting relations so we can attribute drift to a cause at
+    // the end of processing. Goat-run diagnosis showed senators sliding red with
+    // no visible reason in the log.
+    const relationsBefore: Record<SenatorId, number> = {} as Record<SenatorId, number>;
+    for (const id of Object.keys(senators) as SenatorId[]) {
+        relationsBefore[id] = senators[id].relation;
+    }
 
     // === 1. PROCESS ACTION QUEUE (delayed effects from previous events) ===
     const queueResult = processActionQueue(
@@ -258,6 +279,35 @@ export function processSenateSeasonEnd(
         }
     }
 
+    // === 3.6 ATTRIBUTE SEASONAL DRIFT (BL-55) ===
+    // When a senator's seasonal delta is <= -3, push ONE log entry naming the
+    // senator and the most likely cause so players understand why relations
+    // drifted red without direct interaction. Conservative (only largest drop
+    // per season) to avoid log spam.
+    {
+        let worstDrift: { id: SenatorId; delta: number; reason: string } | null = null;
+        for (const id of Object.keys(senators) as SenatorId[]) {
+            const before = relationsBefore[id] ?? senators[id].relation;
+            const after = senators[id].relation;
+            const delta = after - before;
+            if (delta > -3) continue;
+
+            const reason = describeSenatorDriftReason(id, attention[id] ?? 20, gameState);
+            if (!worstDrift || delta < worstDrift.delta) {
+                worstDrift = { id, delta, reason };
+            }
+        }
+        if (worstDrift) {
+            const senatorName = senators[worstDrift.id].name;
+            const deltaSigned = worstDrift.delta > 0 ? `+${worstDrift.delta}` : `${worstDrift.delta}`;
+            // Note: caller prefixes messages with `[Senate]`, so format is already
+            // `[Senate] <Senator Name> relation -4 (reason)` in the Imperial Log.
+            result.messages.push(
+                `${senatorName} relation ${deltaSigned} (${worstDrift.reason})`
+            );
+        }
+    }
+
     // === 4. CHECK ASSASSINATION WINDOWS ===
     for (const id of Object.keys(senators) as SenatorId[]) {
         const senator = senators[id];
@@ -380,19 +430,33 @@ export function processSenateSeasonEnd(
     }
 
     // === 8. BUILD FINAL STATE ===
+    // BL-09: Preserve any currentEvent that was already displayed (e.g. from a
+    // prior season that completed but whose event the player never resolved).
+    // If currentEvent is already set, newly generated events are appended to
+    // pendingEvents instead of overwriting the displayed one.
+    const existingCurrent = gameState.senate.currentEvent;
+    const existingPending = gameState.senate.pendingEvents ?? [];
+    const combinedPending = existingCurrent
+        ? [...existingPending, ...result.events]
+        : result.events.slice(1);
+    const nextCurrent = existingCurrent ?? (result.events[0] || null);
+
     result.newSenateState = {
         ...gameState.senate,
         senators,
         attentionThisSeason: null, // Reset for next season
         attentionLocked: false,
-        // Set first event as currentEvent to display modal, rest go to pendingEvents
-        currentEvent: result.events[0] || null,
-        pendingEvents: result.events.slice(1),
+        // Set first event as currentEvent to display modal, rest go to pendingEvents.
+        // Preserve existing currentEvent if one is still pending resolution.
+        currentEvent: nextCurrent,
+        pendingEvents: combinedPending,
         actionQueue: [
             ...queueResult.remainingActions,
             ...queueResult.processedActions.filter(a => !a.resolved),
         ],
         gracePhaseComplete: round >= SENATE_GRACE_PERIOD_ROUNDS,
+        // BL-20: Mark this round as processed so a repeat call short-circuits.
+        lastProcessedRound: round,
     };
 
     return result;
@@ -409,6 +473,55 @@ function getDefaultAttention(): AttentionAllocation {
         pulcher: 20,
         oppius: 20,
     };
+}
+
+/**
+ * BL-55: Describe the most likely cause of a seasonal negative drift for a
+ * senator. Prioritizes attention neglect (the mechanical driver), then falls
+ * back to ideological/policy misalignment inferred from game state (tax rate,
+ * piety, happiness, etc). Keep reasons short — they render inline in the log.
+ */
+export function describeSenatorDriftReason(
+    senatorId: SenatorId,
+    senatorAttention: number,
+    gameState: GameState
+): string {
+    // Attention neglect is the primary mechanical driver of passive drift.
+    if (senatorAttention < 10) {
+        return `neglected (attention ${senatorAttention}% — senator feels ignored)`;
+    }
+    if (senatorAttention < 20) {
+        return `low attention (${senatorAttention}% — senator wants more engagement)`;
+    }
+
+    // Ideological / policy-based attribution per senator
+    const taxRate = gameState.taxRate ?? 10;
+    const piety = gameState.piety ?? 0;
+    const happiness = gameState.happiness ?? 0;
+
+    switch (senatorId) {
+        case 'sulla':
+            if (taxRate >= 20) return `tax rate ${taxRate}% — senator demands military spending`;
+            if (gameState.troops < 30) return `weak legion (${gameState.troops} troops — senator despises weakness)`;
+            return 'policy disapproval (senator wants strength and decisive action)';
+        case 'clodius':
+            if (taxRate >= 20) return `tax rate ${taxRate}% — burdens the plebs he champions`;
+            if (happiness < 50) return `low happiness (${Math.round(happiness)}% — senator blames you for unrest)`;
+            return 'populist displeasure (senator demands grain and favor for the mob)';
+        case 'pulcher':
+            if (piety < 30) return `low piety (${Math.round(piety)} — senator demands devotion)`;
+            if (taxRate >= 25) return `tax rate ${taxRate}% — funds diverted from temples`;
+            return 'impiety (senator watches your neglect of the gods)';
+        case 'oppius':
+            if (taxRate >= 25) return `tax rate ${taxRate}% — senator senses trade disruption`;
+            return 'boredom (senator finds your moves predictable)';
+        case 'sertorius':
+            if (taxRate >= 20) return `tax rate ${taxRate}% — senator sees burden on citizens as dishonorable`;
+            if (happiness < 40) return `low happiness (${Math.round(happiness)}% — senator blames poor leadership)`;
+            return 'disappointment (senator expected better of you)';
+        default:
+            return 'political disagreement';
+    }
 }
 
 /**
@@ -521,4 +634,134 @@ export function finalizeQueuedActions(
         id: action.id || `action_${currentRound}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         resolved: false,
     }));
+}
+
+// === BL-07: SENATE EVENT EFFECT CAPS ===
+
+export interface SenateEventEffectInput {
+    denarii?: number;
+    grain?: number;
+    happiness?: number;
+    morale?: number;
+    reputation?: number;
+    piety?: number;
+    troops?: number;
+    population?: number;
+}
+
+export interface ClampedSenateEventEffect {
+    effect: SenateEventEffectInput;
+    clamped: boolean;
+    messages: string[];
+}
+
+/**
+ * BL-07: Clamp per-event deltas so a single senator event can't swing resources
+ * by extreme amounts (e.g. ±20k denarii in one round).
+ *
+ * Caps:
+ * - happiness: ±20
+ * - denarii: ±30% of current denarii (min ±500 floor)
+ * - population: ±15
+ * - morale / piety: ±15
+ */
+export function clampSenateEventEffect(
+    state: Pick<GameState, 'denarii'>,
+    effect: SenateEventEffectInput
+): ClampedSenateEventEffect {
+    const clamped: SenateEventEffectInput = { ...effect };
+    const messages: string[] = [];
+    let wasClamped = false;
+
+    const clampField = (
+        key: keyof SenateEventEffectInput,
+        limit: number,
+        label: string
+    ) => {
+        const raw = effect[key];
+        if (raw == null) return;
+        if (raw > limit) {
+            clamped[key] = limit;
+            messages.push(`Effect on ${label} capped from +${raw} to +${limit}`);
+            wasClamped = true;
+        } else if (raw < -limit) {
+            clamped[key] = -limit;
+            messages.push(`Effect on ${label} capped from ${raw} to -${limit}`);
+            wasClamped = true;
+        }
+    };
+
+    clampField('happiness', 20, 'happiness');
+    clampField('population', 15, 'population');
+    clampField('morale', 15, 'morale');
+    clampField('piety', 15, 'piety');
+
+    // Denarii: ±30% of current denarii, min ±500 floor so early game isn't softlocked
+    if (effect.denarii != null) {
+        const pctCap = Math.abs(state.denarii) * 0.3;
+        const denariiCap = Math.max(500, pctCap);
+        if (effect.denarii > denariiCap) {
+            clamped.denarii = Math.round(denariiCap);
+            messages.push(`Effect on denarii capped from +${effect.denarii} to +${clamped.denarii}`);
+            wasClamped = true;
+        } else if (effect.denarii < -denariiCap) {
+            clamped.denarii = -Math.round(denariiCap);
+            messages.push(`Effect on denarii capped from ${effect.denarii} to ${clamped.denarii}`);
+            wasClamped = true;
+        }
+    }
+
+    return { effect: clamped, clamped: wasClamped, messages };
+}
+
+// BL-46: per-field hard caps for religious events so a single `divine_wrath`
+// can't crater piety 23 -> 4 in one season.
+export interface ReligiousEventEffectInput {
+    piety?: number;
+    happiness?: number;
+    morale?: number;
+    reputation?: number;
+    grain?: number;
+    godFavor?: number;
+    techCostReduction?: number;
+}
+
+export interface ClampedReligiousEventEffect {
+    effect: ReligiousEventEffectInput;
+    clamped: boolean;
+    messages: string[];
+}
+
+const RELIGIOUS_EVENT_CAPS: Record<string, number> = {
+    // BL-52: tighten piety cap 10 -> 8 so a single religious event cannot drop piety below -8.
+    piety: 8,
+    happiness: 15,
+    morale: 15,
+    reputation: 10,
+    grain: 100,
+};
+
+export function clampReligiousEventEffect(
+    effects: ReligiousEventEffectInput
+): ClampedReligiousEventEffect {
+    const clamped: ReligiousEventEffectInput = { ...effects };
+    const messages: string[] = [];
+    let wasClamped = false;
+
+    for (const key of Object.keys(RELIGIOUS_EVENT_CAPS) as (keyof ReligiousEventEffectInput)[]) {
+        const limit = RELIGIOUS_EVENT_CAPS[key as string];
+        const raw = effects[key];
+        if (raw == null) continue;
+        if (raw > limit) {
+            clamped[key] = limit;
+            messages.push(`${key} ${raw > 0 ? '+' : ''}${raw} -> +${limit}`);
+            wasClamped = true;
+        } else if (raw < -limit) {
+            clamped[key] = -limit;
+            messages.push(`${key} ${raw} -> -${limit}`);
+            wasClamped = true;
+        }
+    }
+
+    return { effect: clamped, clamped: wasClamped, messages };
 }

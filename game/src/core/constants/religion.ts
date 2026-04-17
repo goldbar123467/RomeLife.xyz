@@ -235,7 +235,8 @@ export const RELIGIOUS_EVENTS: ReligiousEvent[] = [
     icon: 'zap',
     description: 'The gods are displeased! Crops wither.',
     probability: 0.04,
-    effects: { piety: -20, grain: -50, morale: -15 },
+    // BL-46: piety softened -20 -> -12 defensively; primary fix is clampReligiousEventEffect()
+    effects: { piety: -12, grain: -50, morale: -15 },
   },
   {
     id: 'prophetic_dream',
@@ -337,10 +338,14 @@ export function calculateBlessingBonus(
   const hasAllBlessings = activeBlessings.some(b => b.effectType === 'allBlessings');
 
   if (hasAllBlessings) {
-    // Get all blessings from all gods for this effect type
+    // BL-15: Non-patron god blessings apply at 50% potency to avoid power creep.
+    // Patron god's own blessings apply at full strength.
     return BLESSING_EFFECTS
       .filter(b => b.effectType === effectType)
-      .reduce((sum, b) => sum + b.value, 0);
+      .reduce((sum, b) => {
+        const multiplier = b.god === patronGod ? 1.0 : 0.5;
+        return sum + b.value * multiplier;
+      }, 0);
   }
 
   // Normal case: just sum from patron god's active blessings
@@ -350,10 +355,15 @@ export function calculateBlessingBonus(
 }
 
 /**
- * Roll for a religious event
+ * Roll for a religious event.
+ * Accepts an optional cooldowns map (eventId -> rounds remaining) to skip
+ * events that are still on cooldown.
  */
-export function rollReligiousEvent(): ReligiousEvent | null {
+export function rollReligiousEvent(
+  cooldowns?: Record<string, number>
+): ReligiousEvent | null {
   for (const event of RELIGIOUS_EVENTS) {
+    if (cooldowns && (cooldowns[event.id] ?? 0) > 0) continue;
     if (Math.random() < event.probability) {
       return event;
     }
