@@ -69,6 +69,19 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const grainAvailable = newInventory.grain;
     newInventory.grain = Math.max(0, grainAvailable - foodConsumed);
 
+    // BL-28: Defensive pacing log. If post-consumption grain dips below 0.5x of
+    // a single season's consumption, surface a console.warn so future QA /
+    // instrumented playthroughs catch pacing regressions (e.g. grace-period or
+    // Farm Complex production silently changing). Does not affect gameplay.
+    if (foodConsumed > 0 && newInventory.grain < foodConsumed * 0.5) {
+        // eslint-disable-next-line no-console
+        console.warn(
+            `[BL-28][pacing] Round ${state.round} ${state.season} -> ${nextSeason}: ` +
+            `grain ${newInventory.grain} below 0.5x consumption (${foodConsumed}). ` +
+            `pop=${state.population} troops=${state.troops} grace-multiplier applied.`
+        );
+    }
+
     // Check starvation (Ceres tier 100: famine immunity)
     const ceresFamineImmune = calculateBlessingBonus(state.patronGod, state.godFavor, 'famineImmune') > 0;
     const isStarving = grainAvailable < foodConsumed && foodConsumed > 0 && !ceresFamineImmune;
@@ -112,6 +125,32 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         events.push(`[Treasury] Income: +${effectiveNetIncome} denarii`);
     } else if (effectiveNetIncome < 0) {
         events.push(`[Treasury] Deficit: ${effectiveNetIncome} denarii`);
+    }
+
+    // BL-21: Surface deficit and low-grain warnings early (cooldown: 2 rounds)
+    // Uses the uncapped summary.netIncome so the warning fires even while
+    // tiered deficit protection is softening the real loss.
+    let newLastDeficitWarnRound = state.lastDeficitWarnRound;
+    let newLastLowGrainWarnRound = state.lastLowGrainWarnRound;
+    if (summary.netIncome < 0) {
+        const lastWarn = state.lastDeficitWarnRound ?? -999;
+        if (newRound - lastWarn >= 2) {
+            events.push(
+                `[!] Deficit: losing ${Math.abs(summary.netIncome)} denarii/season. Raise taxes or build a marketplace.`
+            );
+            newLastDeficitWarnRound = newRound;
+        }
+    }
+    // Low-grain warning: under 1.5x seasonal consumption projects famine soon
+    if (foodConsumed > 0 && newInventory.grain < foodConsumed * 1.5) {
+        const lastWarn = state.lastLowGrainWarnRound ?? -999;
+        if (newRound - lastWarn >= 2) {
+            const seasonsLeft = Math.max(0, Math.floor(newInventory.grain / foodConsumed));
+            events.push(
+                `[!] Low grain: famine in ~${seasonsLeft} season${seasonsLeft === 1 ? '' : 's'} unless you build a Farm/Granary.`
+            );
+            newLastLowGrainWarnRound = newRound;
+        }
     }
 
     // Update market prices
@@ -435,8 +474,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Only trigger if player has engaged with religion (piety > 20)
     let religiousEvent: ReligiousEvent | null = null;
     if (state.piety > 20) {
-        religiousEvent = rollReligiousEvent();
+        // Pass the already-decayed cooldowns map so we skip religious events still on cooldown
+        religiousEvent = rollReligiousEvent(newEventCooldowns);
         if (religiousEvent) {
+            // Record cooldown for this religious event (same 4-round pattern as empire events)
+            newEventCooldowns[religiousEvent.id] = EVENT_COOLDOWN_ROUNDS;
             events.push(`${religiousEvent.icon} ${religiousEvent.name}: ${religiousEvent.description}`);
 
             // Apply religious event effects
@@ -556,16 +598,16 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         return { ...q, progress, completed };
     });
 
-    // Minerva tier 50: +1 free tech every 3 rounds (buffed from 5)
-    // Minerva tier 75: +2 free techs every 3 rounds
+    // Minerva tier 50: +1 free tech every 3 rounds (buffed from every 5)
+    // Minerva favor >= 75: grants +2 free techs per trigger instead of +1
     let newTechnologies = state.technologies;
     const minervaFreeTech = calculateBlessingBonus(state.patronGod, state.godFavor, 'freeTech');
     if (minervaFreeTech > 0 && newRound % 3 === 0 && newRound > 0) {
         const unresearchedTechs = newTechnologies.filter(t => !t.researched);
         if (unresearchedTechs.length > 0) {
-            // At tier 75+, grant 2 techs instead of 1
-            const minervaTier75 = calculateBlessingBonus(state.patronGod, state.godFavor, 'buildingEfficiency');
-            const techsToGrant = minervaTier75 > 0 ? 2 : 1;
+            // At Minerva favor >= 75, grant 2 techs instead of 1
+            const minervaFavor = state.patronGod === 'minerva' ? (state.godFavor.minerva ?? 0) : 0;
+            const techsToGrant = minervaFavor >= 75 ? 2 : 1;
 
             for (let i = 0; i < techsToGrant && i < unresearchedTechs.length; i++) {
                 const randomTech = unresearchedTechs[i];
@@ -730,6 +772,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         emergencyCooldowns: newEmergencyCooldowns,
         worshipCooldowns: newWorshipCooldowns,
         eventCooldowns: newEventCooldowns,
+        lastDeficitWarnRound: newLastDeficitWarnRound,
+        lastLowGrainWarnRound: newLastLowGrainWarnRound,
         history: [...state.history, historyEntry],
         treasuryHistory: [...(state.treasuryHistory || []), treasuryEntry].slice(-50), // Keep last 50 entries
         // BUG-001 FIX: Always preserve senate state to prevent accidental resets
@@ -928,8 +972,12 @@ export function executeTrade(
             if (focusData.bonus.tariffReduction) focusTariffReduction += focusData.bonus.tariffReduction;
         }
     }
+    // Clamp cumulative tariff reduction from territory focuses to prevent inversion
+    focusTariffReduction = Math.min(0.80, focusTariffReduction);
 
-    const tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction); // mercuryTariffBonus is negative (-0.20)
+    let tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction); // mercuryTariffBonus is negative (-0.20)
+    // Clamp tariffMod: cannot invert to revenue bonus, cannot exceed 100% reduction
+    tariffMod = Math.max(0, Math.min(1, tariffMod));
 
     if (!riskResult.success) {
         // Trade failed - lose some resources

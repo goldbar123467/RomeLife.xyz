@@ -94,8 +94,32 @@ export interface FailureResult {
     description: string;
 }
 
+/**
+ * BL-24: Round-scaled happiness failure threshold.
+ * New players need time to recover from early happiness dips before the
+ * unrest failure kicks in. Replaces the single static FAILURE_MIN_HAPPINESS
+ * check with a linear ramp:
+ *   - Rounds 1-12:  15% (lenient learning phase)
+ *   - Rounds 12-20: linear ramp 15% -> 25%
+ *   - Round 20+:    25% (full difficulty, matches legacy behaviour)
+ * Returned as a percentage value (e.g. 15, 25) consistent with `state.happiness`.
+ */
+export function getHappinessFailureThreshold(round: number): number {
+    const EARLY_THRESHOLD = 15;
+    const LATE_THRESHOLD = 25;
+    const RAMP_START = 12;
+    const RAMP_END = 20;
+
+    if (round <= RAMP_START) return EARLY_THRESHOLD;
+    if (round >= RAMP_END) return LATE_THRESHOLD;
+
+    // Linear interpolation between rounds 12 and 20
+    const t = (round - RAMP_START) / (RAMP_END - RAMP_START);
+    return EARLY_THRESHOLD + t * (LATE_THRESHOLD - EARLY_THRESHOLD);
+}
+
 export function checkFailureConditions(state: GameState): FailureResult | null {
-    const { consecutiveStarvation, population, happiness } = state;
+    const { consecutiveStarvation, population, happiness, round } = state;
 
     // Famine: 3+ consecutive starvation rounds
     if (consecutiveStarvation >= GAME_CONSTANTS.FAILURE_STARVATION_LIMIT) {
@@ -115,8 +139,10 @@ export function checkFailureConditions(state: GameState): FailureResult | null {
         };
     }
 
-    // Unrest: Happiness ≤ FAILURE_MIN_HAPPINESS (20%)
-    if (happiness <= GAME_CONSTANTS.FAILURE_MIN_HAPPINESS) {
+    // Unrest: Happiness ≤ round-scaled threshold (see getHappinessFailureThreshold).
+    // NOTE: GAME_CONSTANTS.FAILURE_MIN_HAPPINESS is DEPRECATED for this check;
+    // use getHappinessFailureThreshold(round) instead.
+    if (happiness <= getHappinessFailureThreshold(round)) {
         return {
             type: 'unrest',
             title: 'Revolt',

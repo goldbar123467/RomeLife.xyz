@@ -315,6 +315,30 @@ export function calculateIncome(state: GameState): number {
 }
 
 /**
+ * BL-23: Happiness penalty from a given tax rate per season.
+ * Mirrors the formula applied in `executeEndSeason` (usecases/index.ts:467):
+ *   if (taxRate > 0.20) newHappiness -= floor((taxRate - 0.20) * 50)
+ * Returned as a positive integer (the amount subtracted from happiness each season).
+ */
+export function calculateTaxHappinessPenalty(taxRate: number): number {
+    if (taxRate <= 0.20) return 0;
+    return Math.floor((taxRate - 0.20) * 50);
+}
+
+/**
+ * BL-23: Projected Δhappiness per season for the current tax rate relative
+ * to a neutral baseline (default 10% — a "low / balanced" preset).
+ * Negative delta means this rate costs happiness compared to the baseline;
+ * positive means it preserves happiness compared to a harsher baseline.
+ */
+export function calculateTaxHappinessDelta(taxRate: number, baselineRate: number = 0.10): number {
+    const currentPenalty = calculateTaxHappinessPenalty(taxRate);
+    const baselinePenalty = calculateTaxHappinessPenalty(baselineRate);
+    // penalty is subtracted from happiness, so delta = baseline - current
+    return baselinePenalty - currentPenalty;
+}
+
+/**
  * Calculate total upkeep costs
  * Formula: Σ(building upkeep) + (troops × 2) + (housing ÷ 15) + (forts × 4) + (sanitation ÷ 8)
  */
@@ -479,8 +503,11 @@ export function calculateBattleOdds(
     const cappedTechMult = Math.min(GAME_CONSTANTS.MAX_TECH_MULTIPLIER, totalTechMult);
     playerStrength *= cappedTechMult;
 
-    // Weather variance
-    playerStrength *= randomFloat(0.9, 1.1);
+    // NOTE: Weather variance (randomFloat 0.9..1.1) is intentionally NOT applied
+    // here so that the displayed odds reflect the true deterministic expected
+    // win rate. The ~10% variance is applied exactly once inside resolveBattle
+    // (see src/store/gameStore.ts resolveBattleAction) when rolling the actual
+    // outcome.
 
     const rawOdds = playerStrength / (playerStrength + enemyStrength);
     const odds = Math.min(0.99, Math.max(0.01, rawOdds));
@@ -571,17 +598,34 @@ export function calculateStabilityChange(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _state: GameState
 ): number {
-    let change = 0;
-
-    // Garrison effect (>= 20 stabilizes, < 20 destabilizes)
-    if (territory.garrison >= 20) {
-        change += 1;
+    // Smooth garrison scaling: 0 garrison = -2, 25 = +1, 50+ = +2
+    // base = (garrison / 25) - 1 clamped to [-2, +2]
+    // (0/25)-1 = -1, actually we want 0=-2. Use (garrison/25)-2 clamped to [-2,+2]?
+    // Spec: garrison 0 => -2, garrison 25 => +1, garrison 50+ => +2
+    // Interp: slope ~3 from 0 to 25 (→ +1), then +1 more up to 50. Use piecewise linear.
+    let change: number;
+    if (territory.garrison <= 25) {
+        // 0 -> -2, 25 -> +1  (slope 3/25 = 0.12)
+        change = -2 + (territory.garrison / 25) * 3;
     } else {
-        change -= 2;
+        // 25 -> +1, 50 -> +2 (slope 1/25 = 0.04), cap at +2
+        change = 1 + Math.min(1, (territory.garrison - 25) / 25);
+    }
+    // Clamp base garrison effect to [-2, +2]
+    change = Math.max(-2, Math.min(2, change));
+
+    // Fort / defensive building bonus: +0.5 if any defensive building present in this territory
+    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
+    const hasFort = territoryBuildings.some(b =>
+        b.id === 'fort' ||
+        b.id.includes('fort') ||
+        b.effects.some(e => e.type === 'defense')
+    );
+    if (hasFort) {
+        change += 0.5;
     }
 
-    // Building bonuses (multiply by count for stacking)
-    const territoryBuildings = buildings.filter(b => b.territoryId === territory.id && b.count > 0);
+    // Preserve happiness-building stability bonus loop
     for (const building of territoryBuildings) {
         for (const effect of building.effects) {
             if (effect.type === 'happiness') {
@@ -590,7 +634,13 @@ export function calculateStabilityChange(
         }
     }
 
-    return change;
+    // Governor stability scaling: multiply by (1 + bonus)
+    if (territory.governor?.bonus?.stability) {
+        change *= (1 + territory.governor.bonus.stability);
+    }
+
+    // Cap final change to [-5, +5]
+    return Math.max(-5, Math.min(5, change));
 }
 
 /**

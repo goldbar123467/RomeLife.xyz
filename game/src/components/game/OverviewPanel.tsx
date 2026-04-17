@@ -143,8 +143,13 @@ export function OverviewPanel() {
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                        <motion.div className="glass-gold rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help relative" whileHover={{ scale: 1.02 }}>
                             <StatDisplay label="Denarii" value={denarii.toLocaleString()} icon={<Coins size={18} className="text-roman-gold" />} size="sm" />
+                            {production.netIncome < 0 && (
+                                <span className="mt-1 inline-block text-red-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                                    Deficit {production.netIncome}/s
+                                </span>
+                            )}
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -153,6 +158,9 @@ export function OverviewPanel() {
                             <div className="text-xs">Income: <span className="text-green-400">+{production.income}/season</span></div>
                             <div className="text-xs">Upkeep: <span className="text-red-400">-{production.upkeep}/season</span></div>
                             <div className="text-xs">Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/season</span></div>
+                            {production.netIncome < 0 && (
+                                <div className="text-xs text-red-400 mt-1">Raise taxes or build a marketplace to recover.</div>
+                            )}
                         </div>
                     </TooltipContent>
                 </Tooltip>

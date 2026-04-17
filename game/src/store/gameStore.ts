@@ -17,7 +17,7 @@ import {
     TERRITORY_LEVELS, TERRITORY_BUILDINGS, calculateMaxGarrison
 } from '@/core/constants';
 import {
-    calculateBattleOdds, calculateEnemyStrength, resolveBattle
+    calculateBattleOdds, calculateEnemyStrength, resolveBattle, randomFloat
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import { createInitialSenators, DEFAULT_ATTENTION, clampRelation } from '@/core/constants/senate';
@@ -26,6 +26,7 @@ import {
     executeEndSeason, executeRecruitTroops, executeResearchTech,
     executeTrade, executeUpgradeTerritory, executeSendEnvoy, executeEnterInfiniteMode
 } from '@/app/usecases';
+import { clampSenateEventEffect } from '@/app/usecases/senate';
 import { syncToDatabase, clearDbGameId } from '@/lib/dbSync';
 
 // === INITIAL TERRITORIES ===
@@ -448,11 +449,17 @@ const createInitialState = (): Omit<GameStore,
     // Resources
     denarii: STARTING_STATE.denarii,
     inventory: {
-        grain: 500, iron: 10, timber: 20, stone: 15, clay: 10,  // grain: 500 for easy early game
+        // BL-28: Raised grain from 500 -> 750 to absorb the 4-season structural
+        // deficit when the player has not yet built a Farm Complex. Palatine base
+        // grain production is ~3.6/season while grace-period consumption is
+        // ~27/season, leaving a net ~23/season drain. 500 grain depleted by
+        // round 5-6 in QA playthroughs (Avg/Goat personas) before the player
+        // could reasonably ramp production. 750 gives ~8 rounds of runway.
+        grain: 750, iron: 10, timber: 20, stone: 15, clay: 10,
         wool: 5, salt: 5, livestock: 10, wine: 0, olive_oil: 0, spices: 0,
     },
     capacity: {
-        grain: 600, iron: 50, timber: 80, stone: 60, clay: 50,  // grain capacity 600 for easy early game
+        grain: 900, iron: 50, timber: 80, stone: 60, clay: 50,  // Capacity raised to 900 to match new starting grain headroom
         wool: 40, salt: 40, livestock: 50, wine: 30, olive_oil: 30, spices: 20,
     },
 
@@ -523,6 +530,7 @@ const createInitialState = (): Omit<GameStore,
         playerActionLog: [],
         anyAssassinationAttempted: false,
         senatoriusSavedPlayer: false,
+        lastProcessedRound: 0,
     },
 
     // Stats
@@ -592,14 +600,13 @@ export const useGameStore = create<GameStore>()(
             endSeason: () => {
                 const state = get();
 
-                // Guard: Block season advance while senate events need player resolution
-                // SenatorEventModal renders globally in GameLayout, so player can always resolve
-                if (state.senate?.currentEvent) {
-                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
-                    return;
-                }
-                // Promote next pending event to currentEvent so player can resolve it
-                if ((state.senate?.pendingEvents?.length ?? 0) > 0) {
+                // BL-09 Safety: If a pending event is queued but currentEvent is null,
+                // promote the next pending event BEFORE any further checks. This guarantees
+                // queued events surface even if prior flows exited without promoting.
+                if (
+                    state.senate?.currentEvent == null &&
+                    (state.senate?.pendingEvents?.length ?? 0) > 0
+                ) {
                     const [nextEvent, ...remaining] = state.senate!.pendingEvents;
                     set({
                         senate: {
@@ -609,6 +616,20 @@ export const useGameStore = create<GameStore>()(
                         },
                         lastEvents: ['A senator demands your attention! Resolve the event first.'],
                     });
+                    return;
+                }
+
+                // Guard: Block season advance while senate events need player resolution
+                // SenatorEventModal renders globally in GameLayout, so player can always resolve
+                if (state.senate?.currentEvent) {
+                    set({ lastEvents: ['Resolve the senator event before ending the season!'] });
+                    return;
+                }
+
+                // BL-09: Block season advance while a battle is active. The BattleScreen
+                // overlay must be resolved (or retreated) before seasons may advance.
+                if (state.battle?.active || state.stage === 'battle') {
+                    set({ lastEvents: ['Resolve the active battle before ending the season!'] });
                     return;
                 }
 
@@ -739,7 +760,20 @@ export const useGameStore = create<GameStore>()(
                 const state = get();
                 if (!state.battle) return;
 
-                const result = resolveBattle(state.battle.playerStrength, state.battle.enemyStrength, state.battle.odds);
+                // Apply weather variance ONCE at resolution time (~10% swing).
+                // Displayed odds stay deterministic; actual outcome uses a
+                // perturbed effective strength to reroll the odds threshold.
+                const varianceMultiplier = randomFloat(0.9, 1.1);
+                const effectivePlayerStrength = state.battle.playerStrength * varianceMultiplier;
+                const effectiveOdds = Math.min(
+                    0.99,
+                    Math.max(
+                        0.01,
+                        effectivePlayerStrength / (effectivePlayerStrength + state.battle.enemyStrength)
+                    )
+                );
+
+                const result = resolveBattle(state.battle.playerStrength, state.battle.enemyStrength, effectiveOdds);
 
                 // Apply Mars blessing: -30% casualties at tier 100
                 const marsCasualtyBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'casualties');
@@ -751,21 +785,33 @@ export const useGameStore = create<GameStore>()(
                         t.id === state.battle!.targetTerritory ? { ...t, owned: true, garrison: 10 } : t
                     );
 
-                    // Apply Jupiter blessing: +100 denarii on victory at tier 50
+                    // Base victory plunder: scales with territory difficulty/level
+                    const conqueredTerritory = state.territories.find(t => t.id === state.battle!.targetTerritory);
+                    const difficulty = conqueredTerritory?.difficulty ?? Math.max(1, conqueredTerritory?.level ?? 1);
+                    const basePlunder = 100 + difficulty * 20;
+
+                    // Apply Jupiter blessing: +100 denarii on victory at tier 50 (stacks on top of base)
                     const jupiterVictoryBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'victoryDenarii');
-                    const victoryDenarii = jupiterVictoryBonus > 0 ? Math.floor(jupiterVictoryBonus) : 0;
+                    const jupiterBonusAmount = jupiterVictoryBonus > 0 ? Math.floor(jupiterVictoryBonus) : 0;
+                    const totalVictoryDenarii = basePlunder + jupiterBonusAmount;
+
+                    const eventLog = [
+                        `[Victory] Won battle! Lost ${adjustedCasualties} troops.`,
+                        `[Battle] Plundered ${totalVictoryDenarii} denarii`,
+                    ];
+                    if (jupiterBonusAmount > 0) {
+                        eventLog.push(`[Blessing] Jupiter grants +${jupiterBonusAmount} denarii!`);
+                    }
 
                     set({
                         stage: 'game',
                         troops: newTroops,
-                        denarii: state.denarii + victoryDenarii,
+                        denarii: state.denarii + totalVictoryDenarii,
                         territories: newTerritories,
                         totalConquests: state.totalConquests + 1,
                         winStreak: state.winStreak + 1,
                         battle: { ...state.battle, active: false, result: 'victory', casualties: { player: adjustedCasualties, enemy: result.enemyCasualties } },
-                        lastEvents: [
-                            `[Victory] Won battle! Lost ${adjustedCasualties} troops.${victoryDenarii > 0 ? ` Jupiter grants +${victoryDenarii} denarii!` : ''}`
-                        ],
+                        lastEvents: eventLog,
                     });
                 } else {
                     set({
@@ -1771,6 +1817,7 @@ export const useGameStore = create<GameStore>()(
                         playerActionLog: [],
                         anyAssassinationAttempted: false,
                         senatoriusSavedPlayer: false,
+                        lastProcessedRound: 0,
                     },
                 });
             },
@@ -1824,10 +1871,15 @@ export const useGameStore = create<GameStore>()(
                     };
                 }
 
-                // Apply resource changes
+                // Apply resource changes (BL-07: clamp to prevent extreme swings)
                 const newState: Partial<GameStore> = {};
+                const clampMessages: string[] = [];
                 if (choice.effects.resourceChanges) {
-                    const rc = choice.effects.resourceChanges;
+                    const clampResult = clampSenateEventEffect(state, choice.effects.resourceChanges);
+                    const rc = clampResult.effect;
+                    if (clampResult.clamped) {
+                        clampMessages.push(...clampResult.messages.map(m => `[Senate] ${m}`));
+                    }
                     if (rc.denarii) newState.denarii = state.denarii + rc.denarii;
                     if (rc.happiness) newState.happiness = Math.max(0, Math.min(100, state.happiness + rc.happiness));
                     if (rc.morale) newState.morale = Math.max(0, Math.min(100, state.morale + rc.morale));
@@ -1851,7 +1903,7 @@ export const useGameStore = create<GameStore>()(
                         pendingEvents: state.senate.pendingEvents.slice(1),
                         eventHistory: newHistory,
                     },
-                    lastEvents: [`Senate: Resolved "${event.title}"`],
+                    lastEvents: [`Senate: Resolved "${event.title}"`, ...clampMessages],
                 });
             },
 
@@ -1966,3 +2018,8 @@ export const useGameStore = create<GameStore>()(
 );
 
 export type { GameStore };
+
+// ── Dev-only: expose store on window for Playwright specs / debugging ──
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+}
