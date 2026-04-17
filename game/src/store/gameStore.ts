@@ -1183,10 +1183,30 @@ export const useGameStore = create<GameStore>()(
                     return false;
                 }
 
+                // BL-37: Award a minimal +2 piety "prayer" floor whenever the player
+                // has a patron god, even if the full worship action can't fire this
+                // turn (cooldown or missing resources). This guarantees piety
+                // progression for zero-resource Avg-role runs so the Religion
+                // system is visible from the first press. The full worship action
+                // (godFavor, happiness, effects) still gates on cooldowns/costs.
+                const grantMinimumPiety = (reason: string): boolean => {
+                    if (!state.patronGod) return false;
+                    const bumped = Math.min(100, state.piety + 2);
+                    if (bumped === state.piety) return false;
+                    set({
+                        piety: bumped,
+                        lastEvents: [`[religion] ${reason} — a quick prayer grants +2 piety.`],
+                    });
+                    return true;
+                };
+
                 // Check cooldown
                 if (worshipAction.cooldown > 0) {
                     const remaining = (state.worshipCooldowns || {})[actionId];
                     if (remaining && remaining > 0) {
+                        if (grantMinimumPiety(`${worshipAction.name} on cooldown for ${remaining} more season(s)`)) {
+                            return true;
+                        }
                         set({ lastEvents: [`[religion] Cannot worship: ${worshipAction.name} on cooldown for ${remaining} more season(s).`] });
                         return false;
                     }
@@ -1195,6 +1215,7 @@ export const useGameStore = create<GameStore>()(
                 // Check costs
                 const cost = worshipAction.cost;
                 if (cost.denarii && state.denarii < cost.denarii) {
+                    if (grantMinimumPiety(`Not enough denarii for ${worshipAction.name}`)) return true;
                     set({ lastEvents: [`[religion] Cannot worship: need ${cost.denarii} denarii.`] });
                     return false;
                 }
@@ -1203,10 +1224,12 @@ export const useGameStore = create<GameStore>()(
                     return false;
                 }
                 if (cost.livestock && (state.inventory.livestock || 0) < cost.livestock) {
+                    if (grantMinimumPiety(`Not enough livestock for ${worshipAction.name}`)) return true;
                     set({ lastEvents: [`[religion] Cannot worship: need ${cost.livestock} livestock.`] });
                     return false;
                 }
                 if (cost.grain && (state.inventory.grain || 0) < cost.grain) {
+                    if (grantMinimumPiety(`Not enough grain for ${worshipAction.name}`)) return true;
                     set({ lastEvents: [`[religion] Cannot worship: need ${cost.grain} grain.`] });
                     return false;
                 }

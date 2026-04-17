@@ -36,8 +36,15 @@ export function OverviewPanel() {
         founder, round, season, denarii, population, happiness,
         troops, morale, territories, buildings, piety, patronGod,
         inventory, endSeason, technologies, lastEvents,
-        emergencyCooldowns, executeEmergency, setTab, senate
+        emergencyCooldowns, executeEmergency, setTab, senate,
+        rallyTroops, rallyTroopsCooldown
     } = state;
+
+    // BL-39: Rally Troops gating for Emergency Actions panel
+    const rallyCd = rallyTroopsCooldown ?? 0;
+    const rallyCanAfford = denarii >= 300 && (inventory.grain || 0) >= 50;
+    const rallyDisabled = rallyCd > 0 || !rallyCanAfford || morale >= 100;
+    const showRally = morale < 50;
 
     const ownedTerritories = territories.filter(t => t.owned);
     const builtBuildings = buildings.filter(b => b.count > 0);
@@ -68,7 +75,7 @@ export function OverviewPanel() {
 
     // Crisis Detection
     const grainAmount = inventory.grain || 0;
-    const isInCrisis = happiness < 30 || denarii < 100 || grainAmount < 20;
+    const isInCrisis = happiness < 30 || denarii < 100 || grainAmount < 20 || showRally;
 
     // Check if emergency action can be executed
     const canExecuteEmergency = (action: typeof EMERGENCY_ACTIONS[0]) => {
@@ -502,6 +509,36 @@ export function OverviewPanel() {
                                 <SectionHeader title="Emergency Actions" subtitle="Crisis Mode Active" />
                             </div>
                             <div className="space-y-2">
+                                {/* BL-39: Rally Troops surfaced when morale < 50 */}
+                                {showRally && (
+                                    <motion.div
+                                        className={`p-3 rounded-xl border ${rallyCd > 0 ? 'bg-white/5 border-white/10 opacity-50' : !rallyDisabled ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50' : 'bg-white/5 border-white/10 opacity-60'}`}
+                                        whileHover={!rallyDisabled ? { scale: 1.01 } : {}}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl">⚔️</span>
+                                                <span className="font-bold text-sm">Rally Troops</span>
+                                            </div>
+                                            {rallyCd > 0 ? (
+                                                <Badge variant="default">{rallyCd} rounds</Badge>
+                                            ) : (
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    disabled={rallyDisabled}
+                                                    onClick={() => rallyTroops()}
+                                                >
+                                                    Execute
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-red-400">-300 denarii, -50 grain</span>
+                                            <span className="text-green-400">+15 morale</span>
+                                        </div>
+                                    </motion.div>
+                                )}
                                 {EMERGENCY_ACTIONS.map((action) => {
                                     const cooldown = emergencyCooldowns?.[action.id] || 0;
                                     const canExecute = canExecuteEmergency(action);

@@ -567,6 +567,16 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     let newMorale = Math.floor(state.morale + moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss);
     newMorale = Math.max(0, Math.min(100, newMorale));
 
+    // BL-39: passive morale recovery for stable empires
+    if (
+        state.population >= state.housing * 0.8 &&
+        newHappiness >= 60 &&
+        state.troops > 0 &&
+        newMorale < 80
+    ) {
+        newMorale = Math.min(80, newMorale + 3);
+    }
+
     // Diplomacy decay
     const newRelations = { ...state.diplomacy.relations };
     for (const [faction, relation] of Object.entries(newRelations)) {
