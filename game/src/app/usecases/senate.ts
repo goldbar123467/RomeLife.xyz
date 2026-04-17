@@ -627,3 +627,54 @@ export function clampSenateEventEffect(
 
     return { effect: clamped, clamped: wasClamped, messages };
 }
+
+// BL-46: per-field hard caps for religious events so a single `divine_wrath`
+// can't crater piety 23 -> 4 in one season.
+export interface ReligiousEventEffectInput {
+    piety?: number;
+    happiness?: number;
+    morale?: number;
+    reputation?: number;
+    grain?: number;
+    godFavor?: number;
+    techCostReduction?: number;
+}
+
+export interface ClampedReligiousEventEffect {
+    effect: ReligiousEventEffectInput;
+    clamped: boolean;
+    messages: string[];
+}
+
+const RELIGIOUS_EVENT_CAPS: Record<string, number> = {
+    piety: 10,
+    happiness: 15,
+    morale: 15,
+    reputation: 10,
+    grain: 100,
+};
+
+export function clampReligiousEventEffect(
+    effects: ReligiousEventEffectInput
+): ClampedReligiousEventEffect {
+    const clamped: ReligiousEventEffectInput = { ...effects };
+    const messages: string[] = [];
+    let wasClamped = false;
+
+    for (const key of Object.keys(RELIGIOUS_EVENT_CAPS) as (keyof ReligiousEventEffectInput)[]) {
+        const limit = RELIGIOUS_EVENT_CAPS[key as string];
+        const raw = effects[key];
+        if (raw == null) continue;
+        if (raw > limit) {
+            clamped[key] = limit;
+            messages.push(`${key} ${raw > 0 ? '+' : ''}${raw} -> +${limit}`);
+            wasClamped = true;
+        } else if (raw < -limit) {
+            clamped[key] = -limit;
+            messages.push(`${key} ${raw} -> -${limit}`);
+            wasClamped = true;
+        }
+    }
+
+    return { effect: clamped, clamped: wasClamped, messages };
+}

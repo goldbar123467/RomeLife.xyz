@@ -9,7 +9,7 @@ import type {
 } from '../types';
 import {
     RARITY_TABLE, SEASON_MODIFIERS, TERRITORY_LEVELS,
-    BASE_PRICES, GAME_CONSTANTS, TERRITORY_FOCUS
+    BASE_PRICES, GAME_CONSTANTS, TERRITORY_FOCUS, REPUTATION_MILESTONES
 } from '../constants';
 import { calculateBlessingBonus } from '../constants/religion';
 import { calculateBuildingEffects } from '../constants/territory';
@@ -1075,4 +1075,18 @@ export function generateProceduralCity(index: number, ownedTerritories: number):
         biases: [resourceTypes[biasIdx1], resourceTypes[biasIdx2]],
         specialties: [resourceTypes[randomInt(0, resourceTypes.length - 1)]],
     };
+}
+
+// BL-11: Sum reputation-milestone trade bonuses for a given rep value.
+// Stacks additively with Mercury blessings and trade-hub focus in pricing.
+export function getReputationTradeBonus(reputation: number): { tradePrices: number; tariffReduction: number } {
+    let tradePrices = 0;
+    let tariffReduction = 0;
+    for (const m of REPUTATION_MILESTONES) {
+        if (reputation >= m.threshold) {
+            tradePrices += m.bonus.tradePrices ?? 0;
+            tariffReduction += m.bonus.tariffReduction ?? 0;
+        }
+    }
+    return { tradePrices, tariffReduction };
 }

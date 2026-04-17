@@ -501,6 +501,15 @@ export interface GameState {
     // BL-40: Round of last auto-triggered Emergency Grain Import (cooldown = 4 rounds)
     lastEmergencyImportRound?: number;
 
+    // BL-49: Round of last recurring spending-nudge (3-round cooldown)
+    spendingNudgeLastRound?: number;
+
+    // BL-49: One-shot flag for the Insulae housing-expansion nudge
+    insulaeNudgeShown?: boolean;
+
+    // BL-11: Reputation milestone thresholds already reached (prevents re-firing)
+    reputationMilestonesReached?: number[];
+
     // NPCs and story quest state
     npcs: NPC[];
     visitedTerritories: string[];

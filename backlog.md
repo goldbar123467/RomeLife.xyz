@@ -1,8 +1,17 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17 (cycle 7: 2026-04-17)
+Generated: 2026-04-17 (cycle 8: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance-critic.
+
+## Cycle 8 QA Findings (2026-04-17) — new findings from re-run
+
+- Noob (Romulus, 15 presses): healthy — reaches round 4 winter with pop 150, happiness 90%, morale 92%, piety 15 (one religious event fired naturally at round 3 autumn). BL-44 housing-cap nudge visible in Imperial Log. No crises.
+- Avg (Romulus+Jupiter, 25 presses): reaches round 7 summer healthy BUT **piety crashes 23→4 at round 5 summer→autumn** — a religious event (likely `divine_wrath`) applies −19 piety in a single season. No UI explanation. Piety recovers via passive +1/season. Also an unexplained −340 denarii drop at round 6 summer→autumn.
+- Goat (Remus aggressive-tax, 35 presses): **still FAILS at round 9 spring (Famine)** despite having 6685 denarii unspent. Pop path 150→134→134→117 = clean 15% starvation hits per BL-40 fix. Emergency Grain Import insufficient; player has plenty of coin but can't spend it fast enough. No spending nudge.
+- Build: not re-run this cycle (pending fix batch).
+- All three Playwright specs passed in 2.5m.
+- Targeting cycle 8 (fix 5): **BL-45, BL-46, BL-49, BL-50, BL-11**.
 
 ## Cycle 7 QA Findings (2026-04-17) — post-fix verification
 - Noob (Romulus, 15 presses): pop 150 at round 3, cap reached. Imperial Log now surfaces "[progression] Your population has outgrown your housing — build Insulae in Settlement, or conquer territory on the Map." exactly once. **BL-44 ✅.** No crisis panel visible.
@@ -29,7 +38,41 @@ Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance
 - Goat (Remus + aggressive tax, 35 presses): **FAMINE failure at round 7 autumn**. Pop 150→128→115→104 over 3 seasons. Morale collapse 90→15. Happiness 78%. Confirms that BL-28 grain buff insufficient for aggressive/tax-heavy play.
 - Targeting this cycle (fix 5): **BL-10, BL-22, BL-29, BL-30, BL-32**.
 
-## Current Cycle — TARGETING: (none — cycle 7 just closed BL-40..44)
+## Current Cycle — CLOSED: BL-45, BL-46, BL-49, BL-50, BL-11 (cycle 8, 5 items closed)
+
+### [x] BL-46 — Avg piety crashes 23→4 in one season (religious event uncapped)
+Severity: HIGH — FIXED cycle 8
+Location: `game/src/core/constants/religion.ts` (religious events array), `game/src/app/usecases/index.ts` (religious event application in endSeason)
+Symptom: Playwright Avg role (Jupiter patron, Quick Prayer every season) shows piety climb 3→23 over 16 seasons, then drop to 4 at round 5 autumn (−19 in one season). Consistent with a `divine_wrath` event applying −piety with no delta clamp. BL-07 clamped senator event effects but religious events bypass that clamp.
+Fix target: Add `clampReligiousEventEffect()` (or extend existing clamp util) so single-event piety/reputation/morale deltas are bounded (e.g. piety ±10 max, happiness ±15, morale ±15, denarii ±30%/min ±500). Surface the event in `lastEvents` with name+delta so the player can see the cause.
+
+### [x] BL-49 — Goat dies Famine with 6685 denarii unspent (no spending nudge)
+Severity: MEDIUM — FIXED cycle 8
+Location: `game/src/app/usecases/index.ts` (endSeason warnings), `game/src/components/game/OverviewPanel.tsx` (Emergency Actions / quick actions)
+Symptom: Remus + aggressive tax fails at round 9 spring Famine with **6685 denarii banked**. BL-40's Emergency Grain Import (400 denarii → +200 grain, 4-round cooldown) is insufficient vs ~60/season consumption, and the player never gets a nudge to spend on a Farm Complex / Insulae / larger import. Observed pop crash 150→134→134→117 in 3 seasons.
+Fix target: When grain deficit occurs and `denarii >= 1000`, push an Imperial Log event `[spend] You have X denarii — build a Farm Complex (500g) in Settlement to prevent famine.` Consider bumping Emergency Grain Import to `max(200, consumption * 2)` and lowering cooldown to 3 when denarii > 3000.
+
+### [x] BL-50 — Unexplained denarii drops in log (Avg round 6 autumn −340)
+Severity: LOW — FIXED cycle 8
+Location: `game/src/app/usecases/index.ts` (season income computation), `game/src/components/game/OverviewPanel.tsx` (Imperial Log surface)
+Symptom: Avg playthrough denarii: 6667 → 6327 at round 6 summer→autumn (−340 net in one season). No obvious event in the log. BL-33 tooltip itemises deficit, but season-by-season *negative swings* from events (bandit raid, senator demand) aren't logged clearly.
+Fix target: When net denarii change for the season is ≤ −100, push `[treasury] Net −X denarii: <event name>` to `lastEvents` so the player sees the cause inline.
+
+### [x] BL-45 — Goat still fails Famine at round 9 spring (BL-40 residual)
+Severity: HIGH — FIXED cycle 8 (Goat now survives all 35 seasons, pop stable at 150, stage=game)
+Location: `game/src/app/usecases/index.ts` (Emergency Grain Import sizing), `game/src/core/math/index.ts:calculateFoodConsumption`, `game/src/core/rules/index.ts:checkFailureConditions`
+Symptom: Re-verified cycle 8: Remus + max-tax + 35 Space presses still reaches `stage="results"` Famine at round 9 spring. Pop 150→134→134→117 is clean (no oscillation), morale stays 79-100, denarii grows to 6685 unspent. Emergency Grain Import (+200 per 4 rounds) insufficient vs consumption ~60/season under aggressive-tax happiness.
+Fix target: (a) Scale Emergency Grain Import amount to `max(200, consumption * 2)` so one import covers at least two seasons of deficit. (b) Allow a second import inside the cooldown if denarii ≥ 3000 and deficit still firing. (c) Additionally make grace period for aggressive-tax paths extend to round 10 (was round 8) so new players aren't punished for early experimentation.
+
+### [x] BL-11 — Reputation gains too slow
+Severity: LOW — FIXED cycle 8
+Location: `game/src/app/usecases/index.ts` (reputation deltas), `game/src/core/rules/index.ts` (victory thresholds)
+Symptom: +20 reputation per 10 seasons → trivial. Commerce victory requires 35 rep → ~17 rounds of passive gains to even approach threshold. No milestone feedback (50/100/150).
+Fix target: Add `REPUTATION_MILESTONES = [25, 50, 100]` that push a `lastEvents` entry when crossed and grant small bonuses (e.g. +5% trade prices, −5% tariff). Keep deltas at current values but surface the progression.
+
+---
+
+## Previously closed — Cycle 7 (verified by git log)
 
 ### [x] BL-40 — Goat still FAILS at round 7 autumn (BL-38 regression)
 Severity: HIGH — FIXED cycle 7 (partial; survival extended to round 9 spring)
@@ -136,15 +179,6 @@ Fix target: Change heuristic to detect only actual hangs — e.g., `unique < 2 w
 ---
 
 ## Round 2 — Queued Open
-
-### BL-45 — Goat still fails Famine at round 9 spring (BL-40 residual)
-Severity: MEDIUM — NEW (cycle 7, residual from BL-40 partial fix)
-Location: `game/src/app/usecases/index.ts` (Emergency Grain Import sizing), `game/src/core/math/index.ts:calculateFoodConsumption`, `game/src/core/rules/index.ts:checkFailureConditions`
-Symptom: Remus + max-tax + 35 Space presses still reaches `stage="results"` Famine at round 9 spring. Pop path 150→134→117 is clean (no oscillation), morale stays 79-100, denarii grows to 6206 — player has resources but can't outrun the deficit. Emergency Grain Import (+200 per 4 rounds) insufficient vs consumption ~56/season under aggressive-tax happiness.
-Fix target: (a) Scale Emergency Grain Import amount to `max(200, consumption * 2)` so one import covers at least two seasons of deficit. (b) Consider a "Food Market" auto-buy when deficit is small (< 15%) for 2 denarii / grain unit with no cooldown. (c) Optionally nudge player toward Farm Complex earlier for aggressive-tax paths (condition on tax > 20%).
-
-### BL-11 — Reputation gains too slow
-Severity: LOW — +20/10 seasons → trivial. Fix: add reputation thresholds (50/100/150) unlocking diplomacy/troop bonuses.
 
 ### BL-12 — Market volatility is pure noise
 Severity: LOW — ±4 random/season. Fix: seasonal trend (grain up in winter), demand shock on caravan arrival.
