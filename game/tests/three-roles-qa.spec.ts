@@ -141,11 +141,14 @@ test.describe('Three-Role QA', () => {
             if (s.stage === 'results' || s.stage === 'victory' || s.stage === 'failure') break;
         }
 
-        // Quick stagnation check
+        // Quick stagnation check (BL-32): detect true hangs only, not natural
+        // season-per-press pacing. 4 seasons = 1 round, so 15 presses healthily
+        // yields ~4 unique rounds. Flag only when the window barely advances.
         const rounds = log.map(l => l.round).filter(n => typeof n === 'number');
-        const unique = new Set(rounds);
-        if (rounds.length > 4 && unique.size <= rounds.length / 2) {
-            issues.push(`STAGNATION: ${rounds.length} season presses produced only ${unique.size} unique rounds`);
+        const minRound = Math.min(...rounds);
+        const maxRound = Math.max(...rounds);
+        if (rounds.length > 8 && (maxRound - minRound) < 2) {
+            issues.push(`STAGNATION: ${rounds.length} season presses produced only ${maxRound - minRound + 1} rounds (${minRound}→${maxRound})`);
         }
 
         // Screenshot final state

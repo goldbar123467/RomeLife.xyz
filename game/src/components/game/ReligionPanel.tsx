@@ -18,7 +18,7 @@ export function ReligionPanel() {
     const [selectedGod, setSelectedGod] = useState<God | null>(null);
     const {
         patronGod, godFavor, piety, setPatronGod, worship, denarii, inventory,
-        religiousBuildings, buildReligiousBuilding
+        religiousBuildings, buildReligiousBuilding, worshipCooldowns
     } = useGameStore();
 
     const tabs: { id: ReligionTab; label: string; icon: LucideIcon | string }[] = [
@@ -314,6 +314,10 @@ export function ReligionPanel() {
                         ) : (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 {Object.values(WORSHIP_ACTIONS).map(action => {
+                                    // BL-22: Check worship cooldown for this action
+                                    const actionCooldown = (worshipCooldowns ?? {})[action.id] ?? 0;
+                                    const onCooldown = actionCooldown > 0;
+
                                     // Check if player can afford the action
                                     let canAfford = true;
                                     const costItems: { amount: number; icon: LucideIcon; color: string }[] = [];
@@ -343,17 +347,19 @@ export function ReligionPanel() {
                                     if (action.effect.reputation) effectParts.push(`+${action.effect.reputation} Rep`);
                                     const effectText = effectParts.join(', ');
 
+                                    const isInteractive = canAfford && !onCooldown;
                                     return (
                                         <motion.div
                                             key={action.id}
+                                            data-testid={`worship-action-${action.id}`}
                                             className={`bg-paper-light rounded-xl p-4 border transition-all ${
-                                                canAfford
+                                                isInteractive
                                                     ? 'border-roman-gold/30 hover:border-roman-gold/50 cursor-pointer'
                                                     : 'border-line opacity-50 cursor-not-allowed'
                                             }`}
-                                            whileHover={canAfford ? { scale: 1.02 } : {}}
-                                            whileTap={canAfford ? { scale: 0.98 } : {}}
-                                            onClick={() => canAfford && worship(action.id)}
+                                            whileHover={isInteractive ? { scale: 1.02 } : {}}
+                                            whileTap={isInteractive ? { scale: 0.98 } : {}}
+                                            onClick={() => isInteractive && worship(action.id)}
                                         >
                                             <div className="text-center">
                                                 <GameImage src={WORSHIP_ACTION_ASSETS[action.id] || action.icon} size="lg" alt={action.name} className="mb-2" />
@@ -373,11 +379,18 @@ export function ReligionPanel() {
                                                     )}
                                                 </div>
                                                 <div className="text-xs text-green-400">{effectText}</div>
-                                                {action.cooldown > 0 && (
+                                                {/* BL-22: show live countdown badge when on cooldown, else base cooldown info */}
+                                                {onCooldown ? (
+                                                    <div className="mt-2 flex justify-center">
+                                                        <Badge variant="default" size="sm" className="bg-red-500/20 text-red-400 border border-red-500/30">
+                                                            Cooldown: {actionCooldown} season{actionCooldown !== 1 ? 's' : ''}
+                                                        </Badge>
+                                                    </div>
+                                                ) : action.cooldown > 0 ? (
                                                     <div className="text-xs text-muted mt-2">
                                                         {action.cooldown} round cooldown
                                                     </div>
-                                                )}
+                                                ) : null}
                                             </div>
                                         </motion.div>
                                     );
