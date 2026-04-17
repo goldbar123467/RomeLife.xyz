@@ -52,25 +52,24 @@ async function startGame(page: Page, founder: 'Romulus' | 'Remus' = 'Romulus') {
 
 async function readState(page: Page): Promise<Snapshot> {
     return await page.evaluate(() => {
-        // Game exposes zustand store on window.__gameStore for debugging if available,
-        // else read from React state by DOM scraping.
+        // Game exposes zustand store on window.__gameStore (dev builds only).
         const winAny = window as any;
         const store = winAny.__gameStore || winAny.gameStore;
-        if (store && typeof store.getState === 'function') {
-            const s = store.getState();
-            return {
-                round: s.round,
-                season: s.season,
-                denarii: s.denarii,
-                population: s.population,
-                happiness: s.happiness,
-                troops: s.troops,
-                piety: s.piety,
-                morale: s.morale,
-                stage: s.stage,
-            };
+        if (!store || typeof store.getState !== 'function') {
+            throw new Error('window.__gameStore not found - store not exposed to window. Check gameStore.ts dev expose.');
         }
-        return { round: -1 };
+        const s = store.getState();
+        return {
+            round: s.round,
+            season: s.season,
+            denarii: s.denarii,
+            population: s.population,
+            happiness: s.happiness,
+            troops: s.troops,
+            piety: s.piety,
+            morale: s.morale,
+            stage: s.stage,
+        };
     });
 }
 

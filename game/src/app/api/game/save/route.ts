@@ -146,10 +146,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ gameId, round, saved: true });
   } catch (error) {
-    console.error('Save error:', error);
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[save] db unavailable: ${code}`);
     return NextResponse.json(
-      { error: 'Failed to save game state', details: String(error) },
-      { status: 500 }
+      { ok: false, error: 'save unavailable' },
+      { status: 503 }
     );
   }
 }

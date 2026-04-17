@@ -81,10 +81,12 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('History error:', error);
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[history] db unavailable: ${code}`);
     return NextResponse.json(
-      { error: 'Failed to load history', details: String(error) },
-      { status: 500 }
+      { ok: false, error: 'history unavailable' },
+      { status: 503 }
     );
   }
 }

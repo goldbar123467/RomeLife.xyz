@@ -55,10 +55,12 @@ export async function GET() {
 
     return NextResponse.json({ games: gameList });
   } catch (error) {
-    console.error('List error:', error);
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[list] db unavailable: ${code}`);
     return NextResponse.json(
-      { error: 'Failed to list games', details: String(error) },
-      { status: 500 }
+      { ok: false, error: 'list unavailable' },
+      { status: 503 }
     );
   }
 }

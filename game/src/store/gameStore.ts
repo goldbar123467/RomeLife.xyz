@@ -449,11 +449,17 @@ const createInitialState = (): Omit<GameStore,
     // Resources
     denarii: STARTING_STATE.denarii,
     inventory: {
-        grain: 500, iron: 10, timber: 20, stone: 15, clay: 10,  // grain: 500 for easy early game
+        // BL-28: Raised grain from 500 -> 750 to absorb the 4-season structural
+        // deficit when the player has not yet built a Farm Complex. Palatine base
+        // grain production is ~3.6/season while grace-period consumption is
+        // ~27/season, leaving a net ~23/season drain. 500 grain depleted by
+        // round 5-6 in QA playthroughs (Avg/Goat personas) before the player
+        // could reasonably ramp production. 750 gives ~8 rounds of runway.
+        grain: 750, iron: 10, timber: 20, stone: 15, clay: 10,
         wool: 5, salt: 5, livestock: 10, wine: 0, olive_oil: 0, spices: 0,
     },
     capacity: {
-        grain: 600, iron: 50, timber: 80, stone: 60, clay: 50,  // grain capacity 600 for easy early game
+        grain: 900, iron: 50, timber: 80, stone: 60, clay: 50,  // Capacity raised to 900 to match new starting grain headroom
         wool: 40, salt: 40, livestock: 50, wine: 30, olive_oil: 30, spices: 20,
     },
 
@@ -2012,3 +2018,8 @@ export const useGameStore = create<GameStore>()(
 );
 
 export type { GameStore };
+
+// ── Dev-only: expose store on window for Playwright specs / debugging ──
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+}

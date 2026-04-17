@@ -86,10 +86,12 @@ export async function GET(req: NextRequest) {
       crisisBreakdown,
     });
   } catch (error) {
-    console.error('Analytics error:', error);
+    const err = error as { code?: string; message?: string };
+    const code = err?.code || err?.message || 'unknown';
+    console.warn(`[analytics] db unavailable: ${code}`);
     return NextResponse.json(
-      { error: 'Failed to compute analytics', details: String(error) },
-      { status: 500 }
+      { ok: false, error: 'analytics unavailable' },
+      { status: 503 }
     );
   }
 }

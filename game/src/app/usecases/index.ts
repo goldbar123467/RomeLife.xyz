@@ -69,6 +69,19 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const grainAvailable = newInventory.grain;
     newInventory.grain = Math.max(0, grainAvailable - foodConsumed);
 
+    // BL-28: Defensive pacing log. If post-consumption grain dips below 0.5x of
+    // a single season's consumption, surface a console.warn so future QA /
+    // instrumented playthroughs catch pacing regressions (e.g. grace-period or
+    // Farm Complex production silently changing). Does not affect gameplay.
+    if (foodConsumed > 0 && newInventory.grain < foodConsumed * 0.5) {
+        // eslint-disable-next-line no-console
+        console.warn(
+            `[BL-28][pacing] Round ${state.round} ${state.season} -> ${nextSeason}: ` +
+            `grain ${newInventory.grain} below 0.5x consumption (${foodConsumed}). ` +
+            `pop=${state.population} troops=${state.troops} grace-multiplier applied.`
+        );
+    }
+
     // Check starvation (Ceres tier 100: famine immunity)
     const ceresFamineImmune = calculateBlessingBonus(state.patronGod, state.godFavor, 'famineImmune') > 0;
     const isStarving = grainAvailable < foodConsumed && foodConsumed > 0 && !ceresFamineImmune;
