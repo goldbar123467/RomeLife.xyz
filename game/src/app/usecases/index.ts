@@ -55,6 +55,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Calculate production
     const summary = calculateProductionSummary(state);
 
+    // BL-40: Tracks -400 denarii cost if emergency grain import triggers below
+    let newDenariiAdjustment_emergency = 0;
+
     // Update inventory with production (round to avoid floating point errors)
     const newInventory = { ...state.inventory };
     for (const [resource, amount] of Object.entries(summary.resources)) {
@@ -63,6 +66,35 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             roundResource((newInventory[res] || 0) + amount),
             state.capacity[res] || 100
         ));
+    }
+
+    // BL-40: Auto Emergency Grain Import.
+    // If the player is flush with cash but grain is about to dip into a
+    // deficit, and we're not already mid-starvation-cascade, auto-spend 400
+    // denarii for +200 grain (clamped by capacity). Cooldown: 4 rounds.
+    // This prevents the Goat/Remus max-tax round-7 Famine cascade where the
+    // player has 7000+ denarii but no grain infrastructure.
+    const _preConsumeGrain = newInventory.grain;
+    const _preConsumeFoodNeed = summary.foodConsumption;
+    const _preConsumeDeficit = Math.max(0, _preConsumeFoodNeed - _preConsumeGrain);
+    const _stateExt = state as unknown as { lastEmergencyImportRound?: number };
+    const _lastEmergencyImport = _stateExt.lastEmergencyImportRound ?? -99;
+    let newLastEmergencyImportRound: number | undefined = _stateExt.lastEmergencyImportRound;
+    if (
+        state.denarii >= 2000 &&
+        _preConsumeDeficit > 0 &&
+        (newRound - _lastEmergencyImport) >= 4 &&
+        state.consecutiveStarvation === 0
+    ) {
+        const grainCap = state.capacity.grain || 100;
+        const grainRoom = Math.max(0, grainCap - newInventory.grain);
+        const grainAdded = Math.min(200, grainRoom);
+        if (grainAdded > 0) {
+            newInventory.grain = newInventory.grain + grainAdded;
+            newDenariiAdjustment_emergency = -400; // applied below
+            events.push(`[trade] Emergency grain import: -400 denarii, +${grainAdded} grain`);
+            newLastEmergencyImportRound = newRound;
+        }
     }
 
     // Consume food
@@ -102,6 +134,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const grainShortfall = Math.max(0, foodConsumed - grainAvailable);
     const deficitRatio = foodConsumed > 0 ? grainShortfall / foodConsumed : 0;
     let newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
+    // BL-40: telemetry — surface every consec-starvation increment so famine cascades are visible in logs
+    if (isStarving) {
+        // eslint-disable-next-line no-console
+        console.warn('[BL-40][famine-branch]', { branch: 'increment', round: newRound, consec: newConsecutiveStarvation, grainShortfall, foodConsumed });
+    }
     if (isStarving && deficitRatio < 0.10) {
         // Near-miss: grain was short by less than 10% of need. Count as recovery.
         newConsecutiveStarvation = 0;
@@ -130,12 +167,27 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         return GAME_CONSTANTS.STARVATION_POP_LOSS;
     })();
 
-    // Calculate population growth (starvation uses popLossPct with BL-38 grace)
-    const popGrowth = calculatePopulationGrowth(state);
-    const starvationLoss = isStarving ? Math.floor(state.population * popLossPct) : 0;
-    const newPopulation = Math.max(0, state.population + popGrowth - starvationLoss);
+    // BL-42: strict pop ordering
+    // Step 1: consumption was already computed above (foodConsumed)
+    // Step 2: starvation already determined (isStarving)
+    // Step 3: pop after starvation (pre-growth)
+    const step3_popAfterStarvation = isStarving
+        ? Math.max(0, Math.floor(state.population * (1 - popLossPct)))
+        : state.population;
+    const starvationLoss = state.population - step3_popAfterStarvation;
+    // Step 4: growth uses POST-STARVATION pop (not pre-starvation), so a season
+    //         that kills 15% of pop cannot simultaneously grow from the dead.
+    const popGrowth = calculatePopulationGrowth({ ...state, population: step3_popAfterStarvation });
+    // Step 5: add growth to post-starvation pop
+    const step5_popAfterGrowth = step3_popAfterStarvation + popGrowth;
+    // Step 6: single housing-cap clamp at the end
+    const newPopulation = Math.max(0, Math.min(step5_popAfterGrowth, state.housing));
     if (popGrowth > 0) events.push(`[Population] Population grew by ${popGrowth}`);
     if (starvationLoss > 0) events.push(`[Crisis] Lost ${starvationLoss} to starvation`);
+    // BL-42 defensive assertion: catch large unexpected swings
+    if (Math.abs(newPopulation - state.population) > state.housing * 0.2) {
+        events.push(`[BL-42] Pop swing ${state.population}->${newPopulation} exceeds 20% of housing cap`);
+    }
 
     // BL-18: Surface the silent sanitation-death-spiral.
     // `calculatePopulationGrowth` returns -1 when sanitation < 15 AND pop < housing
@@ -179,7 +231,7 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             effectiveNetIncome = Math.max(summary.netIncome, -Math.floor(state.denarii * maxLossPct));
         }
     }
-    let newDenarii = Math.max(0, state.denarii + effectiveNetIncome);
+    let newDenarii = Math.max(0, state.denarii + effectiveNetIncome + newDenariiAdjustment_emergency); // BL-40 applies emergency import cost
     if (effectiveNetIncome > 0) {
         events.push(`[Treasury] Income: +${effectiveNetIncome} denarii`);
     } else if (effectiveNetIncome < 0) {
@@ -646,6 +698,10 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     }
 
     let newPiety = state.piety + totalBuildingPiety + totalGovernorPiety; // Building + governor piety
+    // BL-41 passive piety: +1/season when a patron god is set (capped via clamp below)
+    if (state.patronGod) {
+        newPiety = Math.min(100, newPiety + 1);
+    }
     let newHousing = state.housing;
     const newCapacity = { ...state.capacity };
     for (const achievement of achievementsUnlocked) {
@@ -854,6 +910,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         rallyTroopsCooldown: newRallyTroopsCooldown,
         eventCooldowns: newEventCooldowns,
         farmTutorialShown: newFarmTutorialShown,
+        // BL-40: Preserve emergency-import cooldown so it respects the 4-round cadence.
+        ...(newLastEmergencyImportRound !== undefined ? ({ lastEmergencyImportRound: newLastEmergencyImportRound } as Partial<GameState>) : {}),
         // BL-33: Itemized breakdown for Treasury deficit tooltip
         lastSeasonIncome: calculateIncomeBreakdown(state),
         lastSeasonExpense: calculateExpenseBreakdown(state),

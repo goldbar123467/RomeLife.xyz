@@ -121,8 +121,18 @@ export function getHappinessFailureThreshold(round: number): number {
 export function checkFailureConditions(state: GameState): FailureResult | null {
     const { consecutiveStarvation, population, happiness, round } = state;
 
-    // Famine: 3+ consecutive starvation rounds
-    if (consecutiveStarvation >= GAME_CONSTANTS.FAILURE_STARVATION_LIMIT) {
+    // BL-40: Round-scaled Famine threshold.
+    // - Early game (round <= 10): require the full 3 consecutive starvations
+    //   regardless of FAILURE_STARVATION_LIMIT. Prevents Goat/Remus max-tax
+    //   cascade from triggering a round-7 Famine with a full treasury.
+    // - Late game (round >= 11): apply min(2, FAILURE_STARVATION_LIMIT) so the
+    //   player can no longer stall indefinitely on grain.
+    const famineThreshold = round <= 10
+        ? 3
+        : Math.min(2, GAME_CONSTANTS.FAILURE_STARVATION_LIMIT);
+    if (consecutiveStarvation >= famineThreshold) {
+        // eslint-disable-next-line no-console
+        console.warn('[BL-40][famine-trigger]', { round, consecutiveStarvation, threshold: famineThreshold });
         return {
             type: 'famine',
             title: 'Famine',
