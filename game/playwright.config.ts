@@ -19,6 +19,9 @@ export default defineConfig({
             use: {
                 browserName: 'chromium',
                 viewport: { width: 1920, height: 1080 },
+                launchOptions: {
+                    executablePath: process.env.CHROMIUM_BIN || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+                },
             },
         },
     ],

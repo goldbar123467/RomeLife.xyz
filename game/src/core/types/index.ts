@@ -476,6 +476,10 @@ export interface GameState {
     lastDeficitWarnRound?: number;
     lastLowGrainWarnRound?: number;
 
+    // BL-33: Itemized season breakdown for Treasury deficit tooltip
+    lastSeasonIncome?: IncomeBreakdown;
+    lastSeasonExpense?: ExpenseBreakdown;
+
     // Religion - Consecrated territories get +25% production
     consecratedTerritories: string[];
 
@@ -487,6 +491,9 @@ export interface GameState {
 
     // BL-30: One-shot flag so the farm-complex tutorial nudge fires exactly once
     farmTutorialShown?: boolean;
+
+    // BL-36: One-shot flag so the patron-god worship nudge fires exactly once
+    patronTutorialShown?: boolean;
 
     // NPCs and story quest state
     npcs: NPC[];
@@ -532,4 +539,19 @@ export interface ProductionSummary {
     upkeep: number;
     foodConsumption: number;
     netIncome: number;
+}
+
+// BL-33: Itemized breakdowns for Treasury deficit tooltip
+export interface IncomeBreakdown {
+    tax: number;
+    trade: number;
+    tribute: number;
+    wonders: number;
+}
+
+export interface ExpenseBreakdown {
+    garrisonUpkeep: number;
+    buildingUpkeep: number;
+    wonderUpkeep: number;
+    events: number;
 }

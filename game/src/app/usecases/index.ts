@@ -22,6 +22,7 @@ import {
     calculateEnvoySuccess, calculateEnvoyEffect, calculateRelationDecay,
     calculateTradeRisk, resolveTradeRisk, calculateStabilityChange, rollTerritoryEvent,
     shouldGenerateContent, generateProceduralTerritory, randomInt, random, roundResource,
+    calculateIncomeBreakdown, calculateExpenseBreakdown,
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import {
@@ -93,14 +94,18 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
-    // BL-30: Soften early-game Famine trigger.
-    // If the player has already starved once and would now hit a fatal 2nd
-    // starvation during rounds 1-10 AND the grain deficit this season is
-    // marginal (<=20% of consumption), cap the consecutive-starvation counter
-    // at 1. A subsequent back-to-back starvation still advances past the cap
-    // and can trigger Famine, so the failure condition is not neutered — just
-    // delayed for aggressive-tax Goat runs that have one bad roll.
+    // BL-30/BL-38: Soften early-game Famine trigger.
+    // - Reset the consecutive-starvation counter on ANY season whose grain
+    //   deficit is <10% of consumption (near-miss counts as a recovery),
+    //   not only on strictly non-starving seasons.
+    // - Keep the round 1-10 near-miss cap at 1 for truly marginal deficits.
+    const grainShortfall = Math.max(0, foodConsumed - grainAvailable);
+    const deficitRatio = foodConsumed > 0 ? grainShortfall / foodConsumed : 0;
     let newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
+    if (isStarving && deficitRatio < 0.10) {
+        // Near-miss: grain was short by less than 10% of need. Count as recovery.
+        newConsecutiveStarvation = 0;
+    }
     if (
         isStarving &&
         newRound <= 10 &&
@@ -108,16 +113,26 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         state.consecutiveStarvation >= 1 &&
         newConsecutiveStarvation >= 2
     ) {
-        const grainDeficit = foodConsumed - grainAvailable;
-        if (grainDeficit <= foodConsumed * 0.2) {
+        if (grainShortfall <= foodConsumed * 0.2) {
             newConsecutiveStarvation = 1;
             events.push('[food] Desperate foraging averts Famine — build a Farm Complex!');
         }
     }
 
-    // Calculate population growth (starvation uses STARVATION_POP_LOSS constant)
+    // BL-38: 2-round recovery grace. A first starvation applies full penalty
+    // (15% pop loss, 15 morale). A 2nd consecutive starvation softens to
+    // 5% pop / 5 morale so the player has a chance to course-correct. A
+    // 3rd consecutive (now FAILURE_STARVATION_LIMIT) applies full penalty
+    // and tips into Famine.
+    const popLossPct = (() => {
+        if (!isStarving) return 0;
+        if (newConsecutiveStarvation === 2) return 0.05;
+        return GAME_CONSTANTS.STARVATION_POP_LOSS;
+    })();
+
+    // Calculate population growth (starvation uses popLossPct with BL-38 grace)
     const popGrowth = calculatePopulationGrowth(state);
-    const starvationLoss = isStarving ? Math.floor(state.population * GAME_CONSTANTS.STARVATION_POP_LOSS) : 0;
+    const starvationLoss = isStarving ? Math.floor(state.population * popLossPct) : 0;
     const newPopulation = Math.max(0, state.population + popGrowth - starvationLoss);
     if (popGrowth > 0) events.push(`[Population] Population grew by ${popGrowth}`);
     if (starvationLoss > 0) events.push(`[Crisis] Lost ${starvationLoss} to starvation`);
@@ -563,9 +578,27 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     const moraleAdjust = Math.round((seasonMod.morale - 1) * 100);
     // Jupiter tier 75: +15 morale (additive value from BLESSING_EFFECTS)
     const godMoraleBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'morale');
-    const starvationMoraleLoss = isStarving ? GAME_CONSTANTS.STARVATION_MORALE_LOSS : 0;
-    let newMorale = Math.floor(state.morale + moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss);
+    // BL-38: 2nd consecutive starvation softens morale loss to -5 (was -15) so
+    // winter + starvation don't stack into an unrecoverable hit.
+    const starvationMoraleLoss = isStarving
+        ? (newConsecutiveStarvation === 2 ? 5 : GAME_CONSTANTS.STARVATION_MORALE_LOSS)
+        : 0;
+    const moraleDeltaRaw = moraleAdjust + godMoraleBonus + totalGovernorMorale + eventMorale - starvationMoraleLoss;
+    // BL-38: Cap per-season morale decay at -8 so a single season can't slam
+    // morale by -30. Positive swings remain uncapped.
+    const moraleDelta = moraleDeltaRaw < -8 ? -8 : moraleDeltaRaw;
+    let newMorale = Math.floor(state.morale + moraleDelta);
     newMorale = Math.max(0, Math.min(100, newMorale));
+
+    // BL-39: passive morale recovery for stable empires
+    if (
+        state.population >= state.housing * 0.8 &&
+        newHappiness >= 60 &&
+        state.troops > 0 &&
+        newMorale < 80
+    ) {
+        newMorale = Math.min(80, newMorale + 3);
+    }
 
     // Diplomacy decay
     const newRelations = { ...state.diplomacy.relations };
@@ -821,6 +854,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         rallyTroopsCooldown: newRallyTroopsCooldown,
         eventCooldowns: newEventCooldowns,
         farmTutorialShown: newFarmTutorialShown,
+        // BL-33: Itemized breakdown for Treasury deficit tooltip
+        lastSeasonIncome: calculateIncomeBreakdown(state),
+        lastSeasonExpense: calculateExpenseBreakdown(state),
         lastDeficitWarnRound: newLastDeficitWarnRound,
         lastLowGrainWarnRound: newLastLowGrainWarnRound,
         history: [...state.history, historyEntry],

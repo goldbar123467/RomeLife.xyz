@@ -177,12 +177,17 @@ test.describe('Three-Role QA', () => {
         }
 
         for (let i = 0; i < 25; i++) {
-            // Try to worship once per season
+            // Try to worship once per season via the Quick Prayer button (BL-37).
+            // We prefer the explicit testid, then aria-label "Pray".
             await clickSidebarTab(page, 'Religion');
-            const worshipBtn = page.getByRole('button', { name: /worship|pray|offering/i }).first();
-            if (await worshipBtn.isVisible({ timeout: 400 }).catch(() => false) &&
-                await worshipBtn.isEnabled({ timeout: 200 }).catch(() => false)) {
-                await worshipBtn.click({ force: true }).catch(() => {});
+            const prayByTestId = page.getByTestId('worship-action-quick-prayer').first();
+            const prayByRole = page.getByRole('button', { name: /^Pray$/i }).first();
+            const prayBtn = (await prayByTestId.isVisible({ timeout: 400 }).catch(() => false))
+                ? prayByTestId
+                : prayByRole;
+            if (await prayBtn.isVisible({ timeout: 400 }).catch(() => false) &&
+                await prayBtn.isEnabled({ timeout: 200 }).catch(() => false)) {
+                await prayBtn.click({ force: true }).catch(() => {});
                 await page.waitForTimeout(300);
             }
 

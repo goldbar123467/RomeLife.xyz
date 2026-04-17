@@ -6,7 +6,7 @@ import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divid
 import { RESOURCE_ASSETS } from '@/lib/assets';
 import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
 import { getSenatorDangerLevel, getSenatorStateDescription } from '@/core/constants/senate';
-import { calculateProductionSummary } from '@/core/math';
+import { calculateProductionSummary, calculateIncomeBreakdown, calculateExpenseBreakdown } from '@/core/math';
 import type { ResourceType, SenatorState } from '@/core/types';
 import {
     AlertTriangle,
@@ -36,12 +36,22 @@ export function OverviewPanel() {
         founder, round, season, denarii, population, happiness,
         troops, morale, territories, buildings, piety, patronGod,
         inventory, endSeason, technologies, lastEvents,
-        emergencyCooldowns, executeEmergency, setTab, senate
+        emergencyCooldowns, executeEmergency, setTab, senate,
+        rallyTroops, rallyTroopsCooldown
     } = state;
+
+    // BL-39: Rally Troops gating for Emergency Actions panel
+    const rallyCd = rallyTroopsCooldown ?? 0;
+    const rallyCanAfford = denarii >= 300 && (inventory.grain || 0) >= 50;
+    const rallyDisabled = rallyCd > 0 || !rallyCanAfford || morale >= 100;
+    const showRally = morale < 50;
 
     const ownedTerritories = territories.filter(t => t.owned);
     const builtBuildings = buildings.filter(b => b.count > 0);
     const production = calculateProductionSummary(state);
+    // BL-33: Itemized Income / Expense breakdown for Treasury deficit tooltip
+    const incomeBreakdown = calculateIncomeBreakdown(state);
+    const expenseBreakdown = calculateExpenseBreakdown(state);
     const imperialEvents = lastEvents || [];
 
     // Calculate Legion Stats
@@ -68,7 +78,7 @@ export function OverviewPanel() {
 
     // Crisis Detection
     const grainAmount = inventory.grain || 0;
-    const isInCrisis = happiness < 30 || denarii < 100 || grainAmount < 20;
+    const isInCrisis = happiness < 30 || denarii < 100 || grainAmount < 20 || showRally;
 
     // Check if emergency action can be executed
     const canExecuteEmergency = (action: typeof EMERGENCY_ACTIONS[0]) => {
@@ -153,11 +163,26 @@ export function OverviewPanel() {
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-[220px]">
                             <div className="font-bold text-[#f0c14b]">Treasury</div>
-                            <div className="text-xs">Income: <span className="text-green-400">+{production.income}/season</span></div>
-                            <div className="text-xs">Upkeep: <span className="text-red-400">-{production.upkeep}/season</span></div>
-                            <div className="text-xs">Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/season</span></div>
+                            {/* BL-33: Itemized Income / Expense breakdown */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] mt-1">
+                                <div className="font-semibold text-green-400 uppercase tracking-wider text-[10px]">Income</div>
+                                <div className="font-semibold text-red-400 uppercase tracking-wider text-[10px]">Expense</div>
+                                <div className="text-green-300">Tax <span className="text-white/80">+{incomeBreakdown.tax}</span></div>
+                                <div className="text-red-300">Garrison <span className="text-white/80">-{expenseBreakdown.garrisonUpkeep}</span></div>
+                                <div className="text-green-300">Trade <span className="text-white/80">+{incomeBreakdown.trade}</span></div>
+                                <div className="text-red-300">Buildings <span className="text-white/80">-{expenseBreakdown.buildingUpkeep}</span></div>
+                                <div className="text-green-300">Tribute <span className="text-white/80">+{incomeBreakdown.tribute}</span></div>
+                                <div className="text-red-300">Wonders <span className="text-white/80">-{expenseBreakdown.wonderUpkeep}</span></div>
+                                <div className="text-green-300">Wonders <span className="text-white/80">+{incomeBreakdown.wonders}</span></div>
+                                <div className="text-red-300">Events <span className="text-white/80">-{expenseBreakdown.events}</span></div>
+                            </div>
+                            <div className="border-t border-white/10 pt-1 mt-1 text-xs">
+                                <div>Total In: <span className="text-green-400">+{production.income}/s</span></div>
+                                <div>Total Out: <span className="text-red-400">-{production.upkeep}/s</span></div>
+                                <div>Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/s</span></div>
+                            </div>
                             {production.netIncome < 0 && (
                                 <div className="text-xs text-red-400 mt-1">Raise taxes or build a marketplace to recover.</div>
                             )}
@@ -502,6 +527,36 @@ export function OverviewPanel() {
                                 <SectionHeader title="Emergency Actions" subtitle="Crisis Mode Active" />
                             </div>
                             <div className="space-y-2">
+                                {/* BL-39: Rally Troops surfaced when morale < 50 */}
+                                {showRally && (
+                                    <motion.div
+                                        className={`p-3 rounded-xl border ${rallyCd > 0 ? 'bg-white/5 border-white/10 opacity-50' : !rallyDisabled ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50' : 'bg-white/5 border-white/10 opacity-60'}`}
+                                        whileHover={!rallyDisabled ? { scale: 1.01 } : {}}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl">⚔️</span>
+                                                <span className="font-bold text-sm">Rally Troops</span>
+                                            </div>
+                                            {rallyCd > 0 ? (
+                                                <Badge variant="default">{rallyCd} rounds</Badge>
+                                            ) : (
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    disabled={rallyDisabled}
+                                                    onClick={() => rallyTroops()}
+                                                >
+                                                    Execute
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-red-400">-300 denarii, -50 grain</span>
+                                            <span className="text-green-400">+15 morale</span>
+                                        </div>
+                                    </motion.div>
+                                )}
                                 {EMERGENCY_ACTIONS.map((action) => {
                                     const cooldown = emergencyCooldowns?.[action.id] || 0;
                                     const canExecute = canExecuteEmergency(action);
