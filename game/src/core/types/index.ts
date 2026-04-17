@@ -507,6 +507,9 @@ export interface GameState {
     // BL-56: One-shot flag so the patron-god nudge fires exactly once
     patronNudgeShown?: boolean;
 
+    // BL-64: Round of last patron-god nudge (repeats every 8 rounds while no patron is set)
+    lastPatronNudgeRound?: number;
+
     // BL-40: Round of last auto-triggered Emergency Grain Import (cooldown = 4 rounds)
     lastEmergencyImportRound?: number;
 

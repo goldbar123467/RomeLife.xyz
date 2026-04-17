@@ -27,8 +27,11 @@ const TABS: { id: Tab; label: string; description: string }[] = [
 export function TabNavigation() {
     const { activeTab, setTab, buildings, patronGod, piety, round } = useGameStore();
 
-    // BL-36: Red dot on Religion tab when patron is set but piety is still 0.
-    const religionNudge = !!patronGod && piety === 0 && round > 1;
+    // BL-36 / BL-65: Red dot on Religion tab when patron is set but piety is still 0,
+    // OR when no patron is selected by round 3+ (matches BL-56 nudge trigger).
+    const religionNudge =
+        (!!patronGod && piety === 0 && round > 1) ||
+        (!patronGod && round >= 3);
 
     // Calculate actual progress: buildings built / total available
     const progressPercent = useMemo(() => {

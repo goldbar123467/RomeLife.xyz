@@ -343,13 +343,13 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
-    // BL-56: One-shot patron-god nudge — new players often never choose a patron.
-    let newPatronNudgeShown = state.patronNudgeShown ?? false;
-    if (!newPatronNudgeShown && newRound >= 3 && !state.patronGod) {
+    // BL-64: Re-emit patron nudge every 8 rounds while no patron is set.
+    let newLastPatronNudgeRound = state.lastPatronNudgeRound;
+    if (!state.patronGod && newRound >= 3 && (newLastPatronNudgeRound == null || newRound - newLastPatronNudgeRound >= 8)) {
         events.push(
-            '[religion] Rome needs divine favor — choose a patron god on the Religion tab (+1 piety/season + tier bonuses).'
+            '[religion] Rome still lacks divine favor — choose a patron god on the Religion tab (+1 piety/season + tier bonuses).'
         );
-        newPatronNudgeShown = true;
+        newLastPatronNudgeRound = newRound;
     }
 
     // Update denarii with tiered deficit protection (extended to round 24)
@@ -720,6 +720,20 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-61: Clamp event-driven population delta to ±max(5, round/4) per season, log attribution.
+    // Prevents oscillations like 150→142→150 inside one round from large event pop swings.
+    {
+        const popClampMagnitude = Math.max(5, Math.floor(state.round / 4));
+        const rawEventPop = eventPopulation;
+        if (rawEventPop > popClampMagnitude) eventPopulation = popClampMagnitude;
+        else if (rawEventPop < -popClampMagnitude) eventPopulation = -popClampMagnitude;
+        if (Math.abs(eventPopulation) >= 3) {
+            const signed = eventPopulation > 0 ? `+${eventPopulation}` : `${eventPopulation}`;
+            const clampTag = rawEventPop !== eventPopulation ? ' (clamped)' : '';
+            events.push(`[event] Net ${signed} population this season${clampTag}`);
+        }
+    }
+
     // === RANDOM RELIGIOUS EVENT ===
     // Only trigger if player has engaged with religion (piety > 20)
     let religiousEvent: ReligiousEvent | null = null;
@@ -990,6 +1004,26 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-62: Clamp aggregate per-season piety delta to [-8, +10].
+    // `newPiety` at this point includes: building + governor + passive (+1) + senate + achievements.
+    // `eventPiety` and `wonderEffects.piety` are folded into the final assignment below, so we
+    // account for those here too before clamping, then feed back an adjusted `newPiety` that the
+    // final `Math.min(100, newPiety + wonderEffects.piety + eventPiety)` will settle.
+    {
+        const pietyCandidate = newPiety + wonderEffects.piety + eventPiety;
+        const rawDelta = pietyCandidate - state.piety;
+        const clampedDelta = Math.max(-8, Math.min(10, rawDelta));
+        if (rawDelta !== clampedDelta) {
+            // Adjust newPiety so pietyCandidate (after re-adding wonder + event) matches the clamped delta.
+            newPiety = state.piety + clampedDelta - wonderEffects.piety - eventPiety;
+        }
+        if (Math.abs(rawDelta) >= 5) {
+            const signed = clampedDelta > 0 ? `+${clampedDelta}` : `${clampedDelta}`;
+            const clampTag = rawDelta !== clampedDelta ? ' (clamped)' : '';
+            events.push(`[religion] Seasonal piety: ${signed}${clampTag}`);
+        }
+    }
+
     // BL-11: Reputation milestone crossings — surface to log and remember so each fires once.
     const finalReputation = Math.max(0, Math.min(100, newReputation + eventReputation));
     const alreadyReached = state.reputationMilestonesReached ?? [];
@@ -1024,7 +1058,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Build total additional income BEFORE treasury history so chart data is accurate
     const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + wonderRecurringIncome + eventDenarii;
 
-    // BL-50: Surface unexplained denarii drops (net change <= -100) with the 2 largest known cost lines.
+    // BL-50 / BL-63: Surface unexplained denarii drops (net change <= -100) with the largest known cost lines.
+    // BL-63 guarantees a `[treasury] Net -X (topReason)` line for every net drop >= 100 (dedups against existing Deficit line).
     const finalDenarii = Math.max(0, newDenarii + totalAdditionalIncome);
     const netDenariiDelta = finalDenarii - state.denarii;
     if (netDenariiDelta <= -100) {
@@ -1041,12 +1076,26 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         if (eventDenarii < 0) {
             causes.push({ label: 'random event', cost: -eventDenarii });
         }
-        const top = causes.sort((a, b) => b.cost - a.cost).slice(0, 2);
-        if (top.length > 0) {
-            const detail = top.map(c => `${c.label} -${c.cost}d`).join(', ');
-            events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii — largest costs: ${detail}`);
-        } else {
-            events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii this season — check Economy tab.`);
+        const sorted = causes.sort((a, b) => b.cost - a.cost);
+        const top = sorted.slice(0, 2);
+        // BL-63: Identify top single contributor for concise label
+        const contributorMap: Record<string, number> = {
+            deficit: effectiveNetIncome < 0 ? effectiveNetIncome : 0,
+            emergencyImport: newDenariiAdjustment_emergency < 0 ? newDenariiAdjustment_emergency : 0,
+            eventCost: eventDenarii < 0 ? eventDenarii : 0,
+            senatorDemand: senateResult && senateResult.denariiChange < 0 ? senateResult.denariiChange : 0,
+        };
+        const topReasonEntry = Object.entries(contributorMap).sort((a, b) => a[1] - b[1])[0];
+        const topReason = topReasonEntry && topReasonEntry[1] < 0 ? topReasonEntry[0] : 'unknown';
+        // Dedup: skip if a `[treasury] Net` line is already present for this season.
+        const hasTreasuryNetLine = events.some(e => e.includes('[treasury] Net'));
+        if (!hasTreasuryNetLine) {
+            if (top.length > 0) {
+                const detail = top.map(c => `${c.label} -${c.cost}d`).join(', ');
+                events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii (${topReason}) — largest costs: ${detail}`);
+            } else {
+                events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii (${topReason}) — check Economy tab.`);
+            }
         }
     }
 
@@ -1112,7 +1161,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         housingCapNudgeShown: newHousingCapNudgeShown,
         lastTroopNudgeRound: newLastTroopNudgeRound,
         conquestNudgeShown: newConquestNudgeShown,
-        patronNudgeShown: newPatronNudgeShown,
+        patronNudgeShown: state.patronNudgeShown ?? false,
+        lastPatronNudgeRound: newLastPatronNudgeRound,
         insulaeNudgeShown: newInsulaeNudgeShown,
         // BL-49: Preserve spending-nudge cooldown across seasons.
         ...(newSpendingNudgeLastRound !== undefined ? { spendingNudgeLastRound: newSpendingNudgeLastRound } : {}),

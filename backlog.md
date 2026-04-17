@@ -1,8 +1,61 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17 (cycle 10: 2026-04-17)
+Generated: 2026-04-17 (cycle 11: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance-critic.
+
+## Cycle 11 QA Findings (2026-04-17) — post cycle-10 re-run, new findings
+
+- Noob (Romulus, 15 presses): healthy, pop 104→150, hits housing cap at round 3 and **stays at 150 for 9 consecutive seasons (rounds 3-4 observed)**. Piety remains 0 (no patron). BL-56 patron nudge fires to Imperial Log but **Religion sidebar tab has no red-dot badge** when patron unset at round ≥ 3 (only fires for `patron set + piety === 0`, not `patron unset`). Housing-cap status surfaces only as a one-shot log line (BL-44), no HUD badge on the Population tile.
+- Avg (Romulus+Jupiter, 25 presses): healthy, piety 3→54. **Population oscillates 150→142→150 within a single round** at round 6 (spring=150, summer=142, autumn=150) — pop event applies −8 pop and recovers without explanation. **Piety gains +16 in one season** at round 6 autumn→winter (36→52) despite the `RELIGIOUS_EVENT_CAPS.piety = 8` clamp: worship (+5) + event (+8) + passive (+1) + building/governor stack without a combined per-season cap. Also +9 at round 5 winter→6 spring (25→34).
+- Goat (Remus aggressive-tax, 35 presses): **survives all 35 seasons (stage=game)**, pop stable at 150, denarii 5959 end. **Piety stays 0 for 35 rounds** — BL-56 patron nudge fires exactly once at round 3 and never again (one-shot like the old BL-53). **Troops frozen at 25** since test never recruits; BL-58 re-nudge fires but UI push alone is not acted upon. **Large unexplained denarii drops** at round 6 winter→7 spring (−358), 8 summer→autumn (−362), 9 autumn→winter (−415) — BL-50 promised `[treasury] Net −X denarii` log lines for ≤ −100 swings but these did not surface in the visible Imperial Log.
+- Build: clean, zero TS errors.
+- All three Playwright specs passed in 2.4m.
+- Targeting cycle 11 (fix 5): **BL-61, BL-62, BL-63, BL-64, BL-65**.
+
+## Current Cycle — CLOSED: BL-61, BL-62, BL-63, BL-64, BL-65 (cycle 11, 5 items closed)
+
+### [x] BL-61 — Population oscillates 150→142→150 within one round (Avg round 6, pop event not clamped)
+Severity: MEDIUM — FIXED cycle 11 (usecases/index.ts:720-734, eventPopulation clamped to ±max(5, round/4), `[event] Net ±X population this season` log line emitted when |delta| ≥ 3, housing clamp applied after event delta at line 1118)
+Location: `game/src/app/usecases/index.ts` (event population application), `game/src/core/constants/events.ts` (pop event effect sizes)
+Steps: Romulus + Jupiter patron + Worship each season + press Space 22 times → observe round 6 population snapshot.
+Expected: Population changes smoothly each season; any event-driven loss ≥ 5 surfaces as `[event] <name>: −X population` in Imperial Log.
+Actual: Pop 150 (round 5 winter) → 150 (round 6 spring) → 142 (round 6 summer) → 150 (round 6 autumn) → 150 (round 6 winter). An 8-person drop then full recovery inside the same round, with no attributed log entry.
+Fix target: Clamp `eventPopulation` delta to ±max(5, round/4) per season in `executeEndSeason` (matching the happiness/morale clamp pattern). Push `[event] <name>: ${signed} pop` to `lastEvents` whenever `|eventPopulation| >= 3`. Also ensure the final housing clamp (`Math.min(newPop, housing)`) runs AFTER event deltas so the value doesn't snap back silently.
+
+### [x] BL-62 — Piety jumps +16 in one season despite ±8 per-event clamp (Avg round 6 winter)
+Severity: MEDIUM — FIXED cycle 11 (usecases/index.ts:1004-1024, aggregate per-season piety delta clamped to [-8, +10] after event + wonder + building + passive sum; `[religion] Seasonal piety: ±N (clamped)` logged when |rawDelta| ≥ 5)
+Location: `game/src/app/usecases/index.ts:851-870` (piety aggregation), `game/src/app/usecases/senate.ts:735-742` (`RELIGIOUS_EVENT_CAPS`)
+Steps: Avg role — set Jupiter patron, press Pray + Space each season, watch piety at round 6 autumn→winter.
+Expected: Single-season piety delta is bounded (≤ +10 combined across event + worship + passive + buildings) so the stat feels deterministic.
+Actual: Piety 36 → 52 in one season (+16). Decomposition: religious event (clamped +8) + Quick Prayer worship (+5) + passive (+1) + Consecration/building (+2) — clamp only applies to the religious event, not to the aggregate seasonal piety gain. Also +9 at round 5 winter→6 spring (outside ±8 cap intent).
+Fix target: After aggregating `newPiety` in `executeEndSeason`, clamp the per-season delta (`newPiety - state.piety`) to `[-8, +10]` (positive skew because worship is player-driven). Surface `[religion] Seasonal piety: ${signed}${source summary}` when delta ≥ 5 so the player sees the breakdown.
+
+### [x] BL-63 — Late-game denarii drops ≥ −300 missing from Imperial Log (Goat rounds 6/8/9)
+Severity: LOW — FIXED cycle 11 (usecases/index.ts:1061-1100, `actualDenariiDelta` computed after all adjustments; `[treasury] Net −X denarii (topReason)` emitted when ≤ −100, with `senatorDemand`/`emergencyImport`/`eventCost`/`deficit` as candidate reasons, dedup guard prevents double-logging)
+Location: `game/src/app/usecases/index.ts` (net-denarii event logging, near line 373-378), `game/src/components/game/OverviewPanel.tsx` (Imperial Log surface)
+Steps: Remus → max tax → press Space 35 times → compare consecutive denarii snapshots.
+Expected: Any net seasonal denarii change ≤ −100 pushes `[treasury] Net −X denarii: <top contributor>` to `lastEvents` (per BL-50 fix target).
+Actual: Goat log shows denarii 6755→6397 (−358), 6609→6247 (−362), 6374→5959 (−415) across rounds 6-9. Overview screenshot at final state shows Imperial Log lines for "[Treasury] Income +4", "winter grain reserves", "legion costs" — but no `[treasury] Net -358 …` callout. BL-50 check only compared `summary.netIncome` (the calculated delta) and missed event-driven denarii effects (senator demand, bandit raid, emergency imports stacking).
+Fix target: Compute `actualDenariiDelta = newDenarii - state.denarii` AFTER all adjustments. If `actualDenariiDelta <= -100`, push `[treasury] Net ${delta} denarii (${topReason})` where topReason is the largest negative contributor among {deficit, senatorDemand, emergencyImport, banditRaid, plague}. Dedup against existing per-line messages.
+
+### [x] BL-64 — Patron-god nudge is one-shot; Goat ends 35 seasons with piety=0 (no re-nudge)
+Severity: MEDIUM — FIXED cycle 11 (types/index.ts: added `lastPatronNudgeRound?: number`; usecases/index.ts:346-353 re-emits `[religion]` nudge every 8 rounds while `!patronGod`; return object threads new field. OverviewPanel "Choose Patron" CTA already deep-links to Religion tab via `setTab('religion')`)
+Location: `game/src/app/usecases/index.ts:346-353` (patron nudge block), `game/src/core/types/index.ts` (GameState flags)
+Steps: Remus (no patron), press Space 35 times → Religion never engaged.
+Expected: Patron nudge re-fires periodically (every 8 rounds while `!patronGod`) — matches BL-58 troop re-nudge pattern. Optionally, a visible `Choose Patron` Quick Action tile on Overview deep-links to Religion panel.
+Actual: Nudge fires exactly once at round 3 (flagged by `patronNudgeShown = true`) and never again. Goat piety remains 0 for all 35 seasons despite the player repeatedly ending seasons without a patron.
+Fix target: Replace one-shot `patronNudgeShown?: boolean` with `lastPatronNudgeRound?: number`. Re-emit `[religion]` nudge when `round - lastPatronNudgeRound >= 8 && !patronGod`. Add a persistent Patron God Overview card CTA ("Choose Patron" button → deep-link to Religion tab) so the reminder is always visible, not buried in Imperial Log scrollback.
+
+### [x] BL-65 — Religion sidebar red-dot missing when patron UNSET at round ≥ 3 (BL-56 part b skipped)
+Severity: LOW — FIXED cycle 11 (TabNavigation.tsx:32-34 + MobileNav.tsx:107-110 both extend `religionNudge` predicate to `(!patronGod && round >= 3)`; mobile nav shows dot on "More" button AND on the Religion tile inside the drawer)
+Location: `game/src/components/game/TabNavigation.tsx:31` (`religionNudge` computation), `src/components/game/MobileNav.tsx` (mobile parity)
+Steps: Noob role (Romulus, no patron), press Space 15 times → screenshot final state → inspect sidebar Religion tab.
+Expected: Red-dot badge appears on Religion sidebar tab when `!patronGod && round >= 3` (BL-56 fix target part b), matching BL-36's pattern for `patronGod && piety === 0`.
+Actual: `religionNudge = !!patronGod && piety === 0 && round > 1` — fires ONLY when patron is already set. Noob screenshot at round 4 shows zero red-dot on Religion tab even though the Imperial Log has a `[religion] Rome needs divine favor…` line. Mobile nav has the same gap.
+Fix target: Extend `religionNudge` to `(!!patronGod && piety === 0 && round > 1) || (!patronGod && round >= 3)`. Mirror the same computation in `MobileNav.tsx` so mobile users see the dot on the bottom-nav Religion entry.
+
+---
 
 ## Cycle 10 QA Findings (2026-04-17) — post cycle-9 re-run, new findings
 
