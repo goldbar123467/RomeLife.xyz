@@ -93,7 +93,27 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
-    const newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
+    // BL-30: Soften early-game Famine trigger.
+    // If the player has already starved once and would now hit a fatal 2nd
+    // starvation during rounds 1-10 AND the grain deficit this season is
+    // marginal (<=20% of consumption), cap the consecutive-starvation counter
+    // at 1. A subsequent back-to-back starvation still advances past the cap
+    // and can trigger Famine, so the failure condition is not neutered — just
+    // delayed for aggressive-tax Goat runs that have one bad roll.
+    let newConsecutiveStarvation = isStarving ? state.consecutiveStarvation + 1 : 0;
+    if (
+        isStarving &&
+        newRound <= 10 &&
+        foodConsumed > 0 &&
+        state.consecutiveStarvation >= 1 &&
+        newConsecutiveStarvation >= 2
+    ) {
+        const grainDeficit = foodConsumed - grainAvailable;
+        if (grainDeficit <= foodConsumed * 0.2) {
+            newConsecutiveStarvation = 1;
+            events.push('[food] Desperate foraging averts Famine — build a Farm Complex!');
+        }
+    }
 
     // Calculate population growth (starvation uses STARVATION_POP_LOSS constant)
     const popGrowth = calculatePopulationGrowth(state);
@@ -110,6 +130,20 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         events.push(
             `[!] Sanitation critical (${state.sanitation}) — population declining from disease. Build a Bathhouse/Aqueduct.`
         );
+    }
+
+    // BL-30: One-shot Farm Complex tutorial nudge — after round 2, if the player
+    // still hasn't built a Farm Complex (farm_1) in Palatine Hill, surface a hint
+    // so aggressive/Goat playstyles don't starve by round 7.
+    let newFarmTutorialShown = state.farmTutorialShown ?? false;
+    if (!newFarmTutorialShown && newRound >= 2) {
+        const hasFarmComplex = state.buildings.some(b => b.id === 'farm_1' && b.count > 0);
+        if (!hasFarmComplex) {
+            events.push(
+                '[tutorial] Build a Farm Complex in Palatine Hill to secure your grain supply (Settlement → Build).'
+            );
+            newFarmTutorialShown = true;
+        }
     }
 
     // Update denarii with tiered deficit protection (extended to round 24)
@@ -559,6 +593,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-10: Rally Troops cooldown decay
+    const newRallyTroopsCooldown = Math.max(0, (state.rallyTroopsCooldown ?? 0) - 1);
+
     // Check achievements
     const achievementsUnlocked = checkAchievements(
         { ...state, round: newRound, denarii: newDenarii, population: newPopulation },
@@ -781,7 +818,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         },
         emergencyCooldowns: newEmergencyCooldowns,
         worshipCooldowns: newWorshipCooldowns,
+        rallyTroopsCooldown: newRallyTroopsCooldown,
         eventCooldowns: newEventCooldowns,
+        farmTutorialShown: newFarmTutorialShown,
         lastDeficitWarnRound: newLastDeficitWarnRound,
         lastLowGrainWarnRound: newLastLowGrainWarnRound,
         history: [...state.history, historyEntry],

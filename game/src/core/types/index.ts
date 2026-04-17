@@ -482,6 +482,12 @@ export interface GameState {
     // Worship action cooldowns
     worshipCooldowns?: Record<string, number>;
 
+    // BL-10: Rally Troops morale recovery action cooldown (seasons remaining)
+    rallyTroopsCooldown?: number;
+
+    // BL-30: One-shot flag so the farm-complex tutorial nudge fires exactly once
+    farmTutorialShown?: boolean;
+
     // NPCs and story quest state
     npcs: NPC[];
     visitedTerritories: string[];

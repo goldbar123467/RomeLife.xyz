@@ -367,9 +367,12 @@ interface GameStore extends GameState {
 
     // Actions - Religion
     setPatronGod: (god: GodName) => void;
-    worship: (action: string) => void;
+    worship: (action: string) => boolean;
     religiousBuildings: string[];
     buildReligiousBuilding: (buildingId: string) => void;
+
+    // Actions - Military (BL-10)
+    rallyTroops: () => void;
 
     // Actions - Diplomacy
     sendEnvoy: (factionId: string) => void;
@@ -429,6 +432,7 @@ const createInitialState = (): Omit<GameStore,
     'recruitTroops' | 'startBattle' | 'resolveBattleAction' | 'setTaxRate' | 'executeTrade' |
     'buildStructure' | 'researchTechnology' | 'upgradeTerritory' | 'upgradeTerritoryLevel' | 'buildTerritoryBuilding' |
     'assignGarrison' | 'recallGarrison' | 'setPatronGod' | 'worship' | 'buildReligiousBuilding' |
+    'rallyTroops' |
     'sendEnvoy' | 'startWonder' | 'executeEmergency' | 'executeCraft' | 'assignGovernor' | 'setTerritoryFocus' |
     'talkToNPC' | 'enterTerritory' |
     'enterInfiniteMode' | 'debugAddResources' | 'debugSetGold' | 'debugFastForward' | 'resetGame' | 'setBattleSpeed' |
@@ -541,6 +545,7 @@ const createInitialState = (): Omit<GameStore,
     winStreak: 0,
     consecutiveStarvation: 0,
     feastsUsed: 0,  // Tracks feast uses for diminishing returns
+    farmTutorialShown: false,  // BL-30: one-shot farm-complex tutorial nudge
     history: [],
     treasuryHistory: [],
 
@@ -554,6 +559,9 @@ const createInitialState = (): Omit<GameStore,
     // Religion - Consecrated territories
     consecratedTerritories: [],
     worshipCooldowns: {},
+
+    // BL-10: Rally Troops cooldown
+    rallyTroopsCooldown: 0,
 
     // NPCs and story quest state
     npcs: INITIAL_NPCS.map(n => ({ ...n })),
@@ -1163,27 +1171,45 @@ export const useGameStore = create<GameStore>()(
             // === RELIGION ===
             setPatronGod: (god) => set({ patronGod: god }),
 
-            worship: (actionId) => {
+            worship: (actionId): boolean => {
                 const state = get();
                 const worshipAction = WORSHIP_ACTIONS[actionId];
-                if (!worshipAction) return;
-                if (worshipAction.requiresPatron && !state.patronGod) return;
+                if (!worshipAction) {
+                    set({ lastEvents: [`[religion] Cannot worship: unknown action.`] });
+                    return false;
+                }
+                if (worshipAction.requiresPatron && !state.patronGod) {
+                    set({ lastEvents: [`[religion] Cannot worship: select a patron god first.`] });
+                    return false;
+                }
 
                 // Check cooldown
                 if (worshipAction.cooldown > 0) {
                     const remaining = (state.worshipCooldowns || {})[actionId];
                     if (remaining && remaining > 0) {
-                        set({ lastEvents: [`[Worship] ${worshipAction.name} is on cooldown for ${remaining} more season(s).`] });
-                        return;
+                        set({ lastEvents: [`[religion] Cannot worship: ${worshipAction.name} on cooldown for ${remaining} more season(s).`] });
+                        return false;
                     }
                 }
 
                 // Check costs
                 const cost = worshipAction.cost;
-                if (cost.denarii && state.denarii < cost.denarii) return;
-                if (cost.piety && state.piety < cost.piety) return;
-                if (cost.livestock && (state.inventory.livestock || 0) < cost.livestock) return;
-                if (cost.grain && (state.inventory.grain || 0) < cost.grain) return;
+                if (cost.denarii && state.denarii < cost.denarii) {
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.denarii} denarii.`] });
+                    return false;
+                }
+                if (cost.piety && state.piety < cost.piety) {
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.piety} piety.`] });
+                    return false;
+                }
+                if (cost.livestock && (state.inventory.livestock || 0) < cost.livestock) {
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.livestock} livestock.`] });
+                    return false;
+                }
+                if (cost.grain && (state.inventory.grain || 0) < cost.grain) {
+                    set({ lastEvents: [`[religion] Cannot worship: need ${cost.grain} grain.`] });
+                    return false;
+                }
 
                 // Deduct costs
                 const newInventory = { ...state.inventory };
@@ -1197,7 +1223,13 @@ export const useGameStore = create<GameStore>()(
 
                 // Apply effects
                 const effect = worshipAction.effect;
-                if (effect.piety) newPiety = Math.min(100, newPiety + effect.piety);
+                // BL-29: Guarantee minimum +2 piety gain on any successful worship when
+                // the player has a patron god, so zero-resource Avg-role players still
+                // see piety progression even on actions that grant godFavor only.
+                const declaredPietyGain = effect.piety || 0;
+                const minPietyGain = state.patronGod ? 2 : 0;
+                const pietyGain = Math.max(declaredPietyGain, minPietyGain);
+                if (pietyGain > 0) newPiety = Math.min(100, newPiety + pietyGain);
 
                 const newGodFavor = { ...state.godFavor };
                 if (effect.godFavor && state.patronGod) {
@@ -1285,15 +1317,14 @@ export const useGameStore = create<GameStore>()(
                     }
                 }
 
-                // Build the event message
-                const baseMessage = `[Worship] ${worshipAction.name}!`;
-                const bonusText = [
-                    effect.godFavor ? `+${effect.godFavor} favor` : '',
-                    effect.piety ? `+${effect.piety} piety` : ''
-                ].filter(Boolean).join(', ');
+                // BL-29: Build a visible worship-success log entry that reports the
+                // ACTUAL piety gain (including the enforced +2 minimum) and the god.
+                const favorGain = (effect.godFavor && state.patronGod) ? effect.godFavor : 0;
+                const godLabel = state.patronGod ? state.patronGod.charAt(0).toUpperCase() + state.patronGod.slice(1) : 'no patron';
+                const completeMessage = `[religion] Worship complete: ${worshipAction.name} (+${pietyGain} piety, +${favorGain} favor with ${godLabel})`;
 
                 const allMessages = [
-                    bonusText ? `${baseMessage} ${bonusText}` : baseMessage,
+                    completeMessage,
                     ...eventMessages
                 ];
 
@@ -1318,6 +1349,7 @@ export const useGameStore = create<GameStore>()(
                     worshipCooldowns: newWorshipCooldowns,
                     lastEvents: allMessages,
                 });
+                return true;
             },
 
             buildReligiousBuilding: (buildingId) => {
@@ -1331,6 +1363,33 @@ export const useGameStore = create<GameStore>()(
                     denarii: state.denarii - building.cost,
                     religiousBuildings: [...state.religiousBuildings, buildingId],
                     lastEvents: [`[Building] Built ${building.name}! +${building.pietyPerSeason} piety/season`],
+                });
+            },
+
+            // === MILITARY (BL-10) ===
+            rallyTroops: () => {
+                const state = get();
+                const cooldown = state.rallyTroopsCooldown ?? 0;
+                if (cooldown > 0) {
+                    set({ lastEvents: [`[Military] Rally Troops is on cooldown (${cooldown} season(s) remaining).`] });
+                    return;
+                }
+                if (state.morale >= 100) {
+                    set({ lastEvents: [`[Military] Legion morale is already at maximum.`] });
+                    return;
+                }
+                if (state.denarii < 300 || (state.inventory.grain || 0) < 50) {
+                    set({ lastEvents: [`[Military] Rally Troops requires 300 denarii and 50 grain.`] });
+                    return;
+                }
+
+                const newInventory = { ...state.inventory, grain: state.inventory.grain - 50 };
+                set({
+                    denarii: state.denarii - 300,
+                    inventory: newInventory,
+                    morale: Math.min(100, state.morale + 15),
+                    rallyTroopsCooldown: 3,
+                    lastEvents: [`[Military] Legion rallied — morale +15 (-300 denarii, -50 grain)`],
                 });
             },
 

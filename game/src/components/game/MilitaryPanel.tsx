@@ -115,8 +115,17 @@ function MilitaryChart({ history }: { history: { round: number; troops: number; 
 
 export function MilitaryPanel() {
     const state = useGameStore();
-    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, patronGod, godFavor, founder, winStreak, history } = state;
+    const { troops, morale, supplies, forts, denarii, inventory, recruitTroops, patronGod, godFavor, founder, winStreak, history, rallyTroops, rallyTroopsCooldown } = state;
     const [selectedUnit, setSelectedUnit] = useState<MilitaryUnit | null>(null);
+
+    // BL-10: Rally Troops gating
+    const rallyCd = rallyTroopsCooldown ?? 0;
+    const rallyCanAfford = denarii >= 300 && (inventory.grain || 0) >= 50;
+    const rallyDisabled = rallyCd > 0 || !rallyCanAfford || morale >= 100;
+    const handleRally = () => {
+        rallyTroops();
+        gameToast.recruit('Legion Rallied', '+15 morale (-300 denarii, -50 grain)');
+    };
 
     // Calculate Mars recruitment discount (-15% at tier 25)
     const marsRecruitDiscount = calculateBlessingBonus(patronGod, godFavor, 'recruitCost');
@@ -252,6 +261,37 @@ export function MilitaryPanel() {
                             Victory streak: {winStreak} wins (+{winStreak * 5} morale bonus)
                         </div>
                     )}
+
+                    {/* Rally Troops action (BL-10) */}
+                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
+                        <div className="text-xs text-muted md:max-w-[60%]">
+                            Hold a triumphal rally to restore legion spirit. Costs 300 denarii and 50 grain.
+                            Has a 3-season cooldown.
+                        </div>
+                        <div
+                            title={
+                                rallyCd > 0
+                                    ? `Available in ${rallyCd} season(s)`
+                                    : morale >= 100
+                                    ? 'Morale already at maximum'
+                                    : !rallyCanAfford
+                                    ? 'Requires 300 denarii and 50 grain'
+                                    : 'Rally the legion for +15 morale'
+                            }
+                        >
+                            <Button
+                                variant="gold"
+                                size="sm"
+                                disabled={rallyDisabled}
+                                onClick={handleRally}
+                                className="min-h-[44px]"
+                            >
+                                {rallyCd > 0
+                                    ? `Rally Troops (Cooldown: ${rallyCd})`
+                                    : 'Rally Troops (+15 morale)'}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </GlassCard>
 
