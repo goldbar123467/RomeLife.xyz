@@ -1,8 +1,63 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17 (cycle 9: 2026-04-17)
+Generated: 2026-04-17 (cycle 10: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance-critic.
+
+## Cycle 10 QA Findings (2026-04-17) — post cycle-9 re-run, new findings
+
+- Noob (Romulus, 15 presses): healthy, pop 150 at round 3, happiness 83-100 oscillation, morale 82-96. **Piety stays at 0 for entire 15-season run** — no patron god chosen, no Imperial Log nudge to pick one. Religion tab never engaged.
+- Avg (Romulus+Jupiter, 25 presses): healthy; piety climbs 3→64 over 25 seasons. Active Imperium Effects card now shows Jupiter (BL-51 verified). No new UX regressions.
+- Goat (Remus aggressive-tax, 35 presses): survives all 35 seasons (stage=game). **Pop still dips 150→134 at round 9 autumn** (one starvation hit before recovery) — BL-45 residual. **Troops only grow 25→29 across 35 seasons** — BL-53 nudge is one-shot, never repeats. Denarii drops unexplained −718 at round 9 summer→winter. Piety stays 0 (no patron nag at all).
+- Build: clean, zero TS errors.
+- All three Playwright specs passed in 2.4m.
+- Targeting cycle 10 (fix 5): **BL-56, BL-57, BL-58, BL-59, BL-60**.
+
+## Current Cycle — CLOSED: BL-56, BL-57, BL-58, BL-59, BL-60 (cycle 10, 5 items closed)
+
+### [x] BL-56 — Noob never chooses a patron god; no Imperial Log nudge to pick one
+Severity: HIGH — FIXED cycle 10 (patronNudgeShown flag + one-shot [religion] nudge at round ≥ 3 when !patronGod; verified in re-run, all 3 Playwright specs pass)
+Location: `game/src/app/usecases/index.ts` (endSeason nudge block ~lines 280-325), `game/src/core/types/index.ts` (GameState flags), `game/src/store/gameStore.ts` (initial state)
+Steps: Romulus, never open Religion tab, press Space 15×.
+Expected: By round 3-4 the player receives a `[religion] Rome needs divine favor — choose a patron god on the Religion tab (gain +1 piety/season + tier bonuses).` one-shot nudge.
+Actual: Piety stays at 0 for entire 15-season Noob run; Religion tab is never surfaced unless the player notices it manually. No nag, no tutorial.
+Fix target: Add `patronNudgeShown?: boolean` flag on `GameState`. In `executeEndSeason`, push a one-shot `[religion]` Imperial Log event when `round >= 3 && !patronGod && !newPatronNudgeShown`. Flag the Religion sidebar tab with a red dot when patron is unset AND round >= 3 (reuse existing red-dot pattern from BL-36).
+
+### [x] BL-57 — Goat still hits 1 starvation spike at round 9 (pop 150→134) despite BL-45 fixes
+Severity: MEDIUM — FIXED cycle 10 (predictive import at usecases/index.ts:115-124 fires BEFORE consumption; Goat re-run pop stable at 150 through round 9 winter, no starvation dip)
+Location: `game/src/app/usecases/index.ts` (Emergency Grain Import threshold), `game/src/core/math/index.ts:calculateFoodConsumption`
+Steps: Remus → raise tax max → press Space 35×.
+Expected: Emergency Grain Import fires *preventively* when grain projected to hit 0 next season — no population loss, smooth curve.
+Actual: Pop drops 150→134 at round 9 autumn (one clean 15% starvation hit) before Emergency Grain Import kicks in at the *end* of the starvation season. Denarii drops 5549→4831 (−718) in one turn from emergency imports + events.
+Fix target: Make Emergency Grain Import predictive — trigger when `grain + nextSeasonIncome < nextSeasonConsumption` AND `denarii >= 400`, BEFORE the starvation event fires. Also push a pre-emptive `[crisis] Winter grain reserves low (grain X, need Y) — Emergency Import deducted 400d, +200 grain.` event.
+
+### [x] BL-58 — Troops nudge is one-shot; Goat ends 35 seasons at 29 troops (started 25)
+Severity: MEDIUM — FIXED cycle 10 (troopRecruitNudgeShown → lastTroopNudgeRound; re-nudges every 8 rounds while troops ≤ 40 ∧ denarii ≥ 300; message includes territory count)
+Location: `game/src/app/usecases/index.ts:294-305` (troopRecruitNudgeShown block), `game/src/core/types/index.ts` (GameState)
+Steps: Goat role, 35 Space presses, never recruits except once.
+Expected: Nudge repeats periodically if troops still understaffed relative to empire size (e.g. every 8 rounds while troops ≤ 40 and denarii ≥ 300).
+Actual: Nudge fires once at round 3 then never again. Troops stagnate at 25-29 through entire 35-season playthrough. Empire of 150 pop with 25 troops has garrison-to-population ratio of 17%, yet no further prompt.
+Fix target: Replace one-shot `troopRecruitNudgeShown` with `lastTroopNudgeRound?: number`. Re-emit `[military]` nudge when `round - lastTroopNudgeRound >= 8 && troops <= 40 && denarii >= 300`. Bump message to include owned-territory count so it scales with empire size.
+
+### [x] BL-59 — Winter happiness/morale drops (−10/−8) not explained in UI
+Severity: LOW — FIXED cycle 10 (title tooltips added on Happiness/Morale tiles in OverviewPanel + TerminalHeader, sourced from SEASON_MODIFIERS in core/constants/index.ts)
+Location: `game/src/components/game/OverviewPanel.tsx` (stat tiles), `game/src/components/game/TerminalHeader.tsx` (header stats)
+Steps: Any role, watch happiness tile at round 1 winter (83 → 73) and morale tile at round 2 winter (92 → 84).
+Expected: Hover/tap on Happiness or Morale tile shows a tooltip listing seasonal modifier: "Winter: −10 happiness, −8 morale" so the swing feels deterministic.
+Actual: Values change each winter with no UI explanation. New players interpret it as a bug or random event.
+Fix target: Add a `title=` tooltip (or existing `Tooltip` wrapper) to Happiness and Morale tiles in both `OverviewPanel` and `TerminalHeader` with text like `"Seasonal: {winter:-10, spring:+5, summer:+10, autumn:+0}. Current season: winter (-10)."`. No new translation strings; inline in component.
+
+### [x] BL-60 — "Active Imperium Effects" card hides non-patron god blessings at high piety (Noob path)
+Severity: LOW — FIXED cycle 10 (nonPatronBlessings iterator in OverviewPanel surfaces tier-25/50/75/100 with "(non-patron 0.5x)" label; empty-state copy switched to "Passive divine bonuses" when no patron but favor ≥ 25)
+Location: `game/src/components/game/OverviewPanel.tsx` (Active Imperium Effects card rendering), `game/src/core/constants/religion.ts` (BLESSING_EFFECTS gating)
+Steps: Romulus → never pick patron → play 20+ seasons → religious events grant +5 piety → reach piety 15-25 via passive.
+Expected: When any god's `godFavors[god] >= 25` (tier 25 threshold), that god's tier-25 blessing appears in the card — even without a patron — at half-strength, matching BL-15 parity (non-patron 0.5× potency).
+Actual: Card reads "No active god effects" even when `godFavors.jupiter = 26` because rendering gate requires `patronGod === 'jupiter'`. Non-patron piety contributions are computationally active (per BL-15) but not *surfaced* in the UI.
+Fix target: In OverviewPanel's Active Imperium Effects card, iterate over all `godFavors` entries, not just `patronGod`. Show active tiers with a badge `(non-patron 0.5×)` when `god !== patronGod`. Keep BL-51 patron render path intact; add non-patron section below.
+
+---
+
+## Previous Cycle — CLOSED: BL-51, BL-52, BL-53, BL-54, BL-55 (cycle 9, 5 items closed)
 
 ## Cycle 9 QA Findings (2026-04-17) — post cycle-8 re-run, new findings
 
@@ -12,8 +67,6 @@ Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance
 - Build: pending fix batch.
 - All three Playwright specs passed in 2.6m.
 - Targeting cycle 9 (fix 5): **BL-51, BL-52, BL-53, BL-54, BL-55**.
-
-## Current Cycle — CLOSED: BL-51, BL-52, BL-53, BL-54, BL-55 (cycle 9, 5 items closed)
 
 ### [x] BL-51 — "Active Imperium Effects" card shows "No active god effects" even at Jupiter favor 36% + piety 81
 Severity: HIGH — FIXED cycle 9 (verified: Avg playthrough screenshot shows "Jupiter (Tier 25) +10% battle strength" at favor 25%)

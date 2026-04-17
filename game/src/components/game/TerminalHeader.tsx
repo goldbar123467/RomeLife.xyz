@@ -95,12 +95,14 @@ const StatCell = memo(function StatCell({
     label,
     stat,
     icon,
-    showPercent = false
+    showPercent = false,
+    title
 }: {
     label: string;
     stat: StatValue | undefined;
     icon: string;
     showPercent?: boolean;
+    title?: string;
 }) {
     const value = stat?.current ?? 0;
     const flash = stat?.flash ?? null;
@@ -123,6 +125,7 @@ const StatCell = memo(function StatCell({
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 border ${bgClass}`}
             animate={flash ? flashScaleAnimation : noAnimation}
             transition={{ duration: 0.3 }}
+            title={title}
         >
             {isAssetKey(icon) ? <GameImage src={icon} size="xs" alt={label} /> : <span className="text-sm">{icon}</span>}
             <span className="text-xs text-muted font-medium uppercase">{label}</span>
@@ -290,6 +293,12 @@ export function TerminalHeader() {
     const seasonInfo = SEASON_CONFIG[season];
     const SeasonIcon = seasonInfo.icon;
 
+    // BL-59: Seasonal happiness/morale modifier copy for native title tooltips.
+    const happinessSeasonMod = season === 'spring' ? 5 : season === 'summer' ? 15 : season === 'autumn' ? 0 : -10;
+    const moraleSeasonMod = season === 'spring' ? 0 : season === 'summer' ? 10 : season === 'autumn' ? 0 : -15;
+    const happinessTitle = `Seasonal modifier: Spring +5, Summer +15, Autumn +0, Winter -10. Current: ${season} (${happinessSeasonMod >= 0 ? '+' : ''}${happinessSeasonMod}).`;
+    const moraleTitle = `Seasonal modifier: Spring +0, Summer +10, Autumn +0, Winter -15. Current: ${season} (${moraleSeasonMod >= 0 ? '+' : ''}${moraleSeasonMod}).`;
+
     return (
         <header className="relative border-b border-line bg-paper" role="banner" aria-label="Rome Empire game header">
             {/* Subtle bottom accent line */}
@@ -411,8 +420,8 @@ export function TerminalHeader() {
                     <div className="flex items-center gap-2" aria-live="polite" aria-atomic="false">
                         <StatCell label="Pop" stat={stats.population} icon="roman" />
                         <StatCell label="Troops" stat={stats.troops} icon="centurion-helmet" />
-                        <StatCell label="Happy" stat={stats.happiness} icon="laurels" showPercent />
-                        <StatCell label="Morale" stat={stats.morale} icon="shield" showPercent />
+                        <StatCell label="Happy" stat={stats.happiness} icon="laurels" showPercent title={happinessTitle} />
+                        <StatCell label="Morale" stat={stats.morale} icon="shield" showPercent title={moraleTitle} />
                         <StatCell label="Rep" stat={stats.reputation} icon="laurels-gold" />
                     </div>
 

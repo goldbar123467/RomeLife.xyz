@@ -70,30 +70,37 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         ));
     }
 
-    // BL-40 / BL-45: Auto Emergency Grain Import.
-    // Scale grain to ~2 seasons of need (min 200), cost = 4 denarii per grain.
-    // Cooldown 4 rounds; BL-45 adds a second airlift inside cooldown when the
-    // deficit is still firing and the treasury is flush (>=3000d).
+    // BL-40 / BL-45 / BL-57: Auto Emergency Grain Import.
+    // BL-57 adds a predictive preventive path (denarii >= 400) that fires BEFORE
+    // starvation detection so goat-role runs don't eat a −15% population hit.
     const _preConsumeGrain = newInventory.grain;
     const _preConsumeFoodNeed = summary.foodConsumption;
     const _preConsumeDeficit = Math.max(0, _preConsumeFoodNeed - _preConsumeGrain);
     const _lastEmergencyImport = state.lastEmergencyImportRound ?? -99;
     let newLastEmergencyImportRound: number | undefined = state.lastEmergencyImportRound;
 
-    const tryEmergencyImport = (tag: 'import' | 'airlift'): void => {
+    const tryEmergencyImport = (tag: 'import' | 'airlift' | 'preventive'): void => {
         const grainCap = state.capacity.grain || 100;
         const grainRoom = Math.max(0, grainCap - newInventory.grain);
         const desiredGrain = Math.max(200, Math.ceil(_preConsumeFoodNeed * 2));
         const grainAdded = Math.min(desiredGrain, grainRoom);
         if (grainAdded <= 0) return;
-        const cost = 4 * grainAdded;
-        // Respect the 2000d floor and don't push treasury negative mid-adjustment.
+        const cost = tag === 'preventive' ? 400 : 4 * grainAdded;
         const projectedDenarii = state.denarii + newDenariiAdjustment_emergency;
         if (projectedDenarii - cost < 0) return;
         newInventory.grain = newInventory.grain + grainAdded;
         newDenariiAdjustment_emergency -= cost;
-        const label = tag === 'airlift' ? 'Emergency grain airlift' : 'Emergency grain import';
-        events.push(`[trade] ${label}: -${cost}d, +${grainAdded}g`);
+        const label =
+            tag === 'airlift' ? 'Emergency grain airlift' :
+            tag === 'preventive' ? 'Emergency Import' :
+            'Emergency grain import';
+        if (tag === 'preventive') {
+            events.push(
+                `[crisis] Winter grain reserves low (grain ${_preConsumeGrain}, need ${_preConsumeFoodNeed}) — ${label}: -${cost}d, +${grainAdded} grain.`
+            );
+        } else {
+            events.push(`[trade] ${label}: -${cost}d, +${grainAdded}g`);
+        }
         newLastEmergencyImportRound = newRound;
         // eslint-disable-next-line no-console
         console.warn(`[BL-45][${tag}]`, {
@@ -105,22 +112,33 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         });
     };
 
+    // BL-57: Predictive preventive airlift — fires BEFORE starvation detection
+    // when projected grain after this season's consumption drops below zero.
+    const projectedNextSeasonGrain = _preConsumeGrain - _preConsumeFoodNeed;
+    if (
+        projectedNextSeasonGrain < 0 &&
+        state.denarii >= 400 &&
+        state.consecutiveStarvation === 0
+    ) {
+        tryEmergencyImport('preventive');
+    }
+
     if (
         state.denarii >= 2000 &&
         _preConsumeDeficit > 0 &&
         (newRound - _lastEmergencyImport) >= 4 &&
-        state.consecutiveStarvation === 0
+        state.consecutiveStarvation === 0 &&
+        newLastEmergencyImportRound !== newRound
     ) {
         tryEmergencyImport('import');
     }
 
-    // BL-45: second airlift inside cooldown when coffers are flush and the
-    // deficit is still firing. Guarded against mid-starvation.
+    // BL-45: airlift inside cooldown when coffers are flush and deficit persists.
     if (
         state.denarii >= 3000 &&
         _preConsumeDeficit > _preConsumeFoodNeed * 0.1 &&
         state.consecutiveStarvation === 0 &&
-        newLastEmergencyImportRound !== newRound // only if the first-path didn't fire this season
+        newLastEmergencyImportRound !== newRound
     ) {
         tryEmergencyImport('airlift');
     }
@@ -289,19 +307,21 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
-    // BL-53: One-shot military-recruit nudge — when legion is still starter-sized
-    // and player can afford recruitment, steer them to the Military tab.
-    let newTroopRecruitNudgeShown = state.troopRecruitNudgeShown ?? false;
+    // BL-53 / BL-58: Recurring military-recruit nudge — repeats every 8 rounds
+    // while legion is understaffed and player can afford recruitment.
+    const lastTroopNudgeRound = state.lastTroopNudgeRound ?? 0;
+    let newLastTroopNudgeRound = lastTroopNudgeRound;
     if (
-        !newTroopRecruitNudgeShown &&
         newRound >= 3 &&
-        state.troops <= 30 &&
-        state.denarii >= 100
+        state.troops <= 40 &&
+        state.denarii >= 300 &&
+        (newRound - lastTroopNudgeRound) >= 8
     ) {
+        const ownedTerritories = state.territories.filter(t => t.owned).length;
         events.push(
-            `[military] Your legion is understaffed (${state.troops}). Visit Military → Recruit to train Auxiliaries.`
+            `[military] Your legion (${state.troops} troops) is understaffed for ${ownedTerritories} territories. Visit Military → Recruit to train Auxiliaries.`
         );
-        newTroopRecruitNudgeShown = true;
+        newLastTroopNudgeRound = newRound;
     }
 
     // BL-54: One-shot conquest/expansion nudge — when player has resources to
@@ -321,6 +341,15 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             );
             newConquestNudgeShown = true;
         }
+    }
+
+    // BL-56: One-shot patron-god nudge — new players often never choose a patron.
+    let newPatronNudgeShown = state.patronNudgeShown ?? false;
+    if (!newPatronNudgeShown && newRound >= 3 && !state.patronGod) {
+        events.push(
+            '[religion] Rome needs divine favor — choose a patron god on the Religion tab (+1 piety/season + tier bonuses).'
+        );
+        newPatronNudgeShown = true;
     }
 
     // Update denarii with tiered deficit protection (extended to round 24)
@@ -1081,8 +1110,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         eventCooldowns: newEventCooldowns,
         farmTutorialShown: newFarmTutorialShown,
         housingCapNudgeShown: newHousingCapNudgeShown,
-        troopRecruitNudgeShown: newTroopRecruitNudgeShown,
+        lastTroopNudgeRound: newLastTroopNudgeRound,
         conquestNudgeShown: newConquestNudgeShown,
+        patronNudgeShown: newPatronNudgeShown,
         insulaeNudgeShown: newInsulaeNudgeShown,
         // BL-49: Preserve spending-nudge cooldown across seasons.
         ...(newSpendingNudgeLastRound !== undefined ? { spendingNudgeLastRound: newSpendingNudgeLastRound } : {}),

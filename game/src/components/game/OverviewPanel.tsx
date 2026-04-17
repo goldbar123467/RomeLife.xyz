@@ -79,9 +79,34 @@ export function OverviewPanel() {
             });
     })();
 
+    // BL-60: Non-patron god blessings (0.5x strength) — any god with favor >= 25
+    const nonPatronBlessings = (() => {
+        const tiers: Array<25 | 50 | 75 | 100> = [25, 50, 75, 100];
+        const entries: Array<{ name: string; type: string; value: string; icon: typeof Zap; iconColor: string }> = [];
+        for (const [god, favor] of Object.entries(godFavor || {})) {
+            if (god === patronGod) continue;
+            const favorNum = favor ?? 0;
+            if (favorNum < 25) continue;
+            const godName = ROMAN_GODS[god as keyof typeof ROMAN_GODS]?.name ?? god;
+            for (const tier of tiers) {
+                if (favorNum < tier) continue;
+                const blessing = BLESSING_EFFECTS.find(b => b.god === god && b.tier === tier);
+                entries.push({
+                    name: `${godName} (Tier ${tier}) (non-patron 0.5x)`,
+                    type: 'blessing',
+                    value: blessing?.description ?? `Tier ${tier} blessing active`,
+                    icon: Zap,
+                    iconColor: 'text-indigo-400',
+                });
+            }
+        }
+        return entries;
+    })();
+
     // Calculate Active Effects (multiply by count for stacking)
     const activeEffects = [
         ...godBlessings,
+        ...nonPatronBlessings,
         ...builtBuildings.flatMap(b => b.effects.map(e => ({
             name: `${b.name}${b.count > 1 ? ` x${b.count}` : ''}`,
             type: e.type,
@@ -96,9 +121,15 @@ export function OverviewPanel() {
             icon: ScrollText,
             iconColor: 'text-purple-400'
         })))
-    ].slice(0, 8);
+    ].slice(0, 12);
 
     // Crisis Detection
+    // BL-59: Seasonal happiness/morale modifier copy for native title tooltips.
+    const happinessSeasonMod = season === 'spring' ? 5 : season === 'summer' ? 15 : season === 'autumn' ? 0 : -10;
+    const moraleSeasonMod = season === 'spring' ? 0 : season === 'summer' ? 10 : season === 'autumn' ? 0 : -15;
+    const happinessTitle = `Seasonal modifier: Spring +5, Summer +15, Autumn +0, Winter -10. Current: ${season} (${happinessSeasonMod >= 0 ? '+' : ''}${happinessSeasonMod}).`;
+    const moraleTitle = `Seasonal modifier: Spring +0, Summer +10, Autumn +0, Winter -15. Current: ${season} (${moraleSeasonMod >= 0 ? '+' : ''}${moraleSeasonMod}).`;
+
     const grainAmount = inventory.grain || 0;
     // BL-43 live-state crisis gate — evaluate CURRENT stats only; never consult lastEvents,
     // starvationHistory, or any stale/historical signal so the panel disappears as soon as
@@ -240,7 +271,7 @@ export function OverviewPanel() {
 
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }} title={happinessTitle}>
                             <StatDisplay label="Happiness" value={`${happiness}%`} icon={<Smile size={18} className="text-green-400" />} trend={happiness > 70 ? 'up' : happiness < 40 ? 'down' : 'neutral'} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
@@ -272,7 +303,7 @@ export function OverviewPanel() {
 
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }}>
+                        <motion.div className="glass-dark rounded-xl md:rounded-2xl p-2 md:p-4 cursor-help" whileHover={{ scale: 1.02 }} title={moraleTitle}>
                             <StatDisplay label="Morale" value={`${morale}%`} icon={<Shield size={18} className="text-amber-400" />} size="sm" />
                         </motion.div>
                     </TooltipTrigger>
@@ -347,9 +378,12 @@ export function OverviewPanel() {
                         </div>
                     </GlassCard>
 
-                    {/* Active Effects Dashboard */}
+                    {/* Active Effects Dashboard — BL-60: renders non-patron 0.5x blessings */}
                     <GlassCard>
-                        <SectionHeader title="Active Imperium Effects" subtitle="Current Global Bonuses" />
+                        <SectionHeader
+                            title="Active Imperium Effects"
+                            subtitle={!patronGod && nonPatronBlessings.length > 0 ? 'Passive divine bonuses' : 'Current Global Bonuses'}
+                        />
                         <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-hide">
                             {activeEffects.length > 0 ? (
                                 activeEffects.map((effect, i) => {
@@ -373,7 +407,7 @@ export function OverviewPanel() {
                                 })
                             ) : (
                                 <div className="text-center py-4 text-sm text-muted italic">
-                                    No active effects. Build structures or research tech!
+                                    No active god effects. Build structures or research tech!
                                 </div>
                             )}
                         </div>

@@ -548,8 +548,9 @@ const createInitialState = (): Omit<GameStore,
     farmTutorialShown: false,  // BL-30: one-shot farm-complex tutorial nudge
     patronTutorialShown: false,  // BL-36: one-shot patron-god worship nudge
     insulaeNudgeShown: false,   // BL-49: one-shot Insulae spending nudge
-    troopRecruitNudgeShown: false, // BL-53: one-shot military-recruit nudge
+    lastTroopNudgeRound: 0, // BL-53 / BL-58: recurring military-recruit nudge (every 8 rounds)
     conquestNudgeShown: false, // BL-54: one-shot conquest/expansion nudge
+    patronNudgeShown: false, // BL-56: one-shot patron-god nudge
     spendingNudgeLastRound: undefined, // BL-49: 3-round cooldown on Farm Complex spend nudge
     reputationMilestonesReached: [], // BL-11: milestones already fired
     history: [],
