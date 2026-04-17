@@ -114,6 +114,32 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         events.push(`[Treasury] Deficit: ${effectiveNetIncome} denarii`);
     }
 
+    // BL-21: Surface deficit and low-grain warnings early (cooldown: 2 rounds)
+    // Uses the uncapped summary.netIncome so the warning fires even while
+    // tiered deficit protection is softening the real loss.
+    let newLastDeficitWarnRound = state.lastDeficitWarnRound;
+    let newLastLowGrainWarnRound = state.lastLowGrainWarnRound;
+    if (summary.netIncome < 0) {
+        const lastWarn = state.lastDeficitWarnRound ?? -999;
+        if (newRound - lastWarn >= 2) {
+            events.push(
+                `[!] Deficit: losing ${Math.abs(summary.netIncome)} denarii/season. Raise taxes or build a marketplace.`
+            );
+            newLastDeficitWarnRound = newRound;
+        }
+    }
+    // Low-grain warning: under 1.5x seasonal consumption projects famine soon
+    if (foodConsumed > 0 && newInventory.grain < foodConsumed * 1.5) {
+        const lastWarn = state.lastLowGrainWarnRound ?? -999;
+        if (newRound - lastWarn >= 2) {
+            const seasonsLeft = Math.max(0, Math.floor(newInventory.grain / foodConsumed));
+            events.push(
+                `[!] Low grain: famine in ~${seasonsLeft} season${seasonsLeft === 1 ? '' : 's'} unless you build a Farm/Granary.`
+            );
+            newLastLowGrainWarnRound = newRound;
+        }
+    }
+
     // Update market prices
     const { prices, demand } = calculateMarketPrices(
         newInventory,
@@ -733,6 +759,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         emergencyCooldowns: newEmergencyCooldowns,
         worshipCooldowns: newWorshipCooldowns,
         eventCooldowns: newEventCooldowns,
+        lastDeficitWarnRound: newLastDeficitWarnRound,
+        lastLowGrainWarnRound: newLastLowGrainWarnRound,
         history: [...state.history, historyEntry],
         treasuryHistory: [...(state.treasuryHistory || []), treasuryEntry].slice(-50), // Keep last 50 entries
         // BUG-001 FIX: Always preserve senate state to prevent accidental resets

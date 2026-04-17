@@ -315,6 +315,30 @@ export function calculateIncome(state: GameState): number {
 }
 
 /**
+ * BL-23: Happiness penalty from a given tax rate per season.
+ * Mirrors the formula applied in `executeEndSeason` (usecases/index.ts:467):
+ *   if (taxRate > 0.20) newHappiness -= floor((taxRate - 0.20) * 50)
+ * Returned as a positive integer (the amount subtracted from happiness each season).
+ */
+export function calculateTaxHappinessPenalty(taxRate: number): number {
+    if (taxRate <= 0.20) return 0;
+    return Math.floor((taxRate - 0.20) * 50);
+}
+
+/**
+ * BL-23: Projected Δhappiness per season for the current tax rate relative
+ * to a neutral baseline (default 10% — a "low / balanced" preset).
+ * Negative delta means this rate costs happiness compared to the baseline;
+ * positive means it preserves happiness compared to a harsher baseline.
+ */
+export function calculateTaxHappinessDelta(taxRate: number, baselineRate: number = 0.10): number {
+    const currentPenalty = calculateTaxHappinessPenalty(taxRate);
+    const baselinePenalty = calculateTaxHappinessPenalty(baselineRate);
+    // penalty is subtracted from happiness, so delta = baseline - current
+    return baselinePenalty - currentPenalty;
+}
+
+/**
  * Calculate total upkeep costs
  * Formula: Σ(building upkeep) + (troops × 2) + (housing ÷ 15) + (forts × 4) + (sanitation ÷ 8)
  */

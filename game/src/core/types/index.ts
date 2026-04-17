@@ -472,6 +472,10 @@ export interface GameState {
     // Event Cooldowns (prevent same event from repeating)
     eventCooldowns?: Record<string, number>;
 
+    // BL-21: Track last round we warned about deficit / low grain to avoid spam
+    lastDeficitWarnRound?: number;
+    lastLowGrainWarnRound?: number;
+
     // Religion - Consecrated territories get +25% production
     consecratedTerritories: string[];
 

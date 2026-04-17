@@ -26,6 +26,7 @@ import {
     executeEndSeason, executeRecruitTroops, executeResearchTech,
     executeTrade, executeUpgradeTerritory, executeSendEnvoy, executeEnterInfiniteMode
 } from '@/app/usecases';
+import { clampSenateEventEffect } from '@/app/usecases/senate';
 import { syncToDatabase, clearDbGameId } from '@/lib/dbSync';
 
 // === INITIAL TERRITORIES ===
@@ -1864,10 +1865,15 @@ export const useGameStore = create<GameStore>()(
                     };
                 }
 
-                // Apply resource changes
+                // Apply resource changes (BL-07: clamp to prevent extreme swings)
                 const newState: Partial<GameStore> = {};
+                const clampMessages: string[] = [];
                 if (choice.effects.resourceChanges) {
-                    const rc = choice.effects.resourceChanges;
+                    const clampResult = clampSenateEventEffect(state, choice.effects.resourceChanges);
+                    const rc = clampResult.effect;
+                    if (clampResult.clamped) {
+                        clampMessages.push(...clampResult.messages.map(m => `[Senate] ${m}`));
+                    }
                     if (rc.denarii) newState.denarii = state.denarii + rc.denarii;
                     if (rc.happiness) newState.happiness = Math.max(0, Math.min(100, state.happiness + rc.happiness));
                     if (rc.morale) newState.morale = Math.max(0, Math.min(100, state.morale + rc.morale));
@@ -1891,7 +1897,7 @@ export const useGameStore = create<GameStore>()(
                         pendingEvents: state.senate.pendingEvents.slice(1),
                         eventHistory: newHistory,
                     },
-                    lastEvents: [`Senate: Resolved "${event.title}"`],
+                    lastEvents: [`Senate: Resolved "${event.title}"`, ...clampMessages],
                 });
             },
 

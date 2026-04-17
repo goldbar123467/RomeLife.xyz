@@ -549,3 +549,81 @@ export function finalizeQueuedActions(
         resolved: false,
     }));
 }
+
+// === BL-07: SENATE EVENT EFFECT CAPS ===
+
+export interface SenateEventEffectInput {
+    denarii?: number;
+    grain?: number;
+    happiness?: number;
+    morale?: number;
+    reputation?: number;
+    piety?: number;
+    troops?: number;
+    population?: number;
+}
+
+export interface ClampedSenateEventEffect {
+    effect: SenateEventEffectInput;
+    clamped: boolean;
+    messages: string[];
+}
+
+/**
+ * BL-07: Clamp per-event deltas so a single senator event can't swing resources
+ * by extreme amounts (e.g. ±20k denarii in one round).
+ *
+ * Caps:
+ * - happiness: ±20
+ * - denarii: ±30% of current denarii (min ±500 floor)
+ * - population: ±15
+ * - morale / piety: ±15
+ */
+export function clampSenateEventEffect(
+    state: Pick<GameState, 'denarii'>,
+    effect: SenateEventEffectInput
+): ClampedSenateEventEffect {
+    const clamped: SenateEventEffectInput = { ...effect };
+    const messages: string[] = [];
+    let wasClamped = false;
+
+    const clampField = (
+        key: keyof SenateEventEffectInput,
+        limit: number,
+        label: string
+    ) => {
+        const raw = effect[key];
+        if (raw == null) return;
+        if (raw > limit) {
+            clamped[key] = limit;
+            messages.push(`Effect on ${label} capped from +${raw} to +${limit}`);
+            wasClamped = true;
+        } else if (raw < -limit) {
+            clamped[key] = -limit;
+            messages.push(`Effect on ${label} capped from ${raw} to -${limit}`);
+            wasClamped = true;
+        }
+    };
+
+    clampField('happiness', 20, 'happiness');
+    clampField('population', 15, 'population');
+    clampField('morale', 15, 'morale');
+    clampField('piety', 15, 'piety');
+
+    // Denarii: ±30% of current denarii, min ±500 floor so early game isn't softlocked
+    if (effect.denarii != null) {
+        const pctCap = Math.abs(state.denarii) * 0.3;
+        const denariiCap = Math.max(500, pctCap);
+        if (effect.denarii > denariiCap) {
+            clamped.denarii = Math.round(denariiCap);
+            messages.push(`Effect on denarii capped from +${effect.denarii} to +${clamped.denarii}`);
+            wasClamped = true;
+        } else if (effect.denarii < -denariiCap) {
+            clamped.denarii = -Math.round(denariiCap);
+            messages.push(`Effect on denarii capped from ${effect.denarii} to ${clamped.denarii}`);
+            wasClamped = true;
+        }
+    }
+
+    return { effect: clamped, clamped: wasClamped, messages };
+}
