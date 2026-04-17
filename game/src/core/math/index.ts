@@ -396,6 +396,10 @@ export function calculateFoodConsumption(state: GameState, seasonMod?: SeasonMod
     consumption *= seasonMod.foodConsumption;
 
     // Grace period (early game)
+    // BL-28 verified: .find() uses `round <= maxRound`, so round=1..8 hits the
+    // first bucket (multiplier 0.5), round=9..14 hits the second (0.65), etc.
+    // No off-by-one. Paired with the raised 750 starting-grain stockpile this
+    // prevents the round 5-7 famine spiral that Avg/Goat personas were hitting.
     const graceConfig = GAME_CONSTANTS.GRACE_MULTIPLIERS.find(g => round <= g.maxRound);
     if (graceConfig) {
         consumption *= graceConfig.multiplier;

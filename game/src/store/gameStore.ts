@@ -449,12 +449,14 @@ const createInitialState = (): Omit<GameStore,
     // Resources
     denarii: STARTING_STATE.denarii,
     inventory: {
-        // BL-28: Raised grain from 500 -> 750 to absorb the 4-season structural
-        // deficit when the player has not yet built a Farm Complex. Palatine base
-        // grain production is ~3.6/season while grace-period consumption is
-        // ~27/season, leaving a net ~23/season drain. 500 grain depleted by
-        // round 5-6 in QA playthroughs (Avg/Goat personas) before the player
-        // could reasonably ramp production. 750 gives ~8 rounds of runway.
+        // BL-28 (cycle 3, 2026-04-17): Starting grain verified at 750.
+        // Earlier QA backlog suggested raising 120 -> 150, but the in-code
+        // baseline was already buffed to 750 (prior pass) to absorb the
+        // 4-season structural deficit when the player has not yet built a
+        // Farm Complex. Palatine base grain production is ~3.6/season while
+        // grace-period consumption is ~27/season, leaving a net ~23/season
+        // drain. 750 gives ~8 rounds of runway, well above the 150 target.
+        // Leaving at 750 (more lenient than requested) - do NOT lower to 150.
         grain: 750, iron: 10, timber: 20, stone: 15, clay: 10,
         wool: 5, salt: 5, livestock: 10, wine: 0, olive_oil: 0, spices: 0,
     },

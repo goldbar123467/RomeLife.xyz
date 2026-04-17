@@ -102,6 +102,16 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     if (popGrowth > 0) events.push(`[Population] Population grew by ${popGrowth}`);
     if (starvationLoss > 0) events.push(`[Crisis] Lost ${starvationLoss} to starvation`);
 
+    // BL-18: Surface the silent sanitation-death-spiral.
+    // `calculatePopulationGrowth` returns -1 when sanitation < 15 AND pop < housing
+    // (disease/death outpaces births). Previously there was no UI surface, so the
+    // player would see population slowly bleed without knowing why.
+    if (popGrowth < 0 && state.sanitation < 15 && state.population < state.housing) {
+        events.push(
+            `[!] Sanitation critical (${state.sanitation}) — population declining from disease. Build a Bathhouse/Aqueduct.`
+        );
+    }
+
     // Update denarii with tiered deficit protection (extended to round 24)
     let effectiveNetIncome = summary.netIncome;
     if (summary.netIncome < 0) {
