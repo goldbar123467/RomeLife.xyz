@@ -79,6 +79,24 @@ export function ReligionPanel() {
                 </div>
             </div>
 
+            {/* BL-37: Quick Prayer — always visible on every Religion sub-tab.
+                Always triggers the 'prayer' worship action (cost: none, cooldown: 0).
+                Exposed with an explicit button role + aria-label="Pray" so the QA
+                spec can find it with getByRole('button', { name: /Pray/i }). */}
+            {patronGod && (
+                <div>
+                    <button
+                        type="button"
+                        aria-label="Pray"
+                        data-testid="worship-action-quick-prayer"
+                        onClick={() => worship('prayer')}
+                        className="btn-gold inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-200 px-5 py-3 text-base min-h-[48px]"
+                    >
+                        Pray
+                    </button>
+                </div>
+            )}
+
             {/* Tab Navigation */}
             <div className="flex gap-2 border-b border-line pb-2">
                 {tabs.map(tab => {

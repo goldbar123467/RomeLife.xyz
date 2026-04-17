@@ -546,6 +546,7 @@ const createInitialState = (): Omit<GameStore,
     consecutiveStarvation: 0,
     feastsUsed: 0,  // Tracks feast uses for diminishing returns
     farmTutorialShown: false,  // BL-30: one-shot farm-complex tutorial nudge
+    patronTutorialShown: false,  // BL-36: one-shot patron-god worship nudge
     history: [],
     treasuryHistory: [],
 
@@ -1169,7 +1170,21 @@ export const useGameStore = create<GameStore>()(
             },
 
             // === RELIGION ===
-            setPatronGod: (god) => set({ patronGod: god }),
+            setPatronGod: (god) => {
+                const state = get();
+                // BL-36: One-time tutorial nudge on first patron selection so
+                // new players know the next step is worship (piety gain).
+                if (!state.patronTutorialShown) {
+                    const godLabel = god.charAt(0).toUpperCase() + god.slice(1);
+                    set({
+                        patronGod: god,
+                        patronTutorialShown: true,
+                        lastEvents: [`[religion] Your patron ${godLabel} awaits offerings — visit the Religion tab to worship.`],
+                    });
+                } else {
+                    set({ patronGod: god });
+                }
+            },
 
             worship: (actionId): boolean => {
                 const state = get();

@@ -25,7 +25,10 @@ const TABS: { id: Tab; label: string; description: string }[] = [
 ];
 
 export function TabNavigation() {
-    const { activeTab, setTab, buildings } = useGameStore();
+    const { activeTab, setTab, buildings, patronGod, piety, round } = useGameStore();
+
+    // BL-36: Red dot on Religion tab when patron is set but piety is still 0.
+    const religionNudge = !!patronGod && piety === 0 && round > 1;
 
     // Calculate actual progress: buildings built / total available
     const progressPercent = useMemo(() => {
@@ -88,6 +91,15 @@ export function TabNavigation() {
 
                             {/* Label */}
                             <span className="relative z-10">{tab.label}</span>
+
+                            {/* BL-36: red dot badge on Religion when patron is set but piety is still 0 */}
+                            {tab.id === 'religion' && religionNudge && (
+                                <span
+                                    className="inline-block w-2 h-2 rounded-full bg-red-500 ml-1"
+                                    aria-label="Religion needs attention"
+                                    data-testid="religion-nudge-dot"
+                                />
+                            )}
 
                             {/* Arrow indicator for active */}
                             {isActive && (

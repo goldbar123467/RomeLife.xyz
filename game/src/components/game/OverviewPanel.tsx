@@ -6,7 +6,7 @@ import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divid
 import { RESOURCE_ASSETS } from '@/lib/assets';
 import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
 import { getSenatorDangerLevel, getSenatorStateDescription } from '@/core/constants/senate';
-import { calculateProductionSummary } from '@/core/math';
+import { calculateProductionSummary, calculateIncomeBreakdown, calculateExpenseBreakdown } from '@/core/math';
 import type { ResourceType, SenatorState } from '@/core/types';
 import {
     AlertTriangle,
@@ -49,6 +49,9 @@ export function OverviewPanel() {
     const ownedTerritories = territories.filter(t => t.owned);
     const builtBuildings = buildings.filter(b => b.count > 0);
     const production = calculateProductionSummary(state);
+    // BL-33: Itemized Income / Expense breakdown for Treasury deficit tooltip
+    const incomeBreakdown = calculateIncomeBreakdown(state);
+    const expenseBreakdown = calculateExpenseBreakdown(state);
     const imperialEvents = lastEvents || [];
 
     // Calculate Legion Stats
@@ -160,11 +163,26 @@ export function OverviewPanel() {
                         </motion.div>
                     </TooltipTrigger>
                     <TooltipContent>
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-[220px]">
                             <div className="font-bold text-[#f0c14b]">Treasury</div>
-                            <div className="text-xs">Income: <span className="text-green-400">+{production.income}/season</span></div>
-                            <div className="text-xs">Upkeep: <span className="text-red-400">-{production.upkeep}/season</span></div>
-                            <div className="text-xs">Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/season</span></div>
+                            {/* BL-33: Itemized Income / Expense breakdown */}
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] mt-1">
+                                <div className="font-semibold text-green-400 uppercase tracking-wider text-[10px]">Income</div>
+                                <div className="font-semibold text-red-400 uppercase tracking-wider text-[10px]">Expense</div>
+                                <div className="text-green-300">Tax <span className="text-white/80">+{incomeBreakdown.tax}</span></div>
+                                <div className="text-red-300">Garrison <span className="text-white/80">-{expenseBreakdown.garrisonUpkeep}</span></div>
+                                <div className="text-green-300">Trade <span className="text-white/80">+{incomeBreakdown.trade}</span></div>
+                                <div className="text-red-300">Buildings <span className="text-white/80">-{expenseBreakdown.buildingUpkeep}</span></div>
+                                <div className="text-green-300">Tribute <span className="text-white/80">+{incomeBreakdown.tribute}</span></div>
+                                <div className="text-red-300">Wonders <span className="text-white/80">-{expenseBreakdown.wonderUpkeep}</span></div>
+                                <div className="text-green-300">Wonders <span className="text-white/80">+{incomeBreakdown.wonders}</span></div>
+                                <div className="text-red-300">Events <span className="text-white/80">-{expenseBreakdown.events}</span></div>
+                            </div>
+                            <div className="border-t border-white/10 pt-1 mt-1 text-xs">
+                                <div>Total In: <span className="text-green-400">+{production.income}/s</span></div>
+                                <div>Total Out: <span className="text-red-400">-{production.upkeep}/s</span></div>
+                                <div>Net: <span className={production.netIncome >= 0 ? 'text-green-400' : 'text-red-400'}>{production.netIncome >= 0 ? '+' : ''}{production.netIncome}/s</span></div>
+                            </div>
                             {production.netIncome < 0 && (
                                 <div className="text-xs text-red-400 mt-1">Raise taxes or build a marketplace to recover.</div>
                             )}
