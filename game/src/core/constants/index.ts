@@ -933,6 +933,14 @@ export const TERRITORY_FOCUS: Record<string, TerritoryFocusData> = {
     },
 };
 
+// BL-11: Reputation milestones. Crossing a threshold surfaces a log event and
+// grants small stacking trade bonuses (applied in usecases trade pricing).
+export const REPUTATION_MILESTONES = [
+    { threshold: 25,  name: 'Respected',  bonus: { tradePrices: 0.05, tariffReduction: 0 } },
+    { threshold: 50,  name: 'Renowned',   bonus: { tradePrices: 0, tariffReduction: 0.05 } },
+    { threshold: 100, name: 'Legendary',  bonus: { tradePrices: 0.10, tariffReduction: 0.05 } },
+];
+
 // === RE-EXPORTS ===
 export * from './religion';
 export * from './territory';

@@ -547,6 +547,9 @@ const createInitialState = (): Omit<GameStore,
     feastsUsed: 0,  // Tracks feast uses for diminishing returns
     farmTutorialShown: false,  // BL-30: one-shot farm-complex tutorial nudge
     patronTutorialShown: false,  // BL-36: one-shot patron-god worship nudge
+    insulaeNudgeShown: false,   // BL-49: one-shot Insulae spending nudge
+    spendingNudgeLastRound: undefined, // BL-49: 3-round cooldown on Farm Complex spend nudge
+    reputationMilestonesReached: [], // BL-11: milestones already fired
     history: [],
     treasuryHistory: [],
 

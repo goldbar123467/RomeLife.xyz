@@ -235,7 +235,8 @@ export const RELIGIOUS_EVENTS: ReligiousEvent[] = [
     icon: 'zap',
     description: 'The gods are displeased! Crops wither.',
     probability: 0.04,
-    effects: { piety: -20, grain: -50, morale: -15 },
+    // BL-46: piety softened -20 -> -12 defensively; primary fix is clampReligiousEventEffect()
+    effects: { piety: -12, grain: -50, morale: -15 },
   },
   {
     id: 'prophetic_dream',

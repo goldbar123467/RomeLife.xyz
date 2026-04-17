@@ -10,7 +10,8 @@ import type {
     DiplomacyHistoryEntry
 } from '@/core/types';
 import {
-    SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS, GAME_CONSTANTS
+    SEASON_MODIFIERS, MILITARY_UNITS, TERRITORY_LEVELS, TERRITORY_FOCUS, GAME_CONSTANTS,
+    REPUTATION_MILESTONES
 } from '@/core/constants';
 import { calculateBuildingEffects } from '@/core/constants/territory';
 import { rollRandomEvent as rollEmpireEvent, EVENT_COOLDOWN_ROUNDS } from '@/core/constants/events';
@@ -23,13 +24,14 @@ import {
     calculateTradeRisk, resolveTradeRisk, calculateStabilityChange, rollTerritoryEvent,
     shouldGenerateContent, generateProceduralTerritory, randomInt, random, roundResource,
     calculateIncomeBreakdown, calculateExpenseBreakdown,
+    getReputationTradeBonus,
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import {
     checkVictoryConditions, checkFailureConditions, checkAchievements,
     checkQuestProgress, getTechBonus
 } from '@/core/rules';
-import { processSenateSeasonEnd } from '@/app/usecases/senate';
+import { processSenateSeasonEnd, clampReligiousEventEffect } from '@/app/usecases/senate';
 
 // === END SEASON USE CASE ===
 
@@ -68,32 +70,59 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         ));
     }
 
-    // BL-40: Auto Emergency Grain Import.
-    // If the player is flush with cash but grain is about to dip into a
-    // deficit, and we're not already mid-starvation-cascade, auto-spend 400
-    // denarii for +200 grain (clamped by capacity). Cooldown: 4 rounds.
-    // This prevents the Goat/Remus max-tax round-7 Famine cascade where the
-    // player has 7000+ denarii but no grain infrastructure.
+    // BL-40 / BL-45: Auto Emergency Grain Import.
+    // Scale grain to ~2 seasons of need (min 200), cost = 4 denarii per grain.
+    // Cooldown 4 rounds; BL-45 adds a second airlift inside cooldown when the
+    // deficit is still firing and the treasury is flush (>=3000d).
     const _preConsumeGrain = newInventory.grain;
     const _preConsumeFoodNeed = summary.foodConsumption;
     const _preConsumeDeficit = Math.max(0, _preConsumeFoodNeed - _preConsumeGrain);
     const _lastEmergencyImport = state.lastEmergencyImportRound ?? -99;
     let newLastEmergencyImportRound: number | undefined = state.lastEmergencyImportRound;
+
+    const tryEmergencyImport = (tag: 'import' | 'airlift'): void => {
+        const grainCap = state.capacity.grain || 100;
+        const grainRoom = Math.max(0, grainCap - newInventory.grain);
+        const desiredGrain = Math.max(200, Math.ceil(_preConsumeFoodNeed * 2));
+        const grainAdded = Math.min(desiredGrain, grainRoom);
+        if (grainAdded <= 0) return;
+        const cost = 4 * grainAdded;
+        // Respect the 2000d floor and don't push treasury negative mid-adjustment.
+        const projectedDenarii = state.denarii + newDenariiAdjustment_emergency;
+        if (projectedDenarii - cost < 0) return;
+        newInventory.grain = newInventory.grain + grainAdded;
+        newDenariiAdjustment_emergency -= cost;
+        const label = tag === 'airlift' ? 'Emergency grain airlift' : 'Emergency grain import';
+        events.push(`[trade] ${label}: -${cost}d, +${grainAdded}g`);
+        newLastEmergencyImportRound = newRound;
+        // eslint-disable-next-line no-console
+        console.warn(`[BL-45][${tag}]`, {
+            round: newRound,
+            grainAdded,
+            cost,
+            denarii: projectedDenarii - cost,
+            deficit: _preConsumeDeficit,
+        });
+    };
+
     if (
         state.denarii >= 2000 &&
         _preConsumeDeficit > 0 &&
         (newRound - _lastEmergencyImport) >= 4 &&
         state.consecutiveStarvation === 0
     ) {
-        const grainCap = state.capacity.grain || 100;
-        const grainRoom = Math.max(0, grainCap - newInventory.grain);
-        const grainAdded = Math.min(200, grainRoom);
-        if (grainAdded > 0) {
-            newInventory.grain = newInventory.grain + grainAdded;
-            newDenariiAdjustment_emergency = -400; // applied below
-            events.push(`[trade] Emergency grain import: -400 denarii, +${grainAdded} grain`);
-            newLastEmergencyImportRound = newRound;
-        }
+        tryEmergencyImport('import');
+    }
+
+    // BL-45: second airlift inside cooldown when coffers are flush and the
+    // deficit is still firing. Guarded against mid-starvation.
+    if (
+        state.denarii >= 3000 &&
+        _preConsumeDeficit > _preConsumeFoodNeed * 0.1 &&
+        state.consecutiveStarvation === 0 &&
+        newLastEmergencyImportRound !== newRound // only if the first-path didn't fire this season
+    ) {
+        tryEmergencyImport('airlift');
     }
 
     // Consume food
@@ -210,6 +239,41 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             );
             newFarmTutorialShown = true;
         }
+    }
+
+    // BL-49: Recurring spending nudge — when the player is sitting on >=1000d
+    // while a grain deficit is firing and no Farm Complex exists, remind them
+    // to spend. 3-round cooldown to avoid spam.
+    let newSpendingNudgeLastRound = state.spendingNudgeLastRound;
+    {
+        const hasFarmComplexNow = state.buildings.some(b => b.id === 'farm_1' && b.count > 0);
+        const lastNudge = state.spendingNudgeLastRound ?? -999;
+        if (
+            !hasFarmComplexNow &&
+            state.denarii >= 1000 &&
+            _preConsumeDeficit > 0 &&
+            (newRound - lastNudge) >= 3
+        ) {
+            events.push(
+                `[spend] You have ${state.denarii}d banked — build a Farm Complex (500d) in Palatine Hill → Build to stop the famine.`
+            );
+            newSpendingNudgeLastRound = newRound;
+        }
+    }
+
+    // BL-49 bonus: one-shot Insulae nudge when population is pinned at housing
+    // and the player has coin to spare. Kicks in from round 5 onwards.
+    let newInsulaeNudgeShown = state.insulaeNudgeShown ?? false;
+    if (
+        !newInsulaeNudgeShown &&
+        state.denarii >= 2000 &&
+        state.population >= state.housing * 0.95 &&
+        state.round >= 5
+    ) {
+        events.push(
+            `[spend] Denarii banked: ${state.denarii} — consider building Insulae (800d) to raise housing cap above 150.`
+        );
+        newInsulaeNudgeShown = true;
     }
 
     // BL-44: One-shot housing-cap progression nudge — when pop is pinned at housing
@@ -604,14 +668,21 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             newEventCooldowns[religiousEvent.id] = EVENT_COOLDOWN_ROUNDS;
             events.push(`${religiousEvent.icon} ${religiousEvent.name}: ${religiousEvent.description}`);
 
-            // Apply religious event effects
-            if (religiousEvent.effects.piety) eventPiety += religiousEvent.effects.piety;
-            if (religiousEvent.effects.happiness) eventHappiness += religiousEvent.effects.happiness;
-            if (religiousEvent.effects.morale) eventMorale += religiousEvent.effects.morale;
-            if (religiousEvent.effects.reputation) eventReputation += religiousEvent.effects.reputation;
-            if (religiousEvent.effects.grain) {
+            // BL-46: Clamp per-field deltas so a single divine_wrath can't crater piety.
+            const clampResult = clampReligiousEventEffect(religiousEvent.effects);
+            const clampedFx = clampResult.effect;
+            if (clampResult.clamped) {
+                events.push(`[religion-clamp] ${religiousEvent.name}: ${clampResult.messages.join(', ')}`);
+            }
+
+            // Apply religious event effects (clamped)
+            if (clampedFx.piety) eventPiety += clampedFx.piety;
+            if (clampedFx.happiness) eventHappiness += clampedFx.happiness;
+            if (clampedFx.morale) eventMorale += clampedFx.morale;
+            if (clampedFx.reputation) eventReputation += clampedFx.reputation;
+            if (clampedFx.grain) {
                 newInventory.grain = Math.max(0, Math.min(
-                    newInventory.grain + religiousEvent.effects.grain,
+                    newInventory.grain + clampedFx.grain,
                     state.capacity.grain || 100
                 ));
             }
@@ -851,6 +922,24 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-11: Reputation milestone crossings — surface to log and remember so each fires once.
+    const finalReputation = Math.max(0, Math.min(100, newReputation + eventReputation));
+    const alreadyReached = state.reputationMilestonesReached ?? [];
+    const newMilestonesReached = [...alreadyReached];
+    for (const m of REPUTATION_MILESTONES) {
+        if (finalReputation >= m.threshold && !alreadyReached.includes(m.threshold)) {
+            const pricePct = Math.round((m.bonus.tradePrices ?? 0) * 100);
+            const tariffPct = Math.round((m.bonus.tariffReduction ?? 0) * 100);
+            const parts: string[] = [];
+            if (pricePct > 0) parts.push(`+${pricePct}% trade prices`);
+            if (tariffPct > 0) parts.push(`−${tariffPct}% tariff`);
+            events.push(
+                `[milestone] Reputation ${m.threshold} reached — ${m.name} (${parts.join(' / ') || 'recognition'})`
+            );
+            newMilestonesReached.push(m.threshold);
+        }
+    }
+
     // Record history
     const historyEntry = {
         round: newRound,
@@ -866,6 +955,32 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
 
     // Build total additional income BEFORE treasury history so chart data is accurate
     const totalAdditionalIncome = prosperityIncome + caravanIncome + tradeRouteIncome + wonderEffects.income + wonderRecurringIncome + eventDenarii;
+
+    // BL-50: Surface unexplained denarii drops (net change <= -100) with the 2 largest known cost lines.
+    const finalDenarii = Math.max(0, newDenarii + totalAdditionalIncome);
+    const netDenariiDelta = finalDenarii - state.denarii;
+    if (netDenariiDelta <= -100) {
+        const causes: { label: string; cost: number }[] = [];
+        if (newDenariiAdjustment_emergency < 0) {
+            causes.push({ label: 'emergency grain import', cost: -newDenariiAdjustment_emergency });
+        }
+        if (effectiveNetIncome < 0) {
+            causes.push({ label: 'upkeep deficit', cost: -effectiveNetIncome });
+        }
+        if (senateResult && senateResult.denariiChange < 0) {
+            causes.push({ label: 'senate event', cost: -senateResult.denariiChange });
+        }
+        if (eventDenarii < 0) {
+            causes.push({ label: 'random event', cost: -eventDenarii });
+        }
+        const top = causes.sort((a, b) => b.cost - a.cost).slice(0, 2);
+        if (top.length > 0) {
+            const detail = top.map(c => `${c.label} -${c.cost}d`).join(', ');
+            events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii — largest costs: ${detail}`);
+        } else {
+            events.push(`[treasury] Net -${Math.abs(netDenariiDelta)} denarii this season — check Economy tab.`);
+        }
+    }
 
     // Record treasury history for charts (uses final denarii including all income sources)
     const treasuryEntry: TreasuryHistoryEntry = {
@@ -898,6 +1013,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         godFavor: newGodFavor,
         // Apply achievement rewards + wonder effects + event effects
         reputation: Math.max(0, Math.min(100, newReputation + eventReputation)),
+        // BL-11: persist crossed milestone thresholds so each fires exactly once.
+        reputationMilestonesReached: newMilestonesReached,
         supplies: newSupplies,
         piety: Math.max(0, Math.min(100, newPiety + wonderEffects.piety + eventPiety)),
         sanitation: Math.max(0, Math.min(100, state.sanitation + wonderEffects.sanitation)),
@@ -925,6 +1042,9 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         eventCooldowns: newEventCooldowns,
         farmTutorialShown: newFarmTutorialShown,
         housingCapNudgeShown: newHousingCapNudgeShown,
+        insulaeNudgeShown: newInsulaeNudgeShown,
+        // BL-49: Preserve spending-nudge cooldown across seasons.
+        ...(newSpendingNudgeLastRound !== undefined ? { spendingNudgeLastRound: newSpendingNudgeLastRound } : {}),
         // BL-40: Preserve emergency-import cooldown so it respects the 4-round cadence.
         ...(newLastEmergencyImportRound !== undefined ? { lastEmergencyImportRound: newLastEmergencyImportRound } : {}),
         // BL-33: Itemized breakdown for Treasury deficit tooltip
@@ -1120,6 +1240,10 @@ export function executeTrade(
     const mercuryPriceBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tradePrices');
     const mercuryTariffBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'tariffs');
 
+    // BL-11: Reputation milestone stacking (additive with Mercury).
+    // tariffReduction is applied as a positive number, same shape as focus reduction.
+    const repTradeBonus = getReputationTradeBonus(state.reputation);
+
     // Territory focus: trade_hub +15% trade prices, +20% tariff reduction
     let focusTradePriceBonus = 0;
     let focusTariffReduction = 0;
@@ -1133,7 +1257,7 @@ export function executeTrade(
     // Clamp cumulative tariff reduction from territory focuses to prevent inversion
     focusTariffReduction = Math.min(0.80, focusTariffReduction);
 
-    let tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction); // mercuryTariffBonus is negative (-0.20)
+    let tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction - repTradeBonus.tariffReduction); // mercuryTariffBonus is negative (-0.20)
     // Clamp tariffMod: cannot invert to revenue bonus, cannot exceed 100% reduction
     tariffMod = Math.max(0, Math.min(1, tariffMod));
 
@@ -1157,7 +1281,8 @@ export function executeTrade(
     }
 
     // Successful trade - apply Mercury price bonus (+10% at tier 25) and focus bonus
-    const denariiGained = Math.floor(basePrice * amount * cityBonus * founderBonus * techBonus * tariffMod * (1 + mercuryPriceBonus + focusTradePriceBonus));
+    // BL-11: stack reputation-milestone trade-price bonus additively.
+    const denariiGained = Math.floor(basePrice * amount * cityBonus * founderBonus * techBonus * tariffMod * (1 + mercuryPriceBonus + focusTradePriceBonus + repTradeBonus.tradePrices));
 
     return {
         success: true,
