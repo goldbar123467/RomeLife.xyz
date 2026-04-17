@@ -498,6 +498,12 @@ export interface GameState {
     // BL-44: One-shot flag so the housing-cap / expansion nudge fires exactly once
     housingCapNudgeShown?: boolean;
 
+    // BL-53: One-shot flag so the military-recruit nudge fires exactly once
+    troopRecruitNudgeShown?: boolean;
+
+    // BL-54: One-shot flag so the conquest/expansion nudge fires exactly once
+    conquestNudgeShown?: boolean;
+
     // BL-40: Round of last auto-triggered Emergency Grain Import (cooldown = 4 rounds)
     lastEmergencyImportRound?: number;
 

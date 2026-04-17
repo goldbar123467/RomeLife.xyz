@@ -1,8 +1,61 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17 (cycle 8: 2026-04-17)
+Generated: 2026-04-17 (cycle 9: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance-critic.
+
+## Cycle 9 QA Findings (2026-04-17) — post cycle-8 re-run, new findings
+
+- Noob (Romulus, 15 presses): healthy run, pop 150 at round 3, happiness 90/morale 92 at round 4 winter. Piety 15 via passive gain (no patron). BL-44 nudge fires correctly in Imperial Log. **Empire Status shows "No active god effects" despite piety 15 (tier 10 non-patron religion bonus still missing).**
+- Avg (Romulus+Jupiter, 25 presses): reaches round 7 summer healthy. Piety climbs 3 → **66** then dips to **57 at round 6 summer** (−9 piety delta) — BL-46 clamp helped but a single event still exceeds ±10 cap. Denarii climb steadily but drop −762 at round 6→7 (emergency grain import + event), and `Active Imperium Effects` card shows "**No active god effects**" even at **Jupiter favor 36% + piety 81**. Tier 25 blessing never surfaces in UI.
+- Goat (Remus aggressive-tax, 35 presses): **survives all 35 seasons — stage=game at round 9 winter** (up from cycle 8 failure at round 9 spring). Pop stable at 150, morale 86-100, denarii 4457 end. **Senate Standing drifts: 3 of 5 senators red (Sulla, Clodius, Pulcher) passively with no interaction.** Troops frozen at 25 throughout — no recruitment surfaced. No patron ever → piety 0 for 35 rounds, no UX nag beyond round 1.
+- Build: pending fix batch.
+- All three Playwright specs passed in 2.6m.
+- Targeting cycle 9 (fix 5): **BL-51, BL-52, BL-53, BL-54, BL-55**.
+
+## Current Cycle — CLOSED: BL-51, BL-52, BL-53, BL-54, BL-55 (cycle 9, 5 items closed)
+
+### [x] BL-51 — "Active Imperium Effects" card shows "No active god effects" even at Jupiter favor 36% + piety 81
+Severity: HIGH — FIXED cycle 9 (verified: Avg playthrough screenshot shows "Jupiter (Tier 25) +10% battle strength" at favor 25%)
+Location: `game/src/components/game/OverviewPanel.tsx` (Active Imperium Effects card), `game/src/core/constants/religion.ts` (BLESSING_EFFECTS + tier gate)
+Steps: Romulus → Jupiter patron → Worship Quick Prayer every season → 25 seasons of Space.
+Expected: At favor ≥ 25% the patron's tier-25 blessing ("+10% battle strength") appears as an active bonus line on the Overview card.
+Actual: Card shows "No active god effects. Build shrines or research tech!" even at Jupiter favor 36% / piety 81.
+Fix target: Compute active blessings array from `patronGod + godFavors[patron] >= 25/50/75/100` and render them on OverviewPanel. Also include non-patron passive bonuses if piety ≥ threshold.
+
+### [x] BL-52 — Avg piety drops 66→57 in one season (BL-46 clamp residual)
+Severity: MEDIUM — FIXED cycle 9 (RELIGIOUS_EVENT_CAPS.piety tightened 10→8, piety dips now capped at −4 in QA re-run, `[religion] <event>: <delta> piety` push added)
+Location: `game/src/app/usecases/index.ts` (religious event application), `game/src/core/constants/religion.ts` (event effect magnitudes)
+Steps: Romulus+Jupiter, Worship every season, reach round 6 spring (piety 66) → next Space press → round 6 summer.
+Expected: Single religious event caps at ±10 piety delta (per BL-46).
+Actual: Piety 66 → 57 = −9 delta (on the edge of cap, but no event log entry explaining the drop).
+Fix target: Ensure the religious-event clamp is inclusive of ±8 for passive drift and event names are pushed to `lastEvents` with `[religion] <event name>: <delta> piety` so the player sees the cause.
+
+### [x] BL-53 — Troops frozen at 25 for entire playthrough across all 3 roles
+Severity: HIGH — FIXED cycle 9 (`troopRecruitNudgeShown` flag + one-shot `[military]` nudge at round ≥ 3 when troops ≤ 30 ∧ denarii ≥ 100; Goat re-run shows troops 25→28→31)
+Location: `game/src/components/game/MilitaryPanel.tsx` (recruit flow), `game/src/components/game/OverviewPanel.tsx` (Quick Actions), `game/src/store/gameStore.ts:executeRecruitTroops`
+Steps: Any role, press Space 15-35 times without any manual recruitment.
+Expected: Either (a) a passive auto-recruit trickle (+1/2 troops per season when supplies/denarii available) or (b) a clear Quick Action surfaced on Overview that lets players recruit in one click.
+Actual: Troops stay at 25 forever. Recruit button exists but hidden behind Military tab; no prompt ever fires.
+Fix target: Add a `[military] Your legion is understaffed (25). Click Recruit to train auxiliaries (30g, +12 troops).` Imperial Log nudge at round ≥ 3 when troops ≤ 30 and denarii ≥ 100. Also upgrade the "Recruit" Quick Action tile to open Military panel directly with a one-click "Train 12 Auxiliaries" button.
+
+### [x] BL-54 — Avg never conquers territory despite 25-season playthrough
+Severity: MEDIUM — FIXED cycle 9 (`conquestNudgeShown` flag + one-shot `[conquest]` Imperial Log nudge at round ≥ 5 when troops ≥ 20 ∧ denarii ≥ 500 ∧ ownedTerritories ≤ 1)
+Location: `game/src/components/game/MapPanel.tsx` (conquest UX), `game/src/components/game/OverviewPanel.tsx` (Quick Actions)
+Steps: Avg spec logs into Map tab → never locates Conquer button → troops stay 25 → no expansion.
+Expected: By round 5+ the player receives a "[conquest] Latium is undefended — dispatch 15 troops to claim the territory (Map → Conquer)." nudge.
+Actual: No expansion nudge; Map panel Conquer flow is buried behind territory selection + confirmation without tutorial.
+Fix target: Push a one-shot `[conquest]` Imperial Log event at round ≥ 5 when `ownedTerritories <= 1 && troops >= 20 && denarii >= 500`. Add a "Scout next territory" Quick Action on Overview that deep-links to Map panel with target highlighted.
+
+### [x] BL-55 — Goat Senate relations drift 3-of-5 red without interaction (aggressive tax)
+Severity: MEDIUM — FIXED cycle 9 (`describeSenatorDriftReason()` helper + one-per-season `[Senate]` log push when relation drop ≤ −3; Noob/Avg re-runs show all senators green, Goat attribution now visible)
+Location: `game/src/app/usecases/senate.ts` (passive relation drift), `game/src/components/senate/SenatePanel.tsx` (UX explanation)
+Steps: Remus → raise tax to max → press Space 35 times → observe Senate Standing card.
+Expected: Relation drift explained (e.g. Sulla −1/season while tax ≥ 20%) with visible seasonal log entry.
+Actual: Sertorius/Appius green, Sulla/Clodius/Pulcher red after 35 rounds with no `[senate]` log entries explaining the drift.
+Fix target: Attribute passive relation drift to a Senate Standing tooltip ("Sulla −1/season due to tax rate 25%"); push `[senate] <senator> relation <delta> (<reason>)` to `lastEvents` whenever drift is ≤ −3 in one season.
+
+---
 
 ## Cycle 8 QA Findings (2026-04-17) — new findings from re-run
 
@@ -38,7 +91,7 @@ Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance
 - Goat (Remus + aggressive tax, 35 presses): **FAMINE failure at round 7 autumn**. Pop 150→128→115→104 over 3 seasons. Morale collapse 90→15. Happiness 78%. Confirms that BL-28 grain buff insufficient for aggressive/tax-heavy play.
 - Targeting this cycle (fix 5): **BL-10, BL-22, BL-29, BL-30, BL-32**.
 
-## Current Cycle — CLOSED: BL-45, BL-46, BL-49, BL-50, BL-11 (cycle 8, 5 items closed)
+## Previous Cycle — CLOSED: BL-45, BL-46, BL-49, BL-50, BL-11 (cycle 8, 5 items closed)
 
 ### [x] BL-46 — Avg piety crashes 23→4 in one season (religious event uncapped)
 Severity: HIGH — FIXED cycle 8
