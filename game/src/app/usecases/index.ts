@@ -289,6 +289,40 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         }
     }
 
+    // BL-53: One-shot military-recruit nudge — when legion is still starter-sized
+    // and player can afford recruitment, steer them to the Military tab.
+    let newTroopRecruitNudgeShown = state.troopRecruitNudgeShown ?? false;
+    if (
+        !newTroopRecruitNudgeShown &&
+        newRound >= 3 &&
+        state.troops <= 30 &&
+        state.denarii >= 100
+    ) {
+        events.push(
+            `[military] Your legion is understaffed (${state.troops}). Visit Military → Recruit to train Auxiliaries.`
+        );
+        newTroopRecruitNudgeShown = true;
+    }
+
+    // BL-54: One-shot conquest/expansion nudge — when player has resources to
+    // conquer but hasn't expanded past their starting territory, point them at
+    // the Map tab. Avoids passive 25-season playthroughs that never expand.
+    let newConquestNudgeShown = state.conquestNudgeShown ?? false;
+    if (
+        !newConquestNudgeShown &&
+        newRound >= 5 &&
+        state.troops >= 20 &&
+        state.denarii >= 500
+    ) {
+        const ownedTerritories = state.territories.filter(t => t.owned).length;
+        if (ownedTerritories <= 1) {
+            events.push(
+                `[conquest] Latium is undefended — dispatch troops via Map → Conquer to expand your empire (requires 15+ troops, 300d).`
+            );
+            newConquestNudgeShown = true;
+        }
+    }
+
     // Update denarii with tiered deficit protection (extended to round 24)
     let effectiveNetIncome = summary.netIncome;
     if (summary.netIncome < 0) {
@@ -676,6 +710,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
             }
 
             // Apply religious event effects (clamped)
+            // BL-52: log attributed piety change so players see why piety moved.
+            if (clampedFx.piety && Math.abs(clampedFx.piety) >= 4) {
+                const signed = clampedFx.piety > 0 ? `+${clampedFx.piety}` : `${clampedFx.piety}`;
+                events.push(`[religion] ${religiousEvent.name}: ${signed} piety`);
+            }
             if (clampedFx.piety) eventPiety += clampedFx.piety;
             if (clampedFx.happiness) eventHappiness += clampedFx.happiness;
             if (clampedFx.morale) eventMorale += clampedFx.morale;
@@ -1042,6 +1081,8 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         eventCooldowns: newEventCooldowns,
         farmTutorialShown: newFarmTutorialShown,
         housingCapNudgeShown: newHousingCapNudgeShown,
+        troopRecruitNudgeShown: newTroopRecruitNudgeShown,
+        conquestNudgeShown: newConquestNudgeShown,
         insulaeNudgeShown: newInsulaeNudgeShown,
         // BL-49: Preserve spending-nudge cooldown across seasons.
         ...(newSpendingNudgeLastRound !== undefined ? { spendingNudgeLastRound: newSpendingNudgeLastRound } : {}),

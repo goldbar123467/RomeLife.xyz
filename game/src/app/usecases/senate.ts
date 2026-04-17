@@ -114,6 +114,14 @@ export function processSenateSeasonEnd(
     let senators = { ...gameState.senate.senators };
     const attention = gameState.senate.attentionThisSeason || getDefaultAttention();
 
+    // BL-55: Snapshot starting relations so we can attribute drift to a cause at
+    // the end of processing. Goat-run diagnosis showed senators sliding red with
+    // no visible reason in the log.
+    const relationsBefore: Record<SenatorId, number> = {} as Record<SenatorId, number>;
+    for (const id of Object.keys(senators) as SenatorId[]) {
+        relationsBefore[id] = senators[id].relation;
+    }
+
     // === 1. PROCESS ACTION QUEUE (delayed effects from previous events) ===
     const queueResult = processActionQueue(
         gameState.senate.actionQueue,
@@ -268,6 +276,35 @@ export function processSenateSeasonEnd(
                     result.messages.push(`Sertorius speaks of your dishonor (-${sertoriusRepPenalty} reputation)`);
                 }
                 break;
+        }
+    }
+
+    // === 3.6 ATTRIBUTE SEASONAL DRIFT (BL-55) ===
+    // When a senator's seasonal delta is <= -3, push ONE log entry naming the
+    // senator and the most likely cause so players understand why relations
+    // drifted red without direct interaction. Conservative (only largest drop
+    // per season) to avoid log spam.
+    {
+        let worstDrift: { id: SenatorId; delta: number; reason: string } | null = null;
+        for (const id of Object.keys(senators) as SenatorId[]) {
+            const before = relationsBefore[id] ?? senators[id].relation;
+            const after = senators[id].relation;
+            const delta = after - before;
+            if (delta > -3) continue;
+
+            const reason = describeSenatorDriftReason(id, attention[id] ?? 20, gameState);
+            if (!worstDrift || delta < worstDrift.delta) {
+                worstDrift = { id, delta, reason };
+            }
+        }
+        if (worstDrift) {
+            const senatorName = senators[worstDrift.id].name;
+            const deltaSigned = worstDrift.delta > 0 ? `+${worstDrift.delta}` : `${worstDrift.delta}`;
+            // Note: caller prefixes messages with `[Senate]`, so format is already
+            // `[Senate] <Senator Name> relation -4 (reason)` in the Imperial Log.
+            result.messages.push(
+                `${senatorName} relation ${deltaSigned} (${worstDrift.reason})`
+            );
         }
     }
 
@@ -436,6 +473,55 @@ function getDefaultAttention(): AttentionAllocation {
         pulcher: 20,
         oppius: 20,
     };
+}
+
+/**
+ * BL-55: Describe the most likely cause of a seasonal negative drift for a
+ * senator. Prioritizes attention neglect (the mechanical driver), then falls
+ * back to ideological/policy misalignment inferred from game state (tax rate,
+ * piety, happiness, etc). Keep reasons short — they render inline in the log.
+ */
+export function describeSenatorDriftReason(
+    senatorId: SenatorId,
+    senatorAttention: number,
+    gameState: GameState
+): string {
+    // Attention neglect is the primary mechanical driver of passive drift.
+    if (senatorAttention < 10) {
+        return `neglected (attention ${senatorAttention}% — senator feels ignored)`;
+    }
+    if (senatorAttention < 20) {
+        return `low attention (${senatorAttention}% — senator wants more engagement)`;
+    }
+
+    // Ideological / policy-based attribution per senator
+    const taxRate = gameState.taxRate ?? 10;
+    const piety = gameState.piety ?? 0;
+    const happiness = gameState.happiness ?? 0;
+
+    switch (senatorId) {
+        case 'sulla':
+            if (taxRate >= 20) return `tax rate ${taxRate}% — senator demands military spending`;
+            if (gameState.troops < 30) return `weak legion (${gameState.troops} troops — senator despises weakness)`;
+            return 'policy disapproval (senator wants strength and decisive action)';
+        case 'clodius':
+            if (taxRate >= 20) return `tax rate ${taxRate}% — burdens the plebs he champions`;
+            if (happiness < 50) return `low happiness (${Math.round(happiness)}% — senator blames you for unrest)`;
+            return 'populist displeasure (senator demands grain and favor for the mob)';
+        case 'pulcher':
+            if (piety < 30) return `low piety (${Math.round(piety)} — senator demands devotion)`;
+            if (taxRate >= 25) return `tax rate ${taxRate}% — funds diverted from temples`;
+            return 'impiety (senator watches your neglect of the gods)';
+        case 'oppius':
+            if (taxRate >= 25) return `tax rate ${taxRate}% — senator senses trade disruption`;
+            return 'boredom (senator finds your moves predictable)';
+        case 'sertorius':
+            if (taxRate >= 20) return `tax rate ${taxRate}% — senator sees burden on citizens as dishonorable`;
+            if (happiness < 40) return `low happiness (${Math.round(happiness)}% — senator blames poor leadership)`;
+            return 'disappointment (senator expected better of you)';
+        default:
+            return 'political disagreement';
+    }
 }
 
 /**
@@ -647,7 +733,8 @@ export interface ClampedReligiousEventEffect {
 }
 
 const RELIGIOUS_EVENT_CAPS: Record<string, number> = {
-    piety: 10,
+    // BL-52: tighten piety cap 10 -> 8 so a single religious event cannot drop piety below -8.
+    piety: 8,
     happiness: 15,
     morale: 15,
     reputation: 10,

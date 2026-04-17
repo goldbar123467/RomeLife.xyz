@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GlassCard, Button, StatDisplay, ProgressBar, Badge, ResourceIcon, Divider, SectionHeader, GameImage, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui';
 import { RESOURCE_ASSETS } from '@/lib/assets';
-import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS } from '@/core/constants';
+import { RESOURCE_INFO, GAME_CONSTANTS, EMERGENCY_ACTIONS, ROMAN_GODS } from '@/core/constants';
+import { BLESSING_EFFECTS } from '@/core/constants/religion';
 import { getSenatorDangerLevel, getSenatorStateDescription } from '@/core/constants/senate';
 import { calculateProductionSummary, calculateIncomeBreakdown, calculateExpenseBreakdown } from '@/core/math';
 import type { ResourceType, SenatorState } from '@/core/types';
@@ -34,7 +35,7 @@ export function OverviewPanel() {
     const state = useGameStore();
     const {
         founder, round, season, denarii, population, happiness,
-        troops, morale, territories, buildings, piety, patronGod,
+        troops, morale, territories, buildings, piety, patronGod, godFavor,
         inventory, endSeason, technologies, lastEvents,
         emergencyCooldowns, executeEmergency, setTab, senate,
         rallyTroops, rallyTroopsCooldown
@@ -58,8 +59,29 @@ export function OverviewPanel() {
     const totalGarrison = ownedTerritories.reduce((acc, t) => acc + (t.garrison || 0), 0);
     const totalPower = troops + totalGarrison;
 
+    // BL-51: Patron god blessings unlocked via favor (tiers 25/50/75/100)
+    const godBlessings = (() => {
+        if (!patronGod) return [];
+        const favor = godFavor?.[patronGod] ?? 0;
+        const godName = ROMAN_GODS[patronGod]?.name ?? patronGod;
+        const tiers: Array<25 | 50 | 75 | 100> = [25, 50, 75, 100];
+        return tiers
+            .filter(tier => favor >= tier)
+            .map(tier => {
+                const blessing = BLESSING_EFFECTS.find(b => b.god === patronGod && b.tier === tier);
+                return {
+                    name: `${godName} (Tier ${tier})`,
+                    type: 'blessing',
+                    value: blessing?.description ?? `Tier ${tier} blessing active`,
+                    icon: Zap,
+                    iconColor: 'text-purple-400',
+                };
+            });
+    })();
+
     // Calculate Active Effects (multiply by count for stacking)
     const activeEffects = [
+        ...godBlessings,
         ...builtBuildings.flatMap(b => b.effects.map(e => ({
             name: `${b.name}${b.count > 1 ? ` x${b.count}` : ''}`,
             type: e.type,
@@ -74,7 +96,7 @@ export function OverviewPanel() {
             icon: ScrollText,
             iconColor: 'text-purple-400'
         })))
-    ].slice(0, 6);
+    ].slice(0, 8);
 
     // Crisis Detection
     const grainAmount = inventory.grain || 0;
