@@ -17,7 +17,7 @@ import {
     TERRITORY_LEVELS, TERRITORY_BUILDINGS, calculateMaxGarrison
 } from '@/core/constants';
 import {
-    calculateBattleOdds, calculateEnemyStrength, resolveBattle
+    calculateBattleOdds, calculateEnemyStrength, resolveBattle, randomFloat
 } from '@/core/math';
 import { calculateBlessingBonus } from '@/core/constants/religion';
 import { createInitialSenators, DEFAULT_ATTENTION, clampRelation } from '@/core/constants/senate';
@@ -739,7 +739,20 @@ export const useGameStore = create<GameStore>()(
                 const state = get();
                 if (!state.battle) return;
 
-                const result = resolveBattle(state.battle.playerStrength, state.battle.enemyStrength, state.battle.odds);
+                // Apply weather variance ONCE at resolution time (~10% swing).
+                // Displayed odds stay deterministic; actual outcome uses a
+                // perturbed effective strength to reroll the odds threshold.
+                const varianceMultiplier = randomFloat(0.9, 1.1);
+                const effectivePlayerStrength = state.battle.playerStrength * varianceMultiplier;
+                const effectiveOdds = Math.min(
+                    0.99,
+                    Math.max(
+                        0.01,
+                        effectivePlayerStrength / (effectivePlayerStrength + state.battle.enemyStrength)
+                    )
+                );
+
+                const result = resolveBattle(state.battle.playerStrength, state.battle.enemyStrength, effectiveOdds);
 
                 // Apply Mars blessing: -30% casualties at tier 100
                 const marsCasualtyBonus = calculateBlessingBonus(state.patronGod, state.godFavor, 'casualties');

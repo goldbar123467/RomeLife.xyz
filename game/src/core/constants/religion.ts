@@ -350,10 +350,15 @@ export function calculateBlessingBonus(
 }
 
 /**
- * Roll for a religious event
+ * Roll for a religious event.
+ * Accepts an optional cooldowns map (eventId -> rounds remaining) to skip
+ * events that are still on cooldown.
  */
-export function rollReligiousEvent(): ReligiousEvent | null {
+export function rollReligiousEvent(
+  cooldowns?: Record<string, number>
+): ReligiousEvent | null {
   for (const event of RELIGIOUS_EVENTS) {
+    if (cooldowns && (cooldowns[event.id] ?? 0) > 0) continue;
     if (Math.random() < event.probability) {
       return event;
     }

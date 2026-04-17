@@ -479,8 +479,11 @@ export function calculateBattleOdds(
     const cappedTechMult = Math.min(GAME_CONSTANTS.MAX_TECH_MULTIPLIER, totalTechMult);
     playerStrength *= cappedTechMult;
 
-    // Weather variance
-    playerStrength *= randomFloat(0.9, 1.1);
+    // NOTE: Weather variance (randomFloat 0.9..1.1) is intentionally NOT applied
+    // here so that the displayed odds reflect the true deterministic expected
+    // win rate. The ~10% variance is applied exactly once inside resolveBattle
+    // (see src/store/gameStore.ts resolveBattleAction) when rolling the actual
+    // outcome.
 
     const rawOdds = playerStrength / (playerStrength + enemyStrength);
     const odds = Math.min(0.99, Math.max(0.01, rawOdds));

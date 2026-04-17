@@ -435,8 +435,11 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
     // Only trigger if player has engaged with religion (piety > 20)
     let religiousEvent: ReligiousEvent | null = null;
     if (state.piety > 20) {
-        religiousEvent = rollReligiousEvent();
+        // Pass the already-decayed cooldowns map so we skip religious events still on cooldown
+        religiousEvent = rollReligiousEvent(newEventCooldowns);
         if (religiousEvent) {
+            // Record cooldown for this religious event (same 4-round pattern as empire events)
+            newEventCooldowns[religiousEvent.id] = EVENT_COOLDOWN_ROUNDS;
             events.push(`${religiousEvent.icon} ${religiousEvent.name}: ${religiousEvent.description}`);
 
             // Apply religious event effects
@@ -556,16 +559,16 @@ export function executeEndSeason(state: GameState): EndSeasonResult {
         return { ...q, progress, completed };
     });
 
-    // Minerva tier 50: +1 free tech every 3 rounds (buffed from 5)
-    // Minerva tier 75: +2 free techs every 3 rounds
+    // Minerva tier 50: +1 free tech every 3 rounds (buffed from every 5)
+    // Minerva favor >= 75: grants +2 free techs per trigger instead of +1
     let newTechnologies = state.technologies;
     const minervaFreeTech = calculateBlessingBonus(state.patronGod, state.godFavor, 'freeTech');
     if (minervaFreeTech > 0 && newRound % 3 === 0 && newRound > 0) {
         const unresearchedTechs = newTechnologies.filter(t => !t.researched);
         if (unresearchedTechs.length > 0) {
-            // At tier 75+, grant 2 techs instead of 1
-            const minervaTier75 = calculateBlessingBonus(state.patronGod, state.godFavor, 'buildingEfficiency');
-            const techsToGrant = minervaTier75 > 0 ? 2 : 1;
+            // At Minerva favor >= 75, grant 2 techs instead of 1
+            const minervaFavor = state.patronGod === 'minerva' ? (state.godFavor.minerva ?? 0) : 0;
+            const techsToGrant = minervaFavor >= 75 ? 2 : 1;
 
             for (let i = 0; i < techsToGrant && i < unresearchedTechs.length; i++) {
                 const randomTech = unresearchedTechs[i];
@@ -928,8 +931,12 @@ export function executeTrade(
             if (focusData.bonus.tariffReduction) focusTariffReduction += focusData.bonus.tariffReduction;
         }
     }
+    // Clamp cumulative tariff reduction from territory focuses to prevent inversion
+    focusTariffReduction = Math.min(0.80, focusTariffReduction);
 
-    const tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction); // mercuryTariffBonus is negative (-0.20)
+    let tariffMod = 1 - city.tariff * (1 + mercuryTariffBonus - focusTariffReduction); // mercuryTariffBonus is negative (-0.20)
+    // Clamp tariffMod: cannot invert to revenue bonus, cannot exceed 100% reduction
+    tariffMod = Math.max(0, Math.min(1, tariffMod));
 
     if (!riskResult.success) {
         // Trade failed - lose some resources

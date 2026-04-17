@@ -423,7 +423,7 @@ export const GAME_CONSTANTS = {
      * High risk routes are still dangerous but not suicidal.
      * @balance Difficulty: Medium | Affects: Long-distance trade
      */
-    TRADE_RISK_MAX: 0.25,
+    TRADE_RISK_MAX: 0.40,
 
     /**
      * Bonus multiplier applied to trade prices.
