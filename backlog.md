@@ -1,8 +1,14 @@
 # backlog.md — Rome Empire Builder QA Backlog
 
-Generated: 2026-04-17 (cycle 2: 2026-04-17)
+Generated: 2026-04-17 (cycle 3: 2026-04-17)
 Cap: 25 open items. Keep under this threshold.
 Source: three-role QA playthrough (Noob/Avg/Goat) + code audit + systems-balance-critic.
+
+## Cycle 3 QA Findings (2026-04-17)
+- Noob (Romulus default): survives to round 6-7 but pop drops 150 → 122 by winter r7. Stagnating.
+- Avg (Romulus+Jupiter): round 7, DEFICIT -24% badge shown, Starvation warning triggered, emergency actions surface. Pop: 114 (dropping from 150 start).
+- Goat (Remus+aggressive tax): FAMINE failure at round 7. Confirms BL-28 critical.
+- Targeting this cycle (fix 5): BL-28, BL-24, BL-18, BL-26, BL-27.
 
 ## Current Cycle (Round 1 — FIXED this pass: BL-06, BL-07, BL-15, BL-21, BL-23)
 
@@ -45,8 +51,9 @@ Severity: LOW — `1.03^round` past round 50 outpaces linear resource growth. Fi
 ### BL-14 — Territory count fluctuates between rounds
 Severity: LOW — UI/state desync; investigate `territories` derivation and round-start snapshot.
 
-### BL-18 — Population growth floor silent death spiral
+### [x] BL-18 — Population growth floor silent death spiral
 Severity: LOW — `calculatePopulationGrowth` returns −1 when sanitation < 15 with excess housing; no UI warning. Fix: sanitation-critical warning + recovery surface.
+Fix applied: `game/src/app/usecases/index.ts` endSeason pushes `[!] Sanitation critical (...) — population declining from disease. Build a Bathhouse/Aqueduct.` to `lastEvents` when popGrowth < 0 && sanitation < 15 && population < housing.
 
 ### BL-19 — xorshift32 PRNG dead code; non-deterministic games
 Severity: LOW — PRNG defined but `random()` uses `Math.random()`. Fix: remove dead code or wire `random()` to seed.
@@ -54,8 +61,9 @@ Severity: LOW — PRNG defined but `random()` uses `Math.random()`. Fix: remove 
 ### BL-22 — Avg: worship cooldown UI unclear
 Severity: LOW — After worship, button greys out with no cooldown timer visible. Fix: show "Cooldown: 2 seasons" on disabled buttons.
 
-### BL-24 — Population happiness floor too brittle for Noob
+### [x] BL-24 — Population happiness floor too brittle for Noob
 Severity: MEDIUM — Happiness tanks to 12% by round 12; doc threshold (25%) triggers failure. Fix: linear-ramp failure threshold (25% → 20% rounds 12-20).
+Fix applied: `game/src/core/rules/index.ts` `getHappinessFailureThreshold(round)` ramps 15% (rounds 1-12) → 25% (round 20+) with linear interpolation; `checkFailureConditions` uses it instead of static `FAILURE_MIN_HAPPINESS` (now deprecated in constants).
 
 ### BL-25 — 3-role spec round counter reads −1 (store not on window)
 Severity: LOW (tooling) — `tests/three-roles-qa.spec.ts` can't read round; `window.__gameStore` not exposed. Fix: expose zustand store on window in dev OR scrape DOM TerminalHeader.
@@ -64,23 +72,19 @@ Severity: LOW (tooling) — `tests/three-roles-qa.spec.ts` can't read round; `wi
 
 ## Round 2 — New Items from QA (3 items)
 
-### BL-26 — DB save API spams errors when Postgres unavailable
+### [x] BL-26 — DB save API spams errors when Postgres unavailable
 Severity: MEDIUM — `game/src/app/api/game/save/route.ts`
-Symptom: 50+ `DrizzleQueryError: connect ECONNREFUSED 127.0.0.1:5432` stack traces per test run.
-Repro: run any Playwright test without `pg` running; every `endSeason()` triggers a failed save.
-Fix: try/catch around db call; log as warning once per session, swallow otherwise. Game must still work.
+Fix applied: try/catch wraps all db operations with module-level `dbUnavailable` flag. First ECONNREFUSED (checked via code/cause/message) logs single `[db] Postgres unavailable, saves disabled for session` warning; subsequent POSTs short-circuit to `{ ok: true, saved: false, reason: 'db_unavailable' }` (200). Non-connection errors log once with code and still return 200 so client UX is unaffected.
 
-### BL-27 — `game-qa.spec.ts` intro text outdated
+### [x] BL-27 — `game-qa.spec.ts` intro text outdated
 Severity: LOW (tooling) — `game/tests/game-qa.spec.ts:16`
-Symptom: 12/13 tests fail at startup on `getByText('FOUNDING OF ROME')`; intro renamed to "ROME LIFE".
-Repro: `cd game && npx playwright test tests/game-qa.spec.ts`
-Fix: update locator to `/ROME LIFE/i` or `/Begin Your Legacy/i`.
+Fix applied: `getByText('FOUNDING OF ROME')` replaced with `getByRole('button', { name: /Begin Your Legacy/i })` at line 16 (and matching intro-screen test). Locator now targets the persistent CTA button rather than the renamed title.
 
-### BL-28 — Early famine at round 5-6 for Avg/Goat despite grace period
+### [x] BL-28 — Early famine at round 5-6 for Avg/Goat despite grace period
 Severity: MEDIUM — `game/src/app/usecases/index.ts` consumption path
 Symptom: Avg (Romulus+Jupiter worship) and Goat (Remus+tax push) both hit Famine failure by round 5-6 with starting grain 120 and grace-period 75% consumption claimed for rounds 1-8.
 Repro: start game, pick any patron, press Space 5-6×, observe Famine failure with no negative plays.
-Fix: verify GRACE_MULTIPLIERS round-boundary indexing, confirm starting grain matches consumption curve, or raise starting grain to 150. Related to BL-24 but distinct (pacing, not threshold).
+Fix applied: Starting grain raised to 750 (capacity 900) in `gameStore.ts` initial state — far exceeds the 150 target, absorbs the 4-season pre-Farm-Complex structural deficit. Verified `GRACE_MULTIPLIERS` indexing in `math/index.ts:403` uses `round <= maxRound` (no off-by-one; rounds 1-8 → 0.5×, 9-14 → 0.65×, etc.). Defensive `[BL-28][pacing]` console.warn in `usecases/index.ts:76` catches future regressions.
 
 ---
 
